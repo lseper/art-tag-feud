@@ -1,0 +1,22 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "module": "commonjs",
+        "outDir": "./dist/server",
+        "moduleResolution": "node",
+        "strict": true,
+        "sourceMap": true,
+        "allowSyntheticDefaultImports": true,
+        "resolveJsonModule": true,
+        "esModuleInterop": true,
+        "noFallthroughCasesInSwitch": true,
+        "rootDir": "./",
+        "typeRoots": [
+            "node_modules/@types"
+        ]
+    },
+    "exclude": [
+        "dist",
+        "node_modules"
+    ]
+}
