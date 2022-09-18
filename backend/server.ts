@@ -82,7 +82,6 @@ const getUser = (socket: WebSocket, userID?: string): string => {
         userSockets.set(newUserID, socket);
         // add to regular users map
         users.set(newUserID, createdUser);
-        console.log(`Created User_${createdUser.id}`);
         return newUserID;
     }
     return userID;
@@ -170,15 +169,14 @@ const leaveRoom = (server: WebSocketServer, userID: string, roomID: string) => {
 
 server.on("connection", response => {
     numUsers += 1;
-    console.log(`${numUsers} users have connected!`);
 
     // handle tag guess
     response.on("message", async (data) => {
         const dataJSON = JSON.parse(data.toString());
         const messageType = dataJSON.type;
-        console.log(messageType);
         switch(messageType) {
             case EventType.enum.GUESS_TAG: {
+                // TODO: guess parsing on server-side to validate that it has not already been guessed
                 const result = GuessTagEventData.safeParse(dataJSON);
                 if(!result.success) {
                     break;
@@ -189,13 +187,15 @@ server.on("connection", response => {
                 if(!room) {
                     break;
                 } 
-                // TODO: Send guess to people in room ONLY. Also need to modify the .data sent from client to also include:
                 // broadcast the tag guessed to ALL members of the room, and user that guessed it
                 const userToUpdateScore = users.get(data.user.id);
                 if(userToUpdateScore) {
+                    // short-circuit if user has already finished the round
+                    if(room.allUsersReady.get(userToUpdateScore.id)) {
+                        break;
+                    }
                     userToUpdateScore.score += data.tag.score;
                     const guessTagData = {type: EventType.enum.GUESS_TAG, tag: data.tag, user: userToUpdateScore};
-                    console.log(`${dataJSON.tag.name} was guessed!`);
                     broadcastToRoom(room, guessTagData);
                 }
                 break;
@@ -206,14 +206,11 @@ server.on("connection", response => {
                     break;
                 }
                 const data = result.data;
-                console.log(data.userID);
                 const userID = getUser(response, data.userID);
                 const user = users.get(userID);
                 if(user) {
-                    console.log('changing username...')
                     user.username = data.username;
                     const userToChangeResponseData: SetUsernameEventDataToClient = {type: EventType.enum.SET_USERNAME, user};
-                    console.log('sending changed username...');
                     reply(response, userToChangeResponseData);
                 }
                 break;
@@ -249,11 +246,9 @@ server.on("connection", response => {
                 }
                 const { roomID } = result.data;
                 const room = rooms.get(roomID);
-                console.log("getting room for all icons...")
                 if(!room) {
                     break;
                 }
-                console.log('got room for all icons!')
                 const selectedIconsWithNulls = [...room.allUsersReady.entries()].map(entry => {
                     const userID = entry[0];
                     const user = users.get(userID);
@@ -269,7 +264,6 @@ server.on("connection", response => {
                     }
                 });
                 const data : GetSelectedIconsEventDataToClient = {type: EventType.enum.GET_SELECTED_ICONS, selectedIcons}
-                console.log(selectedIcons);
                 reply(response, data);
                 break;
             }
@@ -280,7 +274,6 @@ server.on("connection", response => {
                 }
                 const data = result.data;
                 // first time user, create them
-                console.log('create room userID', data.userID);
                 const userID = getUser(response, data.userID);
                 // create the room
                 let newRoomID = v4();
@@ -289,7 +282,6 @@ server.on("connection", response => {
                 }
                 const user = users.get(userID);
                 const userSocket = userSockets.get(userID);
-                console.log(`${user?.id} is creating a room...`)
                 if(user && userSocket) {
                     // setup the userReady map for the room
                     const newRoomAllUsersReady = new Map<string, boolean>();
@@ -300,7 +292,6 @@ server.on("connection", response => {
                     rooms.set(newRoomID, newRoom);
                     const readyStates: UserReadyState[] = getReadyStates(newRoom);
                     const roomToClient = {roomID: newRoom.id, readyStates: readyStates, owner: user};
-                    console.log('replying to user that they have joined the room...');
                     // broadcase to the user their updated roomID
                     broadcast<JoinRoomEventDataToClient>(server, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient})
                 }
@@ -357,7 +348,6 @@ server.on("connection", response => {
                         roomToSendPost.postQueue = await getPosts();
                     }
 
-                    console.log("Checking if the room is ready");
                     if(roomIsReadyForNewPost(roomToSendPost)) {
                         // they've completed the round, show the leaderboard
                         if(roomToSendPost.postsViewedThisRound >= POSTS_PER_ROUND) {
@@ -366,7 +356,6 @@ server.on("connection", response => {
                             break;
                         }
                         const postToSend = roomToSendPost.postQueue.shift()!;
-                        console.log("broadcasting post to room");
                         broadcastToRoom<RequestPostEventDataToClient>(roomToSendPost, {type: EventType.enum.REQUEST_POST, post: postToSend});
                         roomToSendPost.postsViewedThisRound += 1;
                         // reset ready map to all false
@@ -382,7 +371,6 @@ server.on("connection", response => {
                 break;
             }
             case EventType.enum.READY_UP: {
-                // TODO this lol
                 const result = ReadyUpEventData.safeParse(dataJSON);
                 if(!result.success) {
                     break;
@@ -395,7 +383,6 @@ server.on("connection", response => {
                     const userToChangeIndex = readyStates.findIndex(readyState => readyState.user.id === data.userID);
                     if(userToChangeIndex >= 0){
                         readyStates[userToChangeIndex].ready = data.ready;
-                        console.log(`Successfully changed user's ready state to ${readyStates[userToChangeIndex].ready}`)
                         const updatedRoom = {roomID: room.id, readyStates: readyStates, owner: user};
                         room.allUsersReady.set(data.userID, data.ready);
                         broadcastToRoom<ReadyUpEventDataToClient>(room, {type: EventType.enum.READY_UP, roomID: room.id, room: updatedRoom})
@@ -427,7 +414,6 @@ server.on("connection", response => {
     })
 
     response.on("close", code => {
-        console.log("Client has disconnected");
         purgeUserOnDisconnect(response);
     })
 });

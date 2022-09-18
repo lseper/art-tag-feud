@@ -96,7 +96,7 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
     const renderRoom = useCallback((room: ClientRoom) => {
         const {roomID, readyStates, owner} = room;
         return (
-            <li key={roomID}>
+            <li key={roomID} style={{paddingTop: 4}}>
                 <RoomNameContainer>
                     <p>
                         {`${owner.username}'s Room`}
@@ -124,10 +124,8 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
                         e621 Tag Feud
                     </TitleText>
                     <InfoBar>
-                        <a href="google.com">contribute</a>
+                        <a href="https://github.com/Zaverose/e621-tag-feud">contribute</a>
                         <a href="https://twitter.com/zaverose_nsfw">twitter</a>
-                        <a href="google.com">website</a>
-                        <a href="google.com">:3</a>
                     </InfoBar>
                     <label form="roomIDForm">
                             Log in wtih a username
@@ -167,10 +165,8 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
     </BlurredImage>
     <BlurredImage style={{gridArea: 'e6-create', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
         <InfoBar>
-            <a href="google.com">contribute</a>
+            <a href="https://github.com/Zaverose/e621-tag-feud">contribute</a>
             <a href="https://twitter.com/zaverose_nsfw">twitter</a>
-            <a href="google.com">website</a>
-            <a href="google.com">:3</a>
         </InfoBar>
     </BlurredImage>
     <TitleContainer style={{gridArea: 'rooms', width: 'auto', marginLeft: '1rem', marginRight: '1rem'}}>

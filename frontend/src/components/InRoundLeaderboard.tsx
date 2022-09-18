@@ -86,6 +86,7 @@ const InRoundLeaderboardName = styled.p`
     color: ${p => p.theme.cPrimaryText};
     transition: color .2s;
     font-size: 1em;
+    font-weight: bold;
     padding-right: 8px;
 
     &.dark {
