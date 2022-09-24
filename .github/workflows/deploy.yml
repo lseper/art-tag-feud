@@ -10,9 +10,9 @@ jobs:
       # build to build directory
       - name: build app
         working-directory: ./frontend
-        run: npm i
-        run: npm run build --if-present
-      
+      - run: |
+          npm i
+          npm run build --if-present
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v1.2
         with:
