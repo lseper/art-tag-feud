@@ -1,15 +1,9 @@
 import EventManager from "./EventManager";
 import type { EventType } from "../types";
+import config from '../components/config/constants';
 
 export type SocketCallBack<T> = (data: T) => void | Promise<void>;
 
-// TODO: change this to be env-specific
-// TODO: this is currently never connecting ;~;
-// local deployment URL: ws://localhost:8082
-// production deployment URL: http://e621-tag-feud-server.fly.dev
-const port = 8080;
-const location = "e621-tag-feud-server.fly.dev"
-const URL = `wss://${location}`;
 export class ConnectionManager {
     private static instance: ConnectionManager;
     private socket: WebSocket;
@@ -24,7 +18,7 @@ export class ConnectionManager {
      * construction calls with the `new` operator.
      */
     private constructor() {
-        this.socket = new WebSocket(URL);
+        this.socket = new WebSocket(config.url);
         this.queue = [];
         this.socket.onopen = () => {
             console.log("I am connecting to the server");
