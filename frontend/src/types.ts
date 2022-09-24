@@ -30,7 +30,7 @@ export const PostTag = z.object({
 export const Post = z.object({
     id: z.number(),
     url: z.string(),
-    tags: z.array(Tag)
+    tags: z.array(PostTag)
 })
 
 export const User = z.object({
@@ -67,7 +67,7 @@ export const LeaveRoomEventData = z.object({
 });
 export const GuessTagEventData = z.object({
     user: User,
-    tag: Tag,
+    tag: PostTag,
     roomID: z.string(),
     type: z.literal(EventType.enum.GUESS_TAG)
 });
@@ -144,7 +144,7 @@ export const AllRoomsEventDataToClient = z.object({
 });
 
 export const GuessTagEventDataToClient = z.object({
-    tag: Tag,
+    tag: PostTag,
     user: User,
     type: z.literal(EventType.enum.GUESS_TAG)
 });
