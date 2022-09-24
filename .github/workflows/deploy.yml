@@ -8,6 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       # build to build directory
+      - run: cd ../frontend
       - run: npm i
       - run: npm run build --if-present
       
