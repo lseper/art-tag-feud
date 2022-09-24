@@ -1,14 +1,14 @@
 import { UserContext } from '../contexts/UserContext';
-import { useContext, useMemo, useState, useEffect, useCallback } from 'react';
+import { useContext, useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
-import { Container, List, Header, TitleText, TitleContainer } from '../components/StyledElements';
-import { GetSelectedIconsEventData, GetSelectedIconsEventDataToClient, JoinRoomEventDataToClient, LeaveRoomEventDataToClient, SetUserIconEventData, SetUserIconEventDataToClient, UserReadyState } from '../types';
+import { GetSelectedIconsEventData, GetSelectedIconsEventDataToClient, SetUserIconEventData, SetUserIconEventDataToClient } from '../types';
 import { EventType } from '../types';
 import { icons, buildUIIconImg } from '../util/UIUtil';
+import type {IconData} from '../util/UIUtil';
 
 type Props = {
   className?: string;
-  allIcons: string[];
+  allIcons: IconData[];
 }
 
 const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
@@ -70,50 +70,71 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
   }, [getSelectedIcons])
 
   return (
-    <div style={{gridArea: 'icons', marginTop: 32}}>
         <IconList>
           {
             icons.map((gameIcon) => {
                 let buttonClass;
-                if(icon === gameIcon) {
+                if(icon === gameIcon.file) {
                     buttonClass = 'selected';
                 } else {
-                    if(selectedIcons.includes(gameIcon)) {
+                    if(selectedIcons.includes(gameIcon.file)) {
                         buttonClass = 'disabled';
                     } else {
                         buttonClass = 'selectable';
                     }
                 }
-                return <li className={buttonClass}><button onClick={() => selectIcon(gameIcon)}>{buildUIIconImg('./profile_icons/', gameIcon)}</button></li>;
+                return <li className={buttonClass}>
+                  <CharacterName>{gameIcon.character}</CharacterName>
+                  <button onClick={() => selectIcon(gameIcon.file)}>{buildUIIconImg('./profile_icons/', gameIcon.file)}</button>
+                  <IconArtist href={gameIcon.source}>
+                    <span style={{color: '#b4c7d9'}}>art by </span>
+                    {gameIcon.artist}
+                    </IconArtist>
+                  </li>;
             })
           }
         </IconList>
-    </div>
   );
 }
 
 // TODO: artist credit
-const IconArtist = styled.p`
+const IconArtist = styled.a`
   opacity: 0;
   transition: opacity .2s;
-
+  text-decoration: none;
   &:hover {
     opacity: 1
   }
 
   &:focus {
-    opacity: 1;
+    opacity: 0.5;
   }
 `
 
+const CharacterName = styled.p`
+  font-size: 1rem;
+  color: #b4c7d9;
+  z-index: 4;
+`
+
 const IconList = styled.ul`
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  flex-wrap: wrap;
+  grid-area: 'icons';
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr 1fr;
+  margin-top: 32;
 
   li {
     position: relative;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+
+    padding: 8px;
+
     transition: filter .2s, transform .2s;
     &.disabled {
         filter: brightness(40%);
@@ -141,6 +162,18 @@ const IconList = styled.ul`
         transform: scale(1.25);
         filter: brightness(115%);
     }
+
+    a {
+      opacity: 0;
+      transition: opacity .2s;
+    }
+
+    &:hover {
+      a {
+        opacity: 1;
+      }
+    }
+
     button {
         background-color: transparent;
         border: none;
@@ -151,6 +184,18 @@ const IconList = styled.ul`
         height: 70px;
         border: 5px solid ${p => p.theme.cBodyLight};
         border-radius: 50%;
+      }
+    }
+
+    a {
+      opacity: 0;
+      transition: opacity .2s;
+      &:hover {
+        opacity: 1
+      }
+
+      &:focus {
+        opacity: 0.5;
       }
     }
   }
