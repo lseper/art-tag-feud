@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v2
       # build to build directory
       - name: build app
-        run:
+        run: |
           npm i
           npm run build
         working-directory: ./frontend
