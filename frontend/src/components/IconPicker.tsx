@@ -67,7 +67,7 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
     // get selected icons on mount
     console.log('getting initial selected icons...')
     getSelectedIcons();
-  }, [])
+  }, [getSelectedIcons])
 
   return (
     <div style={{gridArea: 'icons', marginTop: 32}}>
@@ -91,6 +91,20 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
     </div>
   );
 }
+
+// TODO: artist credit
+const IconArtist = styled.p`
+  opacity: 0;
+  transition: opacity .2s;
+
+  &:hover {
+    opacity: 1
+  }
+
+  &:focus {
+    opacity: 1;
+  }
+`
 
 const IconList = styled.ul`
   display: flex;

@@ -3,7 +3,13 @@ import type { EventType } from "../types";
 
 export type SocketCallBack<T> = (data: T) => void | Promise<void>;
 
-const URL = "ws://localhost:8082";
+// TODO: change this to be env-specific
+// TODO: this is currently never connecting ;~;
+// local deployment URL: ws://localhost:8082
+// production deployment URL: http://e621-tag-feud-server.fly.dev
+const port = 8080;
+const location = "e621-tag-feud-server.fly.dev"
+const URL = `wss://${location}`;
 export class ConnectionManager {
     private static instance: ConnectionManager;
     private socket: WebSocket;
