@@ -1,8 +1,8 @@
-import { Post } from '../types';
+import type { PostType } from '../types';
 import styled from 'styled-components';
 
 interface Props {
-    post?: Post;
+    post?: PostType;
     className?: string;
 }
 

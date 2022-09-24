@@ -1,7 +1,7 @@
 import { UserContext } from '../contexts/UserContext';
 import { useContext, useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
-import { GetSelectedIconsEventData, GetSelectedIconsEventDataToClient, SetUserIconEventData, SetUserIconEventDataToClient } from '../types';
+import type { GetSelectedIconsEventDataType, GetSelectedIconsEventDataToClientType, SetUserIconEventDataType, SetUserIconEventDataToClientType } from '../types';
 import { EventType } from '../types';
 import { icons, buildUIIconImg } from '../util/UIUtil';
 import type {IconData} from '../util/UIUtil';
@@ -16,7 +16,7 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
   const {userID, roomID, icon, setIcon, connectionManager, readyStates, setReadyStates} = useContext(UserContext);
 
   useEffect(() => {
-    const onIconSelected = (data: SetUserIconEventDataToClient) => {
+    const onIconSelected = (data: SetUserIconEventDataToClientType) => {
         const {icon, pastIcon } = data;
         const iconSetterUserID = data.userID;
         let newSelectedIcons = icon ? [...selectedIcons, icon] : [...selectedIcons];
@@ -31,7 +31,7 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
         }
     }
 
-    const onAllSelectedIcons = (data: GetSelectedIconsEventDataToClient) => {
+    const onAllSelectedIcons = (data: GetSelectedIconsEventDataToClientType) => {
       console.log('setting initially selected icons');
       const newSelectedIcons = data.selectedIcons;
       console.log(newSelectedIcons);
@@ -39,8 +39,8 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
     }
 
     const unsubscribers = [
-        connectionManager.listen<SetUserIconEventDataToClient>(EventType.enum.SET_ICON, onIconSelected),
-        connectionManager.listen<GetSelectedIconsEventDataToClient>(EventType.enum.GET_SELECTED_ICONS, onAllSelectedIcons),
+        connectionManager.listen<SetUserIconEventDataToClientType>(EventType.enum.SET_ICON, onIconSelected),
+        connectionManager.listen<GetSelectedIconsEventDataToClientType>(EventType.enum.GET_SELECTED_ICONS, onAllSelectedIcons),
     ];
 
     return () => {
@@ -50,7 +50,7 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
 
   const selectIcon = (gameIcon: string) => {
     if(userID && roomID && !selectedIcons.includes(gameIcon)) {
-        const data: SetUserIconEventData = {type: EventType.enum.SET_ICON, userID, roomID, icon: gameIcon}
+        const data: SetUserIconEventDataType = {type: EventType.enum.SET_ICON, userID, roomID, icon: gameIcon}
         setIcon(gameIcon);
         connectionManager.send(data);
     }
@@ -58,7 +58,7 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
 
   const getSelectedIcons = useCallback(() => {
     if(roomID) {
-      const data : GetSelectedIconsEventData = {type: EventType.enum.GET_SELECTED_ICONS, roomID};
+      const data : GetSelectedIconsEventDataType = {type: EventType.enum.GET_SELECTED_ICONS, roomID};
       connectionManager.send(data);
     }
   }, [connectionManager, roomID])

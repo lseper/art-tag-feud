@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useContext } from 'react';
-import type { GuessTagEventData, GuessTagEventDataToClient, Tag, User } from './types';
+import type { GuessTagEventDataType, GuessTagEventDataToClientType, PostTagType, UserType } from './types';
 import alias_data_untyped from './data/tag-aliases.json'
 import { UserContext } from './contexts/UserContext';
 import { EventType } from './types';
@@ -15,21 +15,22 @@ function checkAlias(tag_name: string) : string {
     }
 }
 // custom hook, returns an object that has the CurrentPost, and an update callback function that we define
-export default function useTagListGuesser(startingTags : Tag[]) : [
-    Tag[], Tag[], (guess: string) => boolean, () => void, () => void
+export default function useTagListGuesser(startingTags : PostTagType[]) : [
+    PostTagType[], (guess: string) => boolean
 ] {
     // want component re-rendering when this changes
-    const [guessedTags, setGuessedTags] = useState<Tag[]>([]);
+    const [guessedTags, setGuessedTags] = useState<PostTagType[]>([]);
     const [hiddenTags, setHiddenTags] = useState(startingTags);
     const {connectionManager, username, readyStates, setReadyStates, userID, roomID, score} = useContext(UserContext);
 
-    function revealAllTags() {
-        setGuessedTags([...guessedTags, ...hiddenTags]);
-    }
+    // TODO: uncomment once reveal all tags functionality is added
+    // function revealAllTags() {
+    //     setGuessedTags([...guessedTags, ...hiddenTags]);
+    // }
 
-    function hideAllTags() {
-        setGuessedTags([]);
-    }
+    // function hideAllTags() {
+    //     setGuessedTags([]);
+    // }
 
     // reset on new post
     useEffect(() => {
@@ -37,8 +38,8 @@ export default function useTagListGuesser(startingTags : Tag[]) : [
         setGuessedTags([]);
     }, [startingTags])
 
-    const handleGuess = useCallback((guess: string) : {isCorrect: boolean, tag?: Tag} => {
-        let tagIndex = hiddenTags.findIndex((tag : Tag) => tag.name === guess);
+    const handleGuess = useCallback((guess: string) : {isCorrect: boolean, tag?: PostTagType} => {
+        let tagIndex = hiddenTags.findIndex((tag : PostTagType) => tag.name === guess);
         if(guessedTags.some(tag => tag.name === guess)){
             // console.log('short circuiting, already guessed');
             return {isCorrect: false};
@@ -50,7 +51,7 @@ export default function useTagListGuesser(startingTags : Tag[]) : [
                 // short-circuit on faulty guess, return false for did not guess tag correctly
                 return {isCorrect: false};
             }
-            tagIndex = hiddenTags.findIndex((tag : Tag) => tag.name === guess)
+            tagIndex = hiddenTags.findIndex((tag : PostTagType) => tag.name === guess)
             if(tagIndex === -1) {
                 return {isCorrect: false};
             }
@@ -66,8 +67,8 @@ export default function useTagListGuesser(startingTags : Tag[]) : [
         if(userID && roomID && isCorrect && tag != null) {
             // TODO: emit username as well
             const usernameToSend = username ?? 'DEFAULT_USERNAME';
-            const userToSend: User = {id: userID, score, username: usernameToSend, roomID};
-            const data: GuessTagEventData = {type: EventType.enum.GUESS_TAG, tag, user: userToSend, roomID};
+            const userToSend: UserType = {id: userID, score, username: usernameToSend, roomID};
+            const data: GuessTagEventDataType = {type: EventType.enum.GUESS_TAG, tag, user: userToSend, roomID};
             connectionManager.send(data);
         }
         return isCorrect;
@@ -75,7 +76,7 @@ export default function useTagListGuesser(startingTags : Tag[]) : [
 
     useEffect(() => {
         // console.log("adding event listener...");
-        const onGuess = (data: GuessTagEventDataToClient) => {
+        const onGuess = (data: GuessTagEventDataToClientType) => {
             const {isCorrect, tag} = handleGuess(data.tag.name);
             console.log(`isCorrect: ${isCorrect} Tag: ${tag}`);
             if(isCorrect && tag != null) {
@@ -92,12 +93,12 @@ export default function useTagListGuesser(startingTags : Tag[]) : [
                 }
             }
         };
-        const unsubscribers = [connectionManager.listen<GuessTagEventDataToClient>(EventType.enum.GUESS_TAG, onGuess)];
+        const unsubscribers = [connectionManager.listen<GuessTagEventDataToClientType>(EventType.enum.GUESS_TAG, onGuess)];
         return () => {
             unsubscribers.forEach(unsubscribe => unsubscribe());
         }
 
-    }, [connectionManager, guessedTags, handleGuess])
+    }, [connectionManager, guessedTags, handleGuess, readyStates, setReadyStates])
 
-    return [ guessedTags, hiddenTags, guessTag, revealAllTags, hideAllTags ];
+    return [ guessedTags, guessTag ];
   }

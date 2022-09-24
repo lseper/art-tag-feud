@@ -1,10 +1,10 @@
-import type { Tag } from '../types';
+import type { PostTagType } from '../types';
 import { VisibleTagName } from './VisibleTagName';
 import styled from 'styled-components';
 import { VisibleTagScore } from './VisibleTagScore';
 
 interface VisibleProps {
-    tag: Tag;
+    tag: PostTagType;
     className?: string;
 }
 

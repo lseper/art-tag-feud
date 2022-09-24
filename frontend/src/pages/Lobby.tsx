@@ -1,7 +1,7 @@
 import React, { useContext, useCallback, useState, useEffect} from 'react';
 import { UserContext } from '../contexts/UserContext';
 import styled from 'styled-components';
-import type { ClientRoom, SetUsernameEventDataToClient, JoinRoomEventDataToClient, AllRoomsEventDataToClient, SetUsernameEventData, CreateRoomEventData, AllRoomsEventData, JoinRoomEventData } from '../types';
+import type { ClientRoomType, SetUsernameEventDataToClientType, JoinRoomEventDataToClientType, AllRoomsEventDataToClientType, SetUsernameEventDataType, CreateRoomEventDataType, AllRoomsEventDataType, JoinRoomEventDataType } from '../types';
 import { EventType } from '../types';
 import {
     useNavigate,
@@ -16,11 +16,11 @@ type Props = {
 export const Lobby: React.FC<Props> = ({className}: Props) => {
     const {roomID, setRoomID, userID, setUserID, setUsername, setReadyStates, setOwner, username, connectionManager} = useContext(UserContext);
     const [usernameInput, setUsernameInput] = useState<string>('');
-    const [rooms, setRooms] = useState<ClientRoom[]>([]);
+    const [rooms, setRooms] = useState<ClientRoomType[]>([]);
     const navigate = useNavigate();
 
     useEffect(() => {
-        const onJoinRoom = (data: JoinRoomEventDataToClient) => {
+        const onJoinRoom = (data: JoinRoomEventDataToClientType) => {
           console.log(`user: ${data.user.id} has joined room: ${data.room.roomID}`);
           setRooms([data.room, ...rooms]);
           // if the update was for this room that we are in, then update the owner
@@ -36,11 +36,11 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
                 document.body.style.backgroundImage = 'none';
             }
         }
-        const onAllRooms = (data: AllRoomsEventDataToClient) => {
+        const onAllRooms = (data: AllRoomsEventDataToClientType) => {
             setRooms(data.rooms);
         }
 
-        const onSetUsername = (data: SetUsernameEventDataToClient) => {
+        const onSetUsername = (data: SetUsernameEventDataToClientType) => {
             if(!userID) {
                 console.log(`Setting username to: ${data.user.id}`);
                 setUserID(data.user.id);
@@ -49,9 +49,9 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
         }
         // orchestrate game start
         const unsubscribers = [
-            connectionManager.listen<JoinRoomEventDataToClient>(EventType.enum.JOIN_ROOM, onJoinRoom),
-            connectionManager.listen<AllRoomsEventDataToClient>(EventType.enum.ALL_ROOMS, onAllRooms),
-            connectionManager.listen<SetUsernameEventDataToClient>(EventType.enum.SET_USERNAME, onSetUsername)
+            connectionManager.listen<JoinRoomEventDataToClientType>(EventType.enum.JOIN_ROOM, onJoinRoom),
+            connectionManager.listen<AllRoomsEventDataToClientType>(EventType.enum.ALL_ROOMS, onAllRooms),
+            connectionManager.listen<SetUsernameEventDataToClientType>(EventType.enum.SET_USERNAME, onSetUsername)
         ];
 
         return () => {
@@ -61,7 +61,7 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
 
     
     const createUsername = useCallback((username: string) => {
-        const data: SetUsernameEventData = {type: EventType.enum.SET_USERNAME, userID, username};
+        const data: SetUsernameEventDataType = {type: EventType.enum.SET_USERNAME, userID, username};
         connectionManager.send(data);
         console.log("setting username to ", username);
     }, [connectionManager, userID]);
@@ -69,7 +69,7 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
     const createRoom = useCallback(() => {
         console.log(userID);
         if(userID) {
-            const data: CreateRoomEventData = {type: EventType.enum.CREATE_ROOM, userID: userID};
+            const data: CreateRoomEventDataType = {type: EventType.enum.CREATE_ROOM, userID: userID};
             connectionManager.send(data);
             console.log("creating room");
         }
@@ -79,13 +79,13 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
         console.log(`JOINING ROOM ${roomID} FUCKING HELL`);
         console.log(`userId: ${userID}`);
         if(userID) {
-            const data: JoinRoomEventData = {type: EventType.enum.JOIN_ROOM, roomID, userID};
+            const data: JoinRoomEventDataType = {type: EventType.enum.JOIN_ROOM, roomID, userID};
             connectionManager.send(data);
         }
     }, [connectionManager, userID]);
 
     const getAllRooms = useCallback(() => {
-        const data : AllRoomsEventData = {type: EventType.enum.ALL_ROOMS};
+        const data : AllRoomsEventDataType = {type: EventType.enum.ALL_ROOMS};
         connectionManager.send(data);
     }, [connectionManager])
     
@@ -93,7 +93,7 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
         getAllRooms();
     }, [getAllRooms])
 
-    const renderRoom = useCallback((room: ClientRoom) => {
+    const renderRoom = useCallback((room: ClientRoomType) => {
         const {roomID, readyStates, owner} = room;
         return (
             <li key={roomID} style={{paddingTop: 4}}>

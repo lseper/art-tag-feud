@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useContext, useCallback } from 'react';
-import { ReadyUpEventData, ReadyUpEventDataToClient, RequestPostEventDataToClient, Tag, TagType } from '../types';
+import type { ReadyUpEventDataType, ReadyUpEventDataToClientType, RequestPostEventDataToClientType, PostTagType } from '../types';
 import { EventType } from '../types';
 import { TagList } from './TagList';
 import useTagListGuesser from '../useTagListGuesser';
@@ -14,14 +14,14 @@ const FRAME_RATE = 60;
 const INCORRECT_GUESS_PENALTY = 3;
 
 interface Props {
-    tags: Tag[];
+    tags: PostTagType[];
     className?: string;
 };
 
 const TagListContainerElement: React.FC<Props> = (props: Props) => {
     const { tags, className } = props;
     const [guess, setGuess] = useState('');
-    const [guessedTags, hiddenTags, guessTag, revealAllTags, hideAllTags] = useTagListGuesser(tags);
+    const [guessedTags, guessTag] = useTagListGuesser(tags);
     const {userID, roomID, readyStates, setReadyStates, connectionManager} = useContext(UserContext);
 
     const [generalTags, artistTags, characterTags, speciesTags] = useMemo(() => {
@@ -43,21 +43,21 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
     const [time, setTime] = useState(STARTING_TIME);
 
     useEffect(() => {
-        const onTimerEnd = (data: ReadyUpEventDataToClient) => {
+        const onTimerEnd = (data: ReadyUpEventDataToClientType) => {
             console.log(console.log(`Timer ran out -- ready states: ${data.room.readyStates}`));
             const readyStates = data.room.readyStates;
             // populate new ready states
             setReadyStates(readyStates);
         }
 
-        const onNewRoundStart = (data: RequestPostEventDataToClient) => {
+        const onNewRoundStart = (data: RequestPostEventDataToClientType) => {
             // new round has started, so reset the timer
             setTime(STARTING_TIME);
         }
 
         const unsubscribers = [
-            connectionManager.listen<ReadyUpEventDataToClient>(EventType.enum.READY_UP, onTimerEnd),
-            connectionManager.listen<RequestPostEventDataToClient>(EventType.enum.REQUEST_POST, onNewRoundStart),
+            connectionManager.listen<ReadyUpEventDataToClientType>(EventType.enum.READY_UP, onTimerEnd),
+            connectionManager.listen<RequestPostEventDataToClientType>(EventType.enum.REQUEST_POST, onNewRoundStart),
         ];
 
         return () => {
@@ -68,7 +68,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
     const readyForNextRound = useCallback((ready: boolean) => {
         if(userID != null && roomID != null) {
           console.log(`user ${userID} is ready for next round: ${ready}`);
-          const data: ReadyUpEventData = {type: EventType.enum.READY_UP, userID, roomID, ready};
+          const data: ReadyUpEventDataType = {type: EventType.enum.READY_UP, userID, roomID, ready};
           connectionManager.send(data);
         } else {
           console.error('user finished round before room or user was created')
@@ -91,7 +91,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
         return () => {
             clearInterval(timer);
         }
-    }, [readyForNextRound, time])
+    }, [myReadyState?.ready, readyForNextRound, time])
 
 
     return (

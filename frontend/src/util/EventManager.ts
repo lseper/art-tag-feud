@@ -1,14 +1,14 @@
 import { SocketCallBack } from "./ConnectionManager";
-import type { EventType } from '../types'
+import type { EventTypeType } from '../types'
 
 export default class EventManager {
-    private events: Map<EventType, Set<(...args: any[]) => void | Promise<void>>>;
+    private events: Map<EventTypeType, Set<(...args: any[]) => void | Promise<void>>>;
 
     public constructor() {
         this.events = new Map();
     }
 
-    public listen<T>(event_name: EventType, callback: SocketCallBack<T>) {
+    public listen<T>(event_name: EventTypeType, callback: SocketCallBack<T>) {
         if(!this.events.get(event_name)) {
             // setup dummy function
             this.events.set(event_name, new Set<(...args: any[]) => void>());
@@ -19,7 +19,7 @@ export default class EventManager {
         }
     }
 
-    public dispatch<T>(event_name: EventType, data: T) {
+    public dispatch<T>(event_name: EventTypeType, data: T) {
         if(this.events.has(event_name)) {
             console.log(`Handling event: ${event_name}...`);
             this.events.get(event_name)!.forEach((handler) => handler(data));

@@ -1,9 +1,9 @@
-import type { TagType } from '../types';
+import type { TagTypeType } from '../types';
 import styled from 'styled-components';
 
 interface Props {
     name: string;
-    tagType: TagType;
+    tagType: TagTypeType;
     className?: string;
 }
 

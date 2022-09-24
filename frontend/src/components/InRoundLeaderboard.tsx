@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useContext, useCallback } from 'react';
 import styled from 'styled-components';
-import { GuessTagEventDataToClient } from '../types';
-import { EventType, UserReadyState } from '../types';
+import type { UserReadyStateType, GuessTagEventDataToClientType } from '../types';
+import { EventType } from '../types';
 import { UserContext } from '../contexts/UserContext';
 import { buildUIIconImg } from '../util/UIUtil';
 
@@ -15,14 +15,14 @@ const InRoundLeaderboard: React.FC<Props> = ({className} : Props) => {
     const {readyStates, setReadyStates, connectionManager} = useContext(UserContext);
 
     useEffect(() => {
-        const onSuccessfulGuess = (data: GuessTagEventDataToClient) => {
+        const onSuccessfulGuess = (data: GuessTagEventDataToClientType) => {
             const {user} = data;
             const newReadyStates = readyStates.filter(readyState => readyState.user.id !== user.id);
             setReadyStates(newReadyStates);
         };
 
         const unsubscribers = [
-            connectionManager.listen<GuessTagEventDataToClient>(EventType.enum.GUESS_TAG, onSuccessfulGuess)
+            connectionManager.listen<GuessTagEventDataToClientType>(EventType.enum.GUESS_TAG, onSuccessfulGuess)
         ]
 
         return () => {
@@ -39,7 +39,7 @@ const InRoundLeaderboard: React.FC<Props> = ({className} : Props) => {
         return order;
     }, [readyStates]);
 
-    const renderLeaderboardEntry = useCallback((readyState: UserReadyState) => {
+    const renderLeaderboardEntry = useCallback((readyState: UserReadyStateType) => {
         const order = leaderBoardOrder.get(readyState.user.id);
         const zIndex = order ? readyStates.length - order : readyStates.length;
         const isRanked = (order ?? 0) <= 2;

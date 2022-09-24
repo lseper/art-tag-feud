@@ -1,5 +1,5 @@
 import EventManager from "./EventManager";
-import type { EventType } from "../types";
+import type { EventTypeType } from "../types";
 import config from '../components/config/constants';
 
 export type SocketCallBack<T> = (data: T) => void | Promise<void>;
@@ -54,7 +54,7 @@ export class ConnectionManager {
         return ConnectionManager.instance;
     }
 
-    public listen<T>(event_name: EventType, callback: SocketCallBack<T>) {
+    public listen<T>(event_name: EventTypeType, callback: SocketCallBack<T>) {
         return this.eventManager.listen(event_name, callback);
     }
 
@@ -63,7 +63,7 @@ export class ConnectionManager {
             console.log(`Still connecting, adding to queue: ${data}`);
             this.queue.push(JSON.stringify({...data}))
         } else {
-            console.log(`Connected, sending to server: ${data}`);
+            console.log(`ConnectedType, sending to server: ${data}`);
             this.socket.send(JSON.stringify({...data}));
         }
     }

@@ -1,6 +1,6 @@
 import ReadyUp from './pages/ReadyUp';
 import { UserContext } from './contexts/UserContext';
-import { User, UserReadyState } from './types';
+import type { UserType, UserReadyStateType } from './types';
 import { useState } from 'react';
 import { ConnectionManager } from './util/ConnectionManager';
 import { Routes, Route } from 'react-router-dom';
@@ -16,9 +16,9 @@ function App(): JSX.Element {
   const [userID, setUserID] = useState<string | undefined>();
   const [score, setScore] = useState(0);
   const [roomID, setRoomID] = useState<string | undefined>();
-  const [readyStates, setReadyStates] = useState<UserReadyState[]>([]);
+  const [readyStates, setReadyStates] = useState<UserReadyStateType[]>([]);
   const [icon, setIcon] = useState<string | undefined>();
-  const [owner, setOwner] = useState<User | undefined>();
+  const [owner, setOwner] = useState<UserType | undefined>();
 
   const leaveRoomCleanup = () => {
     setRoomID(undefined);

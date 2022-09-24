@@ -1,26 +1,27 @@
-import { string, z } from 'zod';
+// @ts-nocheck
+import { z } from 'zod';
 
 // shared
 export const EventType = z.enum(['DEFAULT',
-'CREATE_ROOM',
-'ALL_ROOMS',
-'GUESS_TAG',
-'READY_UP',
-'START_GAME',
-'SET_USERNAME',
-'SET_ICON',
-'GET_SELECTED_ICONS',
-'JOIN_ROOM',
-'LEAVE_ROOM',
-'REQUEST_POST',
-'SHOW_LEADERBOARD']);
+    'CREATE_ROOM',
+    'ALL_ROOMS',
+    'GUESS_TAG',
+    'READY_UP',
+    'START_GAME',
+    'SET_USERNAME',
+    'SET_ICON',
+    'GET_SELECTED_ICONS',
+    'JOIN_ROOM',
+    'LEAVE_ROOM',
+    'REQUEST_POST',
+    'SHOW_LEADERBOARD']);
 
 /**
  * Server-Only Types
  */
 export const TagType = z.enum(["general", "species", "character", "artist"]);
 
-export const Tag = z.object({
+export const PostTag = z.object({
     name: z.string(),
     type: TagType,
     score: z.number(),
@@ -87,7 +88,7 @@ export const GetSelectedIconsEventData = z.object({
 });
 export const RequestPostEventData = z.object({
     roomID: z.string(),
-    userID:z.string(),
+    userID: z.string(),
     type: z.literal(EventType.enum.REQUEST_POST)
 });
 export const ReadyUpEventData = z.object({
@@ -107,7 +108,7 @@ export const AllRoomsEventData = z.object({
 /**
  * Client Types
  */
- export const UserReadyState = z.object({
+export const UserReadyState = z.object({
     user: User,
     ready: z.boolean(),
     icon: z.optional(z.string()),
@@ -187,47 +188,47 @@ export const ShowLeaderboardEventDataToClient = z.object({
 /**
  * Server-Only Object Types
  */
-export type ServerRoom = z.infer<typeof ServerRoom>;
+export type ServerRoomType = z.infer<typeof ServerRoom>;
 
 /**
  * Server-Only Types
  */
-export type CreateRoomEventData = z.infer<typeof CreateRoomEventData>
-export type JoinRoomEventData = z.infer<typeof JoinRoomEventData>
-export type LeaveRoomEventData = z.infer<typeof LeaveRoomEventData>
-export type RequestPostEventData = z.infer<typeof RequestPostEventData>
-export type GuessTagEventData = z.infer<typeof GuessTagEventData>
-export type SetUsernameEventData = z.infer<typeof SetUsernameEventData>
-export type SetUserIconEventData = z.infer<typeof SetUserIconEventData>
-export type GetSelectedIconsEventData = z.infer<typeof GetSelectedIconsEventData>
-export type StartGameEventData = z.infer<typeof StartGameEventData>
-export type ReadyUpEventData = z.infer<typeof ReadyUpEventData>
-export type AllRoomsEventData = z.infer<typeof AllRoomsEventData>
+export type CreateRoomEventDataType = z.infer<typeof CreateRoomEventData>
+export type JoinRoomEventDataType = z.infer<typeof JoinRoomEventData>
+export type LeaveRoomEventDataType = z.infer<typeof LeaveRoomEventData>
+export type RequestPostEventDataType = z.infer<typeof RequestPostEventData>
+export type GuessTagEventDataType = z.infer<typeof GuessTagEventData>
+export type SetUsernameEventDataType = z.infer<typeof SetUsernameEventData>
+export type SetUserIconEventDataType = z.infer<typeof SetUserIconEventData>
+export type GetSelectedIconsEventDataType = z.infer<typeof GetSelectedIconsEventData>
+export type StartGameEventDataType = z.infer<typeof StartGameEventData>
+export type ReadyUpEventDataType = z.infer<typeof ReadyUpEventData>
+export type AllRoomsEventDataType = z.infer<typeof AllRoomsEventData>
 
 /**
  * Client-Only Types
  */
-export type CreateRoomEventDataToClient = z.infer<typeof CreateRoomEventDataToClient>
-export type JoinRoomEventDataToClient = z.infer<typeof JoinRoomEventDataToClient>
-export type LeaveRoomEventDataToClient = z.infer<typeof LeaveRoomEventDataToClient>
-export type AllRoomsEventDataToClient = z.infer<typeof AllRoomsEventDataToClient>
-export type GuessTagEventDataToClient = z.infer<typeof GuessTagEventDataToClient>
-export type RequestPostEventDataToClient = z.infer<typeof RequestPostEventDataToClient>
-export type SetUsernameEventDataToClient = z.infer<typeof SetUsernameEventDataToClient>
-export type SetUserIconEventDataToClient = z.infer<typeof SetUserIconEventDataToClient>
-export type GetSelectedIconsEventDataToClient = z.infer<typeof GetSelectedIconsEventDataToClient>
-export type ReadyUpEventDataToClient = z.infer<typeof ReadyUpEventDataToClient>
-export type StartGameEventDataToClient = z.infer<typeof StartGameEventDataToClient>
-export type ShowLeaderboardEventDataToClient = z.infer<typeof ShowLeaderboardEventDataToClient>
+export type CreateRoomEventDataToClientType = z.infer<typeof CreateRoomEventDataToClient>
+export type JoinRoomEventDataToClientType = z.infer<typeof JoinRoomEventDataToClient>
+export type LeaveRoomEventDataToClientType = z.infer<typeof LeaveRoomEventDataToClient>
+export type AllRoomsEventDataToClientType = z.infer<typeof AllRoomsEventDataToClient>
+export type GuessTagEventDataToClientType = z.infer<typeof GuessTagEventDataToClient>
+export type RequestPostEventDataToClientType = z.infer<typeof RequestPostEventDataToClient>
+export type SetUsernameEventDataToClientType = z.infer<typeof SetUsernameEventDataToClient>
+export type SetUserIconEventDataToClientType = z.infer<typeof SetUserIconEventDataToClient>
+export type GetSelectedIconsEventDataToClientType = z.infer<typeof GetSelectedIconsEventDataToClient>
+export type ReadyUpEventDataToClientType = z.infer<typeof ReadyUpEventDataToClient>
+export type StartGameEventDataToClientType = z.infer<typeof StartGameEventDataToClient>
+export type ShowLeaderboardEventDataToClientType = z.infer<typeof ShowLeaderboardEventDataToClient>
 
-export type ClientRoom = z.infer<typeof ClientRoom>;
+export type ClientRoomType = z.infer<typeof ClientRoom>;
 
 /**
  * Shared Types
  */
-export type TagType = z.infer<typeof TagType>
-export type Tag = z.infer<typeof Tag>;
-export type Post = z.infer<typeof Post>;
-export type User = z.infer<typeof User>;
-export type EventType = z.infer<typeof EventType>;
-export type UserReadyState = z.infer<typeof UserReadyState>;
+export type TagTypeType = z.infer<typeof TagType>
+export type PostTagType = z.infer<typeof PostTag>;
+export type PostType = z.infer<typeof Post>;
+export type UserType = z.infer<typeof User>;
+export type EventTypeType = z.infer<typeof EventType>;
+export type UserReadyStateType = z.infer<typeof UserReadyState>;

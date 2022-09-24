@@ -1,21 +1,21 @@
 import { useState, useEffect, useContext } from 'react';
 import { ConnectionManager } from './util/ConnectionManager';
 import { UserContext } from './contexts/UserContext';
-import type { Post, RequestPostEventDataToClient, RequestPostEventData} from './types';
+import type { PostType, RequestPostEventDataToClientType, RequestPostEventDataType} from './types';
 import { EventType } from './types';
 
 // custom hook, returns an object that has the CurrentPost, and an update callback function that we define
 export default function usePostFetcher(connectionManager: ConnectionManager, roomID?: string) : {
-    currentPost: Post | null;
+    currentPost: PostType | null;
     update: () => Promise<void>;
   } {
     // want component re-rendering when this changes
-    const [currentPost, setCurrentPost] = useState<Post | null>(null);
+    const [currentPost, setCurrentPost] = useState<PostType | null>(null);
     const {userID, readyStates, setReadyStates} = useContext(UserContext);
   
     // run update once on mount
     useEffect( () => {
-      const onRequestPost = (data: RequestPostEventDataToClient) => {
+      const onRequestPost = (data: RequestPostEventDataToClientType) => {
         const newPost = data.post;
         if(newPost != null) {
           newPost.tags.sort((a, b) => b.score - a.score);
@@ -25,7 +25,7 @@ export default function usePostFetcher(connectionManager: ConnectionManager, roo
           setReadyStates(newReadyStates);
         }
       }
-      const unsubscribers = [connectionManager.listen<RequestPostEventDataToClient>(EventType.enum.REQUEST_POST, onRequestPost)];
+      const unsubscribers = [connectionManager.listen<RequestPostEventDataToClientType>(EventType.enum.REQUEST_POST, onRequestPost)];
 
       return () => {
         unsubscribers.forEach(unsubscribe => unsubscribe());
@@ -35,7 +35,7 @@ export default function usePostFetcher(connectionManager: ConnectionManager, roo
     // define what the update callback will be
     async function update() {
       if(roomID != null && userID != null) {
-        const data: RequestPostEventData = {type: EventType.enum.REQUEST_POST, roomID: roomID, userID: userID}
+        const data: RequestPostEventDataType = {type: EventType.enum.REQUEST_POST, roomID: roomID, userID: userID}
         connectionManager.send(data);
       }
     }

@@ -1,17 +1,17 @@
 import { DisplayedPost } from '../components/DisplayedPost';
 import { TagListContainer } from '../components/TagListContainer';
-import usePostFetcher from '../usePostFetcher';
 import styled from 'styled-components';
 import { UserContext } from '../contexts/UserContext';
 import { useContext, useEffect, useState } from 'react';
-import { Tag, Post, ShowLeaderboardEventDataToClient, EventType, RequestPostEventDataToClient } from '../types';
+import type { PostTagType, PostType, ShowLeaderboardEventDataToClientType, RequestPostEventDataToClientType } from '../types';
+import { EventType } from '../types';
 import LeaderBoard from '../components/Leaderboard';
 // TODO: ^ use this lol
 
-const emptyTagList : Tag[] = [];
+const emptyTagList : PostTagType[] = [];
 
 type Props = {
-  currentPost: Post,
+  currentPost: PostType,
   update: () => void,
 }
 
@@ -25,17 +25,17 @@ function MainPage({currentPost, update} : Props): JSX.Element {
   const canStartNewRound = readyStates.every(readyState => readyState.ready);
 
   useEffect(() => {
-    const onShowLeaderboard = (data: ShowLeaderboardEventDataToClient) => {
+    const onShowLeaderboard = (data: ShowLeaderboardEventDataToClientType) => {
       setShowLeaderboard(true);
     }
 
-    const onStartNewRound = (data: RequestPostEventDataToClient) => {
+    const onStartNewRound = (data: RequestPostEventDataToClientType) => {
       setShowLeaderboard(false);
     }
 
     const unsubscribers = [
-      connectionManager.listen<ShowLeaderboardEventDataToClient>(EventType.enum.SHOW_LEADERBOARD, onShowLeaderboard),
-      connectionManager.listen<RequestPostEventDataToClient>(EventType.enum.REQUEST_POST, onStartNewRound),
+      connectionManager.listen<ShowLeaderboardEventDataToClientType>(EventType.enum.SHOW_LEADERBOARD, onShowLeaderboard),
+      connectionManager.listen<RequestPostEventDataToClientType>(EventType.enum.REQUEST_POST, onStartNewRound),
     ];
 
     return () => {
@@ -50,8 +50,6 @@ function MainPage({currentPost, update} : Props): JSX.Element {
   }
 
   const shouldShowLeaderboard = roomID != null && !showLeaderboard;
-
-  const nextPostButton = <NextRoundButton onClick={startNewRound}>Next Post</NextRoundButton>;
 
   return (
     <div>
