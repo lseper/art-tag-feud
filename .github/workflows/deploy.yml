@@ -7,7 +7,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-
+      # build to build directory
+      - run: npm i
+      - run: npm run build --if-present
+      
       - name: Deploy to Netlify
         uses: nwtgck/actions-netlify@v1.2
         with:
@@ -17,8 +20,6 @@ jobs:
           enable-pull-request-comment: false
           enable-commit-comment: true
           overwrites-pull-request-comment: true
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
