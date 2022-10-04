@@ -1,8 +1,33 @@
 // server
 import { WebSocketServer, WebSocket, } from "ws";
-// TODO: fix imports lol, have to on frontend too
-import { EventType, GuessTagEventData, CreateRoomEventData, JoinRoomEventData, RequestPostEventData, SetUsernameEventData, ReadyUpEventData, ReadyUpEventDataToClient, StartGameEventData, SetUserIconEventData, SetUserIconEventDataToClient, ShowLeaderboardEventDataToClient, LeaveRoomEventData, LeaveRoomEventDataToClient, GetSelectedIconsEventData, } from "./types"; // DTO Types
-import type { ServerRoom, User, ClientRoom, UserReadyState, JoinRoomEventDataToClient, SetUsernameEventDataToClient, AllRoomsEventDataToClient, RequestPostEventDataToClient, GetSelectedIconsEventDataToClient} from "./types";
+import { 
+    EventType, 
+    GuessTagEventData, 
+    CreateRoomEventData, 
+    JoinRoomEventData, 
+    RequestPostEventData, 
+    SetUsernameEventData, 
+    ReadyUpEventData, 
+    StartGameEventData, 
+    SetUserIconEventData, 
+    LeaveRoomEventData, 
+    GetSelectedIconsEventData, 
+} from "./types"; // DTO Types
+import type { 
+    ServerRoomType, 
+    UserType, 
+    ClientRoomType, 
+    UserReadyStateType, 
+    JoinRoomEventDataToClientType, 
+    SetUsernameEventDataToClientType, 
+    AllRoomsEventDataToClientType, 
+    RequestPostEventDataToClientType, 
+    GetSelectedIconsEventDataToClientType, 
+    SetUserIconEventDataToClientType, 
+    ReadyUpEventDataToClientType, 
+    ShowLeaderboardEventDataToClientType, 
+    LeaveRoomEventDataToClientType 
+} from "./types";
 import { getPosts } from "./fetching_utility";
 import {v4} from 'uuid';
 
@@ -15,8 +40,8 @@ const POSTS_PER_ROUND = 2
 
 let numUsers = 0;
 // types for global server variables
-const rooms: Map<string, ServerRoom> = new Map<string, ServerRoom>();
-const users: Map<string, User> = new Map<string, User>();
+const rooms: Map<string, ServerRoomType> = new Map<string, ServerRoomType>();
+const users: Map<string, UserType> = new Map<string, UserType>();
 const userSockets: Map<string, WebSocket> = new Map<string, WebSocket>();
 
 // TODO setup heartbeat polling to close broken connections
@@ -58,11 +83,11 @@ const purgeUserOnDisconnect = (userSocket: WebSocket) => {
 /**
  * Utility Methods
  */
-const roomIsReadyForNewPost = (room: ServerRoom): boolean => {
+const roomIsReadyForNewPost = (room: ServerRoomType): boolean => {
     return [...room.allUsersReady.values()].every(readyState => readyState);
 }
 
-const getReadyStates = (room: ServerRoom) : UserReadyState[] => {
+const getReadyStates = (room: ServerRoomType) : UserReadyStateType[] => {
     return [...room.allUsersReady.entries()].map((entry) => {
         const user = users.get(entry[0])!;
         const icon = user?.icon;
@@ -77,7 +102,7 @@ const getUser = (socket: WebSocket, userID?: string): string => {
         while(userSockets.get(newUserID)) {
             newUserID = v4();
         }
-        const createdUser: User = {username: `User_${userID}`, id: newUserID, score: 0};
+        const createdUser: UserType = {username: `User_${userID}`, id: newUserID, score: 0};
         // add to uId-socket map
         userSockets.set(newUserID, socket);
         // add to regular users map
@@ -107,7 +132,7 @@ const reply = <T>(client: WebSocket, data: T) => {
     }
 }
 
-const broadcastToRoom = <T>(room: ServerRoom, data: T) => {
+const broadcastToRoom = <T>(room: ServerRoomType, data: T) => {
     const dataToString = JSON.stringify(data);
     const userSocketsToSend = room.members.map(user => userSockets.get(user.id));
 
@@ -118,13 +143,18 @@ const broadcastToRoom = <T>(room: ServerRoom, data: T) => {
     })
 } 
 
-const convertServerRoomToClientRoom = (serverRoom: ServerRoom): ClientRoom => {
-    const readyStates: UserReadyState[] = getReadyStates(serverRoom);
-    return {roomID: serverRoom.id, readyStates: readyStates, owner: serverRoom.owner};
+const convertServerRoomToClientRoom = (serverRoom: ServerRoomType): ClientRoomType => {
+    const readyStates: UserReadyStateType[] = getReadyStates(serverRoom);
+    return {
+        roomID: serverRoom.id,
+        roomName: serverRoom.name, 
+        readyStates: readyStates, 
+        owner: serverRoom.owner
+    };
 }
 
 const convertServerRoomsToClientRooms = () => {
-    const roomsToSend: ClientRoom[] = [...rooms.values()].map((room) => {
+    const roomsToSend: ClientRoomType[] = [...rooms.values()].map((room) => {
         return convertServerRoomToClientRoom(room);
     });
     return roomsToSend;
@@ -143,7 +173,7 @@ const leaveRoom = (server: WebSocketServer, userID: string, roomID: string) => {
     // update icon in room
     const pastIcon = userToLeave.icon;
     userToLeave.icon = undefined;
-    const iconData: SetUserIconEventDataToClient = {type:EventType.enum.SET_ICON, userID, pastIcon};
+    const iconData: SetUserIconEventDataToClientType = {type:EventType.enum.SET_ICON, userID, pastIcon};
     broadcastToRoom(roomToUpdate, iconData);
 
     const roomReadyStates = roomToUpdate.allUsersReady;
@@ -154,7 +184,7 @@ const leaveRoom = (server: WebSocketServer, userID: string, roomID: string) => {
         if(roomToUpdate.members.length === 0) {
             rooms.delete(roomID);
             const newRooms = convertServerRoomsToClientRooms();
-            const data : AllRoomsEventDataToClient = {type: EventType.enum.ALL_ROOMS, rooms: newRooms};
+            const data : AllRoomsEventDataToClientType = {type: EventType.enum.ALL_ROOMS, rooms: newRooms};
             broadcast(server, data); 
         } else {
             roomToUpdate.owner = roomToUpdate.members[0];
@@ -163,7 +193,7 @@ const leaveRoom = (server: WebSocketServer, userID: string, roomID: string) => {
     }
 
     const roomToClient = convertServerRoomToClientRoom(roomToUpdate)
-    const data : LeaveRoomEventDataToClient = {type: EventType.enum.LEAVE_ROOM, room: roomToClient};
+    const data : LeaveRoomEventDataToClientType = {type: EventType.enum.LEAVE_ROOM, room: roomToClient};
     broadcastToRoom(roomToUpdate, data);
 }
 
@@ -210,7 +240,7 @@ server.on("connection", response => {
                 const user = users.get(userID);
                 if(user) {
                     user.username = data.username;
-                    const userToChangeResponseData: SetUsernameEventDataToClient = {type: EventType.enum.SET_USERNAME, user};
+                    const userToChangeResponseData: SetUsernameEventDataToClientType = {type: EventType.enum.SET_USERNAME, user};
                     reply(response, userToChangeResponseData);
                 }
                 break;
@@ -228,11 +258,11 @@ server.on("connection", response => {
                     if(user.icon) {
                         const pastIcon = user.icon;
                         user.icon = data.icon;
-                        const responseData: SetUserIconEventDataToClient = {type:EventType.enum.SET_ICON, userID, icon: user.icon, pastIcon};
+                        const responseData: SetUserIconEventDataToClientType = {type:EventType.enum.SET_ICON, userID, icon: user.icon, pastIcon};
                         broadcastToRoom(room, responseData);
                     } else {
                         user.icon = data.icon;
-                        const responseData: SetUserIconEventDataToClient = {type:EventType.enum.SET_ICON, userID, icon: user.icon};
+                        const responseData: SetUserIconEventDataToClientType = {type:EventType.enum.SET_ICON, userID, icon: user.icon};
                         broadcastToRoom(room, responseData);
                     }
                 } else {
@@ -263,7 +293,7 @@ server.on("connection", response => {
                         selectedIcons.push(selectedIcon);
                     }
                 });
-                const data : GetSelectedIconsEventDataToClient = {type: EventType.enum.GET_SELECTED_ICONS, selectedIcons}
+                const data : GetSelectedIconsEventDataToClientType = {type: EventType.enum.GET_SELECTED_ICONS, selectedIcons}
                 reply(response, data);
                 break;
             }
@@ -288,18 +318,35 @@ server.on("connection", response => {
                     newRoomAllUsersReady.set(user.id, false);
                     // create room and add to rooms map
                     user.roomID = newRoomID;
-                    const newRoom: ServerRoom = {id: newRoomID, members: [user], postQueue: [], allUsersReady: newRoomAllUsersReady, postsViewedThisRound: 0, gameStarted: false, owner: user};
+                    const newRoom: ServerRoomType = {
+                        id: newRoomID,
+                        name: data.roomName,
+                        postsPerRound: data.postsPerRound,
+                        roundsPerGame: data.roundsPerGame,
+                        members: [user], 
+                        postQueue: [], 
+                        allUsersReady: newRoomAllUsersReady, 
+                        postsViewedThisRound: 0, 
+                        gameStarted: false, 
+                        owner: user
+                    };
                     rooms.set(newRoomID, newRoom);
-                    const readyStates: UserReadyState[] = getReadyStates(newRoom);
-                    const roomToClient = {roomID: newRoom.id, readyStates: readyStates, owner: user};
+                    const readyStates: UserReadyStateType[] = getReadyStates(newRoom);
+                    const roomToClient = {
+                        roomID: newRoom.id,
+                        roomName: newRoom.name, 
+                        readyStates: readyStates, 
+                        owner: user
+                    };
+                    console.log('created room, letting user join');
                     // broadcase to the user their updated roomID
-                    broadcast<JoinRoomEventDataToClient>(server, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient})
+                    broadcast<JoinRoomEventDataToClientType>(server, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient})
                 }
                 break;
             }
             case EventType.enum.ALL_ROOMS: {
                 const roomsToSend = convertServerRoomsToClientRooms();
-                reply<AllRoomsEventDataToClient>(response, {type: EventType.enum.ALL_ROOMS, rooms: roomsToSend});
+                reply<AllRoomsEventDataToClientType>(response, {type: EventType.enum.ALL_ROOMS, rooms: roomsToSend});
                 break;
             }
             case EventType.enum.JOIN_ROOM: {
@@ -318,9 +365,14 @@ server.on("connection", response => {
                     room.allUsersReady.set(user.id, false);
                     // set user's roomID to room
                     user.roomID = roomID;
-                    const roomToClient = {roomID: room.id, readyStates: getReadyStates(room), owner: room.owner};
+                    const roomToClient = {
+                        roomID: room.id,
+                        roomName: room.name,
+                        readyStates: getReadyStates(room), 
+                        owner: room.owner
+                    };
                     // broadcast to room newly updated members
-                    broadcastToRoom<JoinRoomEventDataToClient>(room, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient});
+                    broadcastToRoom<JoinRoomEventDataToClientType>(room, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient});
                 }
                 break;
             }
@@ -334,6 +386,7 @@ server.on("connection", response => {
                 break;
             }
             case EventType.enum.REQUEST_POST: {
+                // TODO: implement sending win screen upon round exhaustion
                 const result = RequestPostEventData.safeParse(dataJSON);
                 if(!result.success) {
                     break;
@@ -350,13 +403,13 @@ server.on("connection", response => {
 
                     if(roomIsReadyForNewPost(roomToSendPost)) {
                         // they've completed the round, show the leaderboard
-                        if(roomToSendPost.postsViewedThisRound >= POSTS_PER_ROUND) {
+                        if(roomToSendPost.postsViewedThisRound >= roomToSendPost.postsPerRound) {
                             roomToSendPost.postsViewedThisRound = 0;
-                            broadcastToRoom<ShowLeaderboardEventDataToClient>(roomToSendPost, {type: EventType.enum.SHOW_LEADERBOARD});
+                            broadcastToRoom<ShowLeaderboardEventDataToClientType>(roomToSendPost, {type: EventType.enum.SHOW_LEADERBOARD});
                             break;
                         }
                         const postToSend = roomToSendPost.postQueue.shift()!;
-                        broadcastToRoom<RequestPostEventDataToClient>(roomToSendPost, {type: EventType.enum.REQUEST_POST, post: postToSend});
+                        broadcastToRoom<RequestPostEventDataToClientType>(roomToSendPost, {type: EventType.enum.REQUEST_POST, post: postToSend});
                         roomToSendPost.postsViewedThisRound += 1;
                         // reset ready map to all false
                         const newReadyMap = new Map<string, boolean>();
@@ -365,7 +418,7 @@ server.on("connection", response => {
                         })
                         roomToSendPost.allUsersReady = newReadyMap;
                     } else {
-                        broadcastToRoom<RequestPostEventDataToClient>(roomToSendPost, {type: EventType.enum.REQUEST_POST});
+                        broadcastToRoom<RequestPostEventDataToClientType>(roomToSendPost, {type: EventType.enum.REQUEST_POST});
                     }
                 }
                 break;
@@ -383,9 +436,14 @@ server.on("connection", response => {
                     const userToChangeIndex = readyStates.findIndex(readyState => readyState.user.id === data.userID);
                     if(userToChangeIndex >= 0){
                         readyStates[userToChangeIndex].ready = data.ready;
-                        const updatedRoom = {roomID: room.id, readyStates: readyStates, owner: user};
+                        const updatedRoom = {
+                            roomID: room.id,
+                            roomName: room.name, 
+                            readyStates: readyStates, 
+                            owner: user
+                        };
                         room.allUsersReady.set(data.userID, data.ready);
-                        broadcastToRoom<ReadyUpEventDataToClient>(room, {type: EventType.enum.READY_UP, roomID: room.id, room: updatedRoom})
+                        broadcastToRoom<ReadyUpEventDataToClientType>(room, {type: EventType.enum.READY_UP, roomID: room.id, room: updatedRoom})
                     } else {
                         console.error(`user ${data.userID} is not in the room`);
                     }

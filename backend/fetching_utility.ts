@@ -2,9 +2,8 @@ import axios from 'axios';
 
 import general_tag_data from './data/tag-data-general.json';
 import species_tag_data from './data/tag-data-species.json';
-import type { Post, Tag } from './types';
-import { TagType } from './types';
-import { z } from 'zod';
+import type { PostType, TagTypeType } from './types';
+import { PostTagType, TagType } from './types';
 
 const BASE_URL = 'https://e621.net/';
 const POSTS_BASE = 'posts.json';
@@ -22,7 +21,7 @@ const TAG_STD = 25;
 const BASE_TAG_SCORE = 1;
 
 // fetches and formats 10 random posts from e621
-export async function getPosts(): Promise<Post[]> {
+export async function getPosts(): Promise<PostType[]> {
     const URL = `${BASE_URL}${POSTS_BASE}?limit=${10}&tags=+-${BLACKLIST.join('+-')}+${META_MODIFIERS.join('+')}`;
     // get the response - currently HTTP 403 - Forbidden
     const data = await axios.get(URL, {
@@ -30,15 +29,15 @@ export async function getPosts(): Promise<Post[]> {
     }).then((response) => {
         return response.data;
     }).catch(err => console.log(err.message));
-    const result = data.posts.map((post: any): Post => {
+    const result = data.posts.map((post: any): PostType => {
         // return a list of objects containing only the URL and id of the post
         const url : string = post.file.url;
         const id : number = post.id;
         // get all the tags
-        const generalTags : Tag[] = post.tags.general.map((tag_name: string) : Tag =>  { return { name: tag_name, type: TagType.enum.general, score: getInitialTagScore(tag_name, TagType.enum.general)} });
-        const artistTags : Tag[] = post.tags.artist.map((tag_name: string) : Tag =>  { return { name: tag_name, type: TagType.enum.artist, score: ARTIST_TAG_SCORE} });
-        const speciesTags : Tag[] = post.tags.species.map((tag_name: string) : Tag =>  { return { name: tag_name, type: TagType.enum.species, score: getInitialTagScore(tag_name, TagType.enum.species) } });
-        const characterTags : Tag[] = post.tags.character.map((tag_name: string) : Tag =>  { return { name: tag_name, type: TagType.enum.character, score: CHARACTER_TAG_SCORE} });
+        const generalTags : PostTagType[] = post.tags.general.map((tag_name: string) : PostTagType =>  { return { name: tag_name, type: TagType.enum.general, score: getInitialTagScore(tag_name, TagType.enum.general)} });
+        const artistTags : PostTagType[] = post.tags.artist.map((tag_name: string) : PostTagType =>  { return { name: tag_name, type: TagType.enum.artist, score: ARTIST_TAG_SCORE} });
+        const speciesTags : PostTagType[] = post.tags.species.map((tag_name: string) : PostTagType =>  { return { name: tag_name, type: TagType.enum.species, score: getInitialTagScore(tag_name, TagType.enum.species) } });
+        const characterTags : PostTagType[] = post.tags.character.map((tag_name: string) : PostTagType =>  { return { name: tag_name, type: TagType.enum.character, score: CHARACTER_TAG_SCORE} });
 
         const allTags = scaleScores(generalTags.concat(artistTags).concat(speciesTags).concat(characterTags).filter((tag) => tag.score !== 0));
 
@@ -48,7 +47,7 @@ export async function getPosts(): Promise<Post[]> {
 };
 
 // Computes the score a player would get when guessing this tag
-function getInitialTagScore(tag_name : string, tag_type : TagType) : number {
+function getInitialTagScore(tag_name : string, tag_type : TagTypeType) : number {
     if(tag_type === TagType.enum.general){
         const result = general_tag_data.find((e) => e.name === tag_name);
         if (result){
@@ -68,7 +67,7 @@ function getInitialTagScore(tag_name : string, tag_type : TagType) : number {
 
 // scale the scores so there's an even spread (scale the distance between scores down by X factor)
 // convert to normal distribution but only for this post
-function scaleScores(tags : Tag[]) : Tag[] {
+function scaleScores(tags : PostTagType[]) : PostTagType[] {
     // transforming tag scores to be a local normal-distribution localized to be only this post's tags)
     const tagsMean = tags.reduce((prev, curr) => prev + curr.score, 0) / tags.length;
     const tagsStd = Math.sqrt(tags.map((tag) => (tag.score - tagsMean) ** 2).reduce((prev, curr) => prev + curr, 0) / tags.length);
