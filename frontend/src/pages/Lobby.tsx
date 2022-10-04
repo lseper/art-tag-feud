@@ -1,7 +1,7 @@
 import React, { useContext, useCallback, useState, useEffect} from 'react';
 import { UserContext } from '../contexts/UserContext';
 import styled from 'styled-components';
-import type { ClientRoomType, SetUsernameEventDataToClientType, JoinRoomEventDataToClientType, AllRoomsEventDataToClientType, SetUsernameEventDataType, CreateRoomEventDataType, AllRoomsEventDataType, JoinRoomEventDataType } from '../types';
+import type { ClientRoomType, SetUsernameEventDataToClientType, JoinRoomEventDataToClientType, AllRoomsEventDataToClientType, SetUsernameEventDataType, AllRoomsEventDataType, JoinRoomEventDataType } from '../types';
 import { EventType } from '../types';
 import {
     useNavigate,
@@ -20,6 +20,7 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
     const navigate = useNavigate();
 
     useEffect(() => {
+        // TODO: move this into Create.tsx
         const onJoinRoom = (data: JoinRoomEventDataToClientType) => {
           console.log(`user: ${data.user.id} has joined room: ${data.room.roomID}`);
           setRooms([data.room, ...rooms]);
@@ -67,13 +68,10 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
     }, [connectionManager, userID]);
 
     const createRoom = useCallback(() => {
-        console.log(userID);
         if(userID) {
-            const data: CreateRoomEventDataType = {type: EventType.enum.CREATE_ROOM, userID: userID};
-            connectionManager.send(data);
-            console.log("creating room");
+            navigate("/create");
         }
-    }, [connectionManager, userID]);
+    }, [navigate, userID]);
 
     const joinRoom = useCallback((roomID: string) => {
         console.log(`JOINING ROOM ${roomID} FUCKING HELL`);
@@ -133,10 +131,11 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
                     <form id="roomIDForm" style={{paddingTop: 8}}onSubmit={(e) => {
                     e.preventDefault();
                     createUsername(usernameInput);
+                    document.body.style.backgroundImage = 'none';
                 }}>
                     <Input 
                     type="text" 
-                    placeholder="enter a username here"
+                    placeholder="Enter a username to start playing!"
                     size={30}
                     value={usernameInput} 
                     onChange={(e) => setUsernameInput(e.target.value)}/>
@@ -144,14 +143,15 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
                     <form id="roomIDForm" style={{paddingTop: 4, marginBottom: 4}}onSubmit={(e) => {
                     e.preventDefault();
                     createUsername(usernameInput);
+                    document.body.style.backgroundImage = 'none';
                 }}>
             </form>
-            <input type="submit" style={{marginRight: 8}} value="Set Username" form="roomIDForm"/>
+            <input type="submit" style={{marginRight: 8}} value="Start" form="roomIDForm"/>
             </BlurredImage>
         </Container>
         }
         return <Container>
-            <BlurredImage style={{gridArea: 'e6-join', paddingBottom: 12}}>
+            <TitleContainer style={{gridArea: 'e6-join', paddingBottom: 12}}>
         <TitleText>
             e621 Tag Feud
         </TitleText>
@@ -159,16 +159,13 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
         <button onClick={createRoom}>
         Create Room
         </button>
-        <InfoBar style={{paddingTop: 8}}>
-            <p>Art by <a href="https://twitter.com/zaverose_nsfw/status/1462674512017723395">Zaverose</a></p>
-        </InfoBar>
-    </BlurredImage>
-    <BlurredImage style={{gridArea: 'e6-create', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
+    </TitleContainer>
+    <TitleContainer style={{gridArea: 'e6-create', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
         <InfoBar>
             <a href="https://github.com/Zaverose/e621-tag-feud">contribute</a>
             <a href="https://twitter.com/zaverose_nsfw">twitter</a>
         </InfoBar>
-    </BlurredImage>
+    </TitleContainer>
     <TitleContainer style={{gridArea: 'rooms', width: 'auto', marginLeft: '1rem', marginRight: '1rem'}}>
         <TitleText>
             Joinable Rooms
@@ -248,15 +245,11 @@ const Input = styled.input`
 `
 
 const InfoBar = styled.div`
-    
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
 `;
-
-// const RoomsView = styled(TitleView)`
-//     /* height: 28rem; */
-//     /* width: calc(100% - 10rem); */
-//     /* margin-right: 80px; */
-//     /* margin-left: 20px; */
-// `;
 
 const BlurredImage = styled(TitleContainer)`
     background-color: ${p => p.theme.cLobbyBackground};

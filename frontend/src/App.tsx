@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { ConnectionManager } from './util/ConnectionManager';
 import { Routes, Route } from 'react-router-dom';
 import { Lobby } from './pages/Lobby';
+import Create from './pages/Create';
 import { ThemeProvider } from 'styled-components';
 import theme from './styles/theme/Theme';
 import GlobalStyles from './styles/theme/GlobalTheme';
@@ -16,6 +17,7 @@ function App(): JSX.Element {
   const [userID, setUserID] = useState<string | undefined>();
   const [score, setScore] = useState(0);
   const [roomID, setRoomID] = useState<string | undefined>();
+  const [roomName, setRoomName] = useState<string | undefined>();
   const [readyStates, setReadyStates] = useState<UserReadyStateType[]>([]);
   const [icon, setIcon] = useState<string | undefined>();
   const [owner, setOwner] = useState<UserType | undefined>();
@@ -33,6 +35,7 @@ function App(): JSX.Element {
     userID, 
     score, 
     roomID, 
+    roomName,
     icon, 
     readyStates, 
     owner, 
@@ -40,6 +43,7 @@ function App(): JSX.Element {
     setUserID, 
     setScore, 
     setRoomID, 
+    setRoomName,
     setIcon, 
     setReadyStates, 
     setOwner, 
@@ -54,6 +58,7 @@ function App(): JSX.Element {
         <Routes>
           <Route path="/" element={<Lobby />} />
           <Route path="/play" element={<ReadyUp />} />
+          <Route path="/create" element={<Create />} />
         </Routes>
       </UserContext.Provider>
     </ThemeProvider>

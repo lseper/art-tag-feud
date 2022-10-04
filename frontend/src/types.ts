@@ -53,6 +53,9 @@ export const ServerRoom = z.object({
 
 export const CreateRoomEventData = z.object({
     userID: z.string(),
+    roomName: z.string(),
+    postsPerRound: z.number(),
+    roundsPerGame: z.number(),
     type: z.literal(EventType.enum.CREATE_ROOM)
 });
 export const JoinRoomEventData = z.object({
@@ -116,6 +119,7 @@ export const UserReadyState = z.object({
 
 export const ClientRoom = z.object({
     roomID: z.string(),
+    roomName: z.string(),
     owner: User,
     readyStates: z.array(UserReadyState)
 })

@@ -9,6 +9,7 @@ type UserContextType = {
     score: number,
     // room specific things
     roomID?: string,
+    roomName?: string,
     icon?: string,
     readyStates: UserReadyStateType[],
     owner?: UserType,
@@ -17,6 +18,7 @@ type UserContextType = {
     setUserID: (userID: string) => void,
     setUsername: (username: string) => void,
     setRoomID: (roomID: string) => void,
+    setRoomName: (roomName: string) => void,
     setIcon: (icon: string) => void,
     setReadyStates: (readyStates: UserReadyStateType[]) => void,
     setOwner: (owner: UserType) => void,
@@ -32,6 +34,7 @@ export const UserContext = createContext<UserContextType>({
         setUserID: (userID: string) => {},
         setUsername: (username: string) => {},
         setRoomID: (roomID: string) => {},
+        setRoomName: (roomID: string) => {},
         setScore: (score: number) => {},
         setIcon: (icon: string) => {},
         setOwner: (owner: UserType) => {},

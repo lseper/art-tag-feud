@@ -12,8 +12,6 @@ import {
   useNavigate,
 } from 'react-router-dom';
 
-import reg from '../images/e6TagGameMascot.png';
-
 type Props = {
   className?: string;
 }
@@ -94,7 +92,6 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
       connectionManager.send(data);
       leaveRoomCleanup();
     }
-    document.body.style.backgroundImage = `url(${reg})`;
     navigate("/");
   }, [connectionManager, leaveRoomCleanup, navigate, roomID, userID, username]);
 

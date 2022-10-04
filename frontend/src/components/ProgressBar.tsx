@@ -11,7 +11,7 @@ const ProgressBarElement : React.FC<Props> = ({ percentComplete, totalTime, clas
     const color = percentComplete > 66 ? "character" : percentComplete > 33 ? "artist" : "species";
 
   return <div className={className}>
-      <div style={{width: `${percentComplete}%`}} className={`inner-bar ${color}`}></div>
+      <div style={{width: `${percentComplete >= 0 ? percentComplete : 0}%`}} className={`inner-bar ${color}`}></div>
     </div>
 };
 
