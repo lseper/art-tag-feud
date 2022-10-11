@@ -11,7 +11,8 @@ import {
     StartGameEventData, 
     SetUserIconEventData, 
     LeaveRoomEventData, 
-    GetSelectedIconsEventData, 
+    GetSelectedIconsEventData,
+    EndGameEventDataToClientType, 
 } from "./types"; // DTO Types
 import type { 
     ServerRoomType, 
@@ -197,6 +198,14 @@ const leaveRoom = (server: WebSocketServer, userID: string, roomID: string) => {
     broadcastToRoom(roomToUpdate, data);
 }
 
+const resetRoom = (room: ServerRoomType): void => {
+    room.curRound = 0;
+    const newReadyStates = new Map<string, boolean>();
+    for (const userID of room.allUsersReady.keys()) {
+        newReadyStates.set(userID, false);
+    }
+}
+
 server.on("connection", response => {
     numUsers += 1;
 
@@ -312,35 +321,56 @@ server.on("connection", response => {
                 }
                 const user = users.get(userID);
                 const userSocket = userSockets.get(userID);
-                if(user && userSocket) {
-                    // setup the userReady map for the room
-                    const newRoomAllUsersReady = new Map<string, boolean>();
-                    newRoomAllUsersReady.set(user.id, false);
-                    // create room and add to rooms map
-                    user.roomID = newRoomID;
-                    const newRoom: ServerRoomType = {
-                        id: newRoomID,
-                        name: data.roomName,
-                        postsPerRound: data.postsPerRound,
-                        roundsPerGame: data.roundsPerGame,
-                        members: [user], 
-                        postQueue: [], 
-                        allUsersReady: newRoomAllUsersReady, 
-                        postsViewedThisRound: 0, 
-                        gameStarted: false, 
-                        owner: user
-                    };
-                    rooms.set(newRoomID, newRoom);
-                    const readyStates: UserReadyStateType[] = getReadyStates(newRoom);
-                    const roomToClient = {
-                        roomID: newRoom.id,
-                        roomName: newRoom.name, 
-                        readyStates: readyStates, 
-                        owner: user
-                    };
-                    console.log('created room, letting user join');
-                    // broadcase to the user their updated roomID
-                    broadcast<JoinRoomEventDataToClientType>(server, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient})
+                if(data.roomID) {
+                    const room = rooms.get(data.roomID);
+                    if(!room) {
+                        break;
+                    }
+                    room.postsPerRound = data.postsPerRound;
+                    room.roundsPerGame = data.roundsPerGame;
+                    room.name = data.roomName;
+                    resetRoom(room);
+                    if(user && userSocket) {
+                        const roomToClient = {
+                            roomID: room.id,
+                            roomName: room.name, 
+                            readyStates: getReadyStates(room), 
+                            owner: user
+                        };
+                        broadcast<JoinRoomEventDataToClientType>(server, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient})
+                    }
+                } else {
+                    if(user && userSocket) {
+                        // setup the userReady map for the room
+                        const newRoomAllUsersReady = new Map<string, boolean>();
+                        newRoomAllUsersReady.set(user.id, false);
+                        // create room and add to rooms map
+                        user.roomID = newRoomID;
+                        const newRoom: ServerRoomType = {
+                            id: newRoomID,
+                            name: data.roomName,
+                            postsPerRound: data.postsPerRound,
+                            roundsPerGame: data.roundsPerGame,
+                            members: [user], 
+                            curRound: 0,
+                            postQueue: [], 
+                            allUsersReady: newRoomAllUsersReady, 
+                            postsViewedThisRound: 0, 
+                            gameStarted: false, 
+                            owner: user
+                        };
+                        rooms.set(newRoomID, newRoom);
+                        const readyStates: UserReadyStateType[] = getReadyStates(newRoom);
+                        const roomToClient = {
+                            roomID: newRoom.id,
+                            roomName: newRoom.name, 
+                            readyStates: readyStates, 
+                            owner: user
+                        };
+                        console.log('created room, letting user join');
+                        // broadcase to the user their updated roomID
+                        broadcast<JoinRoomEventDataToClientType>(server, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient})
+                    }
                 }
                 break;
             }
@@ -404,7 +434,12 @@ server.on("connection", response => {
                     if(roomIsReadyForNewPost(roomToSendPost)) {
                         // they've completed the round, show the leaderboard
                         if(roomToSendPost.postsViewedThisRound >= roomToSendPost.postsPerRound) {
+                            roomToSendPost.curRound += 1;
                             roomToSendPost.postsViewedThisRound = 0;
+                            if(roomToSendPost.curRound >= roomToSendPost.roundsPerGame) {
+                                broadcastToRoom<EndGameEventDataToClientType>(roomToSendPost, {type: EventType.enum.END_GAME});
+                                break;
+                            }
                             broadcastToRoom<ShowLeaderboardEventDataToClientType>(roomToSendPost, {type: EventType.enum.SHOW_LEADERBOARD});
                             break;
                         }

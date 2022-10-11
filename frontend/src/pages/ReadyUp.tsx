@@ -12,6 +12,8 @@ import {
   useNavigate,
 } from 'react-router-dom';
 
+import Theme from '../styles/theme/Theme';
+
 type Props = {
   className?: string;
 }
@@ -156,10 +158,10 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
       {
         <StartGameContainer style={{gridArea:'start-game'}}>
           {
-            roomID && userID && <RoomUpdateButton className={'leave'} onClick={leaveRoom}>Leave Room</RoomUpdateButton>
+            roomID && userID && <RoomUpdateButton color={Theme.cTagSpecies} onClick={leaveRoom}>Leave Room</RoomUpdateButton>
           }
           {
-            owner && userID === owner.id && <RoomUpdateButton onClick={startGame}>Start Game</RoomUpdateButton>
+            owner && userID === owner.id && <RoomUpdateButton color={Theme.cPrimaryText} onClick={startGame}>Start Game</RoomUpdateButton>
           }
       </StartGameContainer>
       }
@@ -204,27 +206,29 @@ const ReadyUpButton = styled.button`
   }
 `
 
-const RoomUpdateButton = styled.button`
+type RoomUpdateButtonProps = {
+  color: string
+}
+
+export const RoomUpdateButton = styled.button<RoomUpdateButtonProps>`
   width: 140px;
   min-height: 40px;
-  border:2px solid ${p => p.theme.cPrimaryText};
+  border:2px solid ${p => p.color};
   background-color: transparent;
   
   font-size: 1em;
   font-weight: bold;
-  color: ${p => p.theme.cPrimaryText};
-
-  &.leave {
-    border:2px solid ${p => p.theme.cTagSpecies};
-    color: ${p => p.theme.cTagSpecies};
-    margin-right: 24px;
-    &:hover {
-      background-color: ${p => p.theme.cTagSpecies};
-    }
-  }
+  color: ${p => p.color};
+  border-radius: 10%;
+  font-size: 1em;
+  font-weight: bold;
+  
+  transition: background-color .2s, transform .2s, color .2s, border .2s;
 
   &:hover {
-    background-color: ${p => p.theme.cPrimaryText};
+    background-color: ${p => p.color};
+    color: ${p => p.theme.cLobbyBackground};
+    transform: scale(125%);
   }
 `
 

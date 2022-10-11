@@ -8,6 +8,7 @@ export const EventType = z.enum(['DEFAULT',
     'GUESS_TAG',
     'READY_UP',
     'START_GAME',
+    'END_GAME',
     'SET_USERNAME',
     'SET_ICON',
     'GET_SELECTED_ICONS',
@@ -49,12 +50,14 @@ export const ServerRoom = z.object({
     owner: User,
     members: z.array(User),
     postQueue: z.array(Post),
+    curRound: z.number(),
     postsViewedThisRound: z.number(),
     allUsersReady: z.map(z.string(), z.boolean()),
     gameStarted: z.boolean(),
 })
 
 export const CreateRoomEventData = z.object({
+    roomID: z.optional(z.string()),
     userID: z.string(),
     roomName: z.string(),
     postsPerRound: z.number(),
@@ -186,11 +189,15 @@ export const ReadyUpEventDataToClient = z.object({
 
 export const StartGameEventDataToClient = z.object({
     type: z.literal(EventType.enum.START_GAME)
-})
+});
+
+export const EndGameEventDataToClient = z.object({
+    type: z.literal(EventType.enum.END_GAME)
+});
 
 export const ShowLeaderboardEventDataToClient = z.object({
     type: z.literal(EventType.enum.SHOW_LEADERBOARD)
-})
+});
 
 /**
  * Server-Only Object Types
@@ -226,6 +233,7 @@ export type SetUserIconEventDataToClientType = z.infer<typeof SetUserIconEventDa
 export type GetSelectedIconsEventDataToClientType = z.infer<typeof GetSelectedIconsEventDataToClient>
 export type ReadyUpEventDataToClientType = z.infer<typeof ReadyUpEventDataToClient>
 export type StartGameEventDataToClientType = z.infer<typeof StartGameEventDataToClient>
+export type EndGameEventDataToClientType = z.infer<typeof EndGameEventDataToClient>
 export type ShowLeaderboardEventDataToClientType = z.infer<typeof ShowLeaderboardEventDataToClient>
 
 export type ClientRoomType = z.infer<typeof ClientRoom>;

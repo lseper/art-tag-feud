@@ -6,6 +6,7 @@ import { ConnectionManager } from './util/ConnectionManager';
 import { Routes, Route } from 'react-router-dom';
 import { Lobby } from './pages/Lobby';
 import Create from './pages/Create';
+import Finish from './pages/Finish';
 import { ThemeProvider } from 'styled-components';
 import theme from './styles/theme/Theme';
 import GlobalStyles from './styles/theme/GlobalTheme';
@@ -59,6 +60,7 @@ function App(): JSX.Element {
           <Route path="/" element={<Lobby />} />
           <Route path="/play" element={<ReadyUp />} />
           <Route path="/create" element={<Create />} />
+          <Route path="/finish" element={<Finish />} />
         </Routes>
       </UserContext.Provider>
     </ThemeProvider>

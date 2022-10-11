@@ -3,9 +3,10 @@ import { TagListContainer } from '../components/TagListContainer';
 import styled from 'styled-components';
 import { UserContext } from '../contexts/UserContext';
 import { useContext, useEffect, useState } from 'react';
-import type { PostTagType, PostType, ShowLeaderboardEventDataToClientType, RequestPostEventDataToClientType } from '../types';
+import type { PostTagType, PostType, ShowLeaderboardEventDataToClientType, EndGameEventDataToClientType, RequestPostEventDataToClientType } from '../types';
 import { EventType } from '../types';
 import LeaderBoard from '../components/Leaderboard';
+import { useNavigate } from 'react-router-dom';
 // TODO: ^ use this lol
 
 const emptyTagList : PostTagType[] = [];
@@ -21,6 +22,8 @@ function MainPage({currentPost, update} : Props): JSX.Element {
    */
   const {roomID, readyStates, connectionManager, userID, owner } = useContext(UserContext);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+
+  const navigate = useNavigate();
   
   const canStartNewRound = readyStates.every(readyState => readyState.ready);
 
@@ -33,15 +36,20 @@ function MainPage({currentPost, update} : Props): JSX.Element {
       setShowLeaderboard(false);
     }
 
+    const onEndGame = (data: EndGameEventDataToClientType) => {
+      navigate("/finish");
+    }
+
     const unsubscribers = [
       connectionManager.listen<ShowLeaderboardEventDataToClientType>(EventType.enum.SHOW_LEADERBOARD, onShowLeaderboard),
       connectionManager.listen<RequestPostEventDataToClientType>(EventType.enum.REQUEST_POST, onStartNewRound),
+      connectionManager.listen<EndGameEventDataToClientType>(EventType.enum.END_GAME, onEndGame)
     ];
 
     return () => {
       unsubscribers.forEach(unsubscribe => unsubscribe());
     }
-  }, [connectionManager])
+  }, [connectionManager, navigate])
 
   const startNewRound = () => {
     if(canStartNewRound) {

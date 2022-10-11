@@ -24,7 +24,7 @@ export const Create : React.FC<Props> = ({className}: Props) => {
   /**
    * Server-driven user values
    */
-  const {userID, username, setRoomID, setRoomName, setOwner, setReadyStates, connectionManager} = useContext(UserContext);
+  const {userID, roomID, username, setRoomID, setRoomName, setOwner, setReadyStates, connectionManager} = useContext(UserContext);
   const [roomNameInput, setRoomNameInput] = useState('');
   const [postsPerRound, setPostsPerRound] = useState<number[]>([]);
   const [roundsPerGame, setRoundsPerGame] = useState<number[]>([]);
@@ -65,6 +65,7 @@ export const Create : React.FC<Props> = ({className}: Props) => {
         if (inputsAreValid && userID) {
             // send the create game data to the server
             const data: CreateRoomEventDataType = {
+                roomID,
                 type: EventType.enum.CREATE_ROOM, 
                 userID: userID,
                 postsPerRound: postsPerRound[0],
@@ -73,7 +74,7 @@ export const Create : React.FC<Props> = ({className}: Props) => {
             };
             connectionManager.send(data);
         }
-    }, [connectionManager, inputsAreValid, postsPerRound, roomNameInput, roundsPerGame, userID]);
+    }, [connectionManager, inputsAreValid, postsPerRound, roomID, roomNameInput, roundsPerGame, userID]);
 
     return <CreateWrapper>
         <CreateContent>
