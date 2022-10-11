@@ -29,9 +29,7 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
   useEffect(() => {
     const onNewUserJoin = (data: JoinRoomEventDataToClientType) => {
       console.log(`${data.user.username} has joined the room`);
-      const user = data.user;
-      const newReadyStates = [...readyStates, {user, ready: false}];
-      setReadyStates(newReadyStates);
+      setReadyStates(data.room.readyStates);
     }
     
     const onNewReadyStates = (data: ReadyUpEventDataToClientType) => {
