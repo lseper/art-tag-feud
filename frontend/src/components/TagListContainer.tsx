@@ -44,7 +44,6 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
 
     useEffect(() => {
         const onTimerEnd = (data: ReadyUpEventDataToClientType) => {
-            console.log(console.log(`Timer ran out -- ready states: ${data.room.readyStates}`));
             const readyStates = data.room.readyStates;
             // populate new ready states
             setReadyStates(readyStates);
@@ -67,7 +66,6 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
     
     const readyForNextRound = useCallback((ready: boolean) => {
         if(userID != null && roomID != null) {
-          console.log(`user ${userID} is ready for next round: ${ready}`);
           const data: ReadyUpEventDataType = {type: EventType.enum.READY_UP, userID, roomID, ready};
           connectionManager.send(data);
         } else {
@@ -77,7 +75,6 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
 
       const myReadyState = useMemo(() => {
         const readyState = readyStates.find(readyState => readyState.user.id === userID)
-        console.log(readyState);
         return readyState;
       }, [readyStates, userID]);
 

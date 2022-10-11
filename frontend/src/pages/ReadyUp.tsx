@@ -28,19 +28,16 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
   
   useEffect(() => {
     const onNewUserJoin = (data: JoinRoomEventDataToClientType) => {
-      console.log(`${data.user.username} has joined the room`);
       setReadyStates(data.room.readyStates);
     }
     
     const onNewReadyStates = (data: ReadyUpEventDataToClientType) => {
-      console.log(console.log(`ready up updated -- ready states: ${data.room.readyStates}`));
       const readyStates = data.room.readyStates;
       // populate new ready states
       setReadyStates(readyStates);
     }
 
     const onUserLeftRoom = (data: LeaveRoomEventDataToClientType) => {
-      console.log('Someone left the room...')
       const newReadyStates = data.room.readyStates;
       const newOwner = data.room.owner;
       if(!owner) {
@@ -68,7 +65,6 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
 
   const readyUp = useCallback((ready: boolean) => {
     if(userID != null && roomID != null) {
-      console.log("readying up");
       const data: ReadyUpEventDataType = {type: EventType.enum.READY_UP, userID, roomID, ready};
       connectionManager.send(data);
     } else {
@@ -86,7 +82,6 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
   }, [roomID, userID, owner?.id, canStartGame, connectionManager]);
 
   const leaveRoom = useCallback(() => {
-    console.log(`${username ?? 'NO USERNAME'} is leaving the room`);
     if(roomID && userID) {
       const data: LeaveRoomEventDataType = {type: EventType.enum.LEAVE_ROOM, userID, roomID};
       connectionManager.send(data);

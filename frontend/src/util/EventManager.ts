@@ -21,7 +21,6 @@ export default class EventManager {
 
     public dispatch<T>(event_name: EventTypeType, data: T) {
         if(this.events.has(event_name)) {
-            console.log(`Handling event: ${event_name}...`);
             this.events.get(event_name)!.forEach((handler) => handler(data));
         }
     }

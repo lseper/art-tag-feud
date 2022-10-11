@@ -32,9 +32,7 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
     }
 
     const onAllSelectedIcons = (data: GetSelectedIconsEventDataToClientType) => {
-      console.log('setting initially selected icons');
       const newSelectedIcons = data.selectedIcons;
-      console.log(newSelectedIcons);
       setSelectedIcons(newSelectedIcons);
     }
 
@@ -65,7 +63,6 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
 
   useEffect(() => {
     // get selected icons on mount
-    console.log('getting initial selected icons...')
     getSelectedIcons();
   }, [getSelectedIcons])
 

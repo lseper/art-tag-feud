@@ -27,7 +27,6 @@ export const Finish : React.FC<Props> = ({className}: Props) => {
 
     // transfer ownership of room if owner leaves, lets people leave room
     const onUserLeftRoom = (data: LeaveRoomEventDataToClientType) => {
-      console.log('Someone left the room...')
       const newReadyStates = data.room.readyStates;
       const newOwner = data.room.owner;
       if(!owner) {

@@ -63,7 +63,6 @@ function LeaderBoard(): JSX.Element {
                     const username = readyState.user.username;
                     const icon = readyState.user.icon;
                     const rankBarWidth = (Math.floor((score / highestScore) * (MAX_LEADERBOARD_WIDTH - BASE_LEADERBOARD_WIDTH))) + BASE_LEADERBOARD_WIDTH;
-                    console.log(`highest score: ${highestScore}`);
                     let rankBarClassName : string = '';
                     if(rank <= 2) {
                         rankBarClassName = RANK_BAR_CLASS_NAMES[rank];

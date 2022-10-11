@@ -41,7 +41,6 @@ export default function useTagListGuesser(startingTags : PostTagType[]) : [
     const handleGuess = useCallback((guess: string) : {isCorrect: boolean, tag?: PostTagType} => {
         let tagIndex = hiddenTags.findIndex((tag : PostTagType) => tag.name === guess);
         if(guessedTags.some(tag => tag.name === guess)){
-            // console.log('short circuiting, already guessed');
             return {isCorrect: false};
         }
         if(tagIndex < 0) {
@@ -56,7 +55,6 @@ export default function useTagListGuesser(startingTags : PostTagType[]) : [
                 return {isCorrect: false};
             }
         }
-        console.log("successful guess");
         const guessedTag = hiddenTags[tagIndex];
         return {isCorrect: true, tag: guessedTag};
     }, [guessedTags, hiddenTags]);
@@ -75,10 +73,8 @@ export default function useTagListGuesser(startingTags : PostTagType[]) : [
     }
 
     useEffect(() => {
-        // console.log("adding event listener...");
         const onGuess = (data: GuessTagEventDataToClientType) => {
             const {isCorrect, tag} = handleGuess(data.tag.name);
-            console.log(`isCorrect: ${isCorrect} Tag: ${tag}`);
             if(isCorrect && tag != null) {
                 // TODO: associate guessed tags with a user that guessed it
                 const newGuessedTags = [...guessedTags, tag];
@@ -86,9 +82,7 @@ export default function useTagListGuesser(startingTags : PostTagType[]) : [
                 // update user's score on client side
                 const userToUpdateScore = readyStates.find(readyState => readyState.user.id === data.user.id);
                 if(userToUpdateScore) {
-                    console.log(`score before: ${userToUpdateScore.user.score}`);
                     userToUpdateScore.user.score += tag.score;
-                    console.log(`score after: ${userToUpdateScore.user.score}`);
                     setReadyStates([...readyStates]);
                 }
             }
