@@ -13,7 +13,6 @@ const META_MODIFIERS = ['score:>=25', 'gentags:>=10', 'rating:explicit', 'order:
 // - for tags you don't want to include
 async function getPosts(numPosts=10) {
     const URL = `${BASE_URL}.json?limit=${10}&tags=+-${BLACKLIST.join('+-')}+${META_MODIFIERS.join('+')}`;
-    console.log(URL);
     const response = await fetch(URL);
     const posts = response.json().then(data => {
         console.log(data);

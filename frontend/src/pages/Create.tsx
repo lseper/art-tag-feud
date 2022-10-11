@@ -38,7 +38,6 @@ export const Create : React.FC<Props> = ({className}: Props) => {
   }, [roomNameInput, postsPerRound, roundsPerGame])
   
   useEffect(() => {
-    // TODO: run this when the owner joins the room
     const onJoinRoom = (data: JoinRoomEventDataToClientType) => {
         // if the update was for this room that we are in, then update the owner
         if(userID === data.user.id) {

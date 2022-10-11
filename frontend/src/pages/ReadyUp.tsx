@@ -22,7 +22,7 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
   /**
    * Server-driven user values
    */
-  const {userID, username, roomID, readyStates, owner, setOwner, setReadyStates, leaveRoomCleanup, connectionManager} = useContext(UserContext);
+  const {userID, roomID, readyStates, owner, roomName, setOwner, setReadyStates, leaveRoomCleanup, connectionManager} = useContext(UserContext);
   const { currentPost, update } = usePostFetcher(connectionManager, roomID);
   const navigate = useNavigate();
   
@@ -88,7 +88,7 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
       leaveRoomCleanup();
     }
     navigate("/");
-  }, [connectionManager, leaveRoomCleanup, navigate, roomID, userID, username]);
+  }, [connectionManager, leaveRoomCleanup, navigate, roomID, userID]);
 
   const renderLobbyUserIcon = useCallback((userIcon?: string) => {
     if(userIcon) {
@@ -130,13 +130,12 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
     );
   }, [readyUp, renderLobbyUserIcon, userID]);
 
-  const roomName = `${owner?.username ?? 'Uknown User'}'s Room`;
   return currentPost ? <MainPage currentPost={currentPost} update={update}/> : (
     <ReadyUpView>
       <UsersInLobbyContainer style={{gridArea: 'ready-up'}}>
         <ReadyUpContainer style={{width: '50%'}}>
             <TitleText>
-                {roomName}
+                {roomName ?? "Unnamed Room"}
             </TitleText>
             <ReadyUpList>
                 {

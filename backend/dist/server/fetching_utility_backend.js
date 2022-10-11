@@ -32,7 +32,6 @@ const BASE_TAG_SCORE = 1;
 function getPosts() {
     return __awaiter(this, void 0, void 0, function* () {
         const URL = `${BASE_URL}${POSTS_BASE}?limit=${10}&tags=+-${BLACKLIST.join('+-')}+${META_MODIFIERS.join('+')}`;
-        console.log(URL);
         // get the response
         const response = yield fetch(URL);
         const data = yield response.json();

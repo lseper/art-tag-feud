@@ -14,27 +14,25 @@ type Props = {
 }
 
 export const Lobby: React.FC<Props> = ({className}: Props) => {
-    const {roomID, setRoomID, userID, setUserID, setUsername, setReadyStates, setOwner, username, connectionManager} = useContext(UserContext);
+    const {roomID, setRoomID, setRoomName, userID, setUserID, setUsername, setReadyStates, setOwner, username, connectionManager} = useContext(UserContext);
     const [usernameInput, setUsernameInput] = useState<string>('');
     const [rooms, setRooms] = useState<ClientRoomType[]>([]);
     const navigate = useNavigate();
 
     useEffect(() => {
-        // TODO: move this into Create.tsx
         const onJoinRoom = (data: JoinRoomEventDataToClientType) => {
           setRooms([data.room, ...rooms]);
           // if the update was for this room that we are in, then update the owner
           if(userID === data.user.id) {
               setRoomID(data.room.roomID);
               setReadyStates(data.room.readyStates);
+              setRoomName(data.room.roomName);
               setOwner(data.room.owner)
-            }
-            
-            if(userID === data.user.id) {
-                navigate("/play");
-                document.body.style.backgroundImage = 'none';
+              navigate("/play");
+              document.body.style.backgroundImage = 'none';
             }
         }
+
         const onAllRooms = (data: AllRoomsEventDataToClientType) => {
             setRooms(data.rooms);
         }
@@ -55,7 +53,7 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
         return () => {
             unsubscribers.forEach(unsubscribe => unsubscribe());
         }
-    }, [connectionManager, navigate, roomID, rooms, setOwner, setReadyStates, setRoomID, setUserID, setUsername, userID]);
+    }, [connectionManager, navigate, roomID, rooms, setOwner, setReadyStates, setRoomID, setRoomName, setUserID, setUsername, userID]);
 
     
     const createUsername = useCallback((username: string) => {

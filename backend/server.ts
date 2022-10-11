@@ -367,7 +367,6 @@ server.on("connection", response => {
                             readyStates: readyStates, 
                             owner: user
                         };
-                        console.log('created room, letting user join');
                         // broadcase to the user their updated roomID
                         broadcast<JoinRoomEventDataToClientType>(server, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient})
                     }

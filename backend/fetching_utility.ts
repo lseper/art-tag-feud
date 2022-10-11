@@ -28,7 +28,7 @@ export async function getPosts(): Promise<PostType[]> {
         headers: {'User-Agent': 'e621-tag-feud/1.1 - by Zaverose'}
     }).then((response) => {
         return response.data;
-    }).catch(err => console.log(err.message));
+    }).catch(err => console.error(err.message));
     const result = data.posts.map((post: any): PostType => {
         // return a list of objects containing only the URL and id of the post
         const url : string = post.file.url;

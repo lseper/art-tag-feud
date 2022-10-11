@@ -19,7 +19,6 @@ const BASE_TAG_SCORE = 1;
 // fetches and formats 10 random posts from e621
 export async function getPosts() {
     const URL = `${BASE_URL}${POSTS_BASE}?limit=${10}&tags=+-${BLACKLIST.join('+-')}+${META_MODIFIERS.join('+')}`;
-    console.log(URL);
     // get the response
     const response = await fetch(URL);
     const data = await response.json();
