@@ -84,12 +84,12 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
     }, [getAllRooms])
 
     const renderRoom = useCallback((room: ClientRoomType) => {
-        const {roomID, readyStates, owner} = room;
+        const {roomName, readyStates} = room;
         return (
             <li key={roomID} style={{paddingTop: 4}}>
                 <RoomNameContainer>
                     <p>
-                        {`${owner.username}'s Room`}
+                        {roomName}
                     </p>
                 </RoomNameContainer>
                 <JoinRoomButton onClick={() => joinRoom(room.roomID)} className={'joinable'}>
@@ -104,7 +104,7 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
                 </ReadyUpStatesContainer>
             </li>
         )
-    }, [joinRoom]);
+    }, [joinRoom, roomID]);
 
     const renderSignUp = () => {
         if(!username) {
