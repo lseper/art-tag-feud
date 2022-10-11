@@ -1,25 +1,27 @@
-import { VisibleTag, HiddenTag } from './VisibleTag';
 import type { PostTagType } from '../types';
+import Tag from './Tag';
 
 interface Props {
     tags: PostTagType[],
-    guessedTags: PostTagType[]
+    guessedTags: PostTagType[],
+    revealAll: boolean,
+    baseDelayIndex: number,
 }
+// reveal stagger in ms
+const TAG_REVEAL_DELAY = 500;
 
-export const TagList : React.FC<Props> = (props : Props) => {
-    const {tags, guessedTags} = props;
-
+const TagList : React.FC<Props> = ({tags, guessedTags, revealAll, baseDelayIndex} : Props) => {
+    
     return (
         <>
             <ul>
                 {
-                    tags.map((tag) => {
+                    tags.map((tag, i) => {
                         if(guessedTags.includes(tag)) {
-                            // render VisibleTag
-                            return <VisibleTag tag={tag}></VisibleTag>
+                            // TODO: lazy tag reveal delay time - should be better
+                            return <Tag tag={tag} abnormalReveal={revealAll} delay={(i + baseDelayIndex) * TAG_REVEAL_DELAY}/>
                         } else {
-                            // render HiddenTag
-                            return <HiddenTag></HiddenTag>
+                            return <Tag abnormalReveal={revealAll} delay={(i + baseDelayIndex) * TAG_REVEAL_DELAY}/>
                         }
                     })
                 }
@@ -27,3 +29,5 @@ export const TagList : React.FC<Props> = (props : Props) => {
         </>
     )
 }
+
+export default TagList;

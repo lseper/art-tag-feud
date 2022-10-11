@@ -16,7 +16,7 @@ function checkAlias(tag_name: string) : string {
 }
 // custom hook, returns an object that has the CurrentPost, and an update callback function that we define
 export default function useTagListGuesser(startingTags : PostTagType[]) : [
-    PostTagType[], (guess: string) => boolean
+    PostTagType[], (guess: string) => boolean, () => void
 ] {
     // want component re-rendering when this changes
     const [guessedTags, setGuessedTags] = useState<PostTagType[]>([]);
@@ -24,13 +24,9 @@ export default function useTagListGuesser(startingTags : PostTagType[]) : [
     const {connectionManager, username, readyStates, setReadyStates, userID, roomID, score} = useContext(UserContext);
 
     // TODO: uncomment once reveal all tags functionality is added
-    // function revealAllTags() {
-    //     setGuessedTags([...guessedTags, ...hiddenTags]);
-    // }
-
-    // function hideAllTags() {
-    //     setGuessedTags([]);
-    // }
+    function revealAllTags() {
+        setGuessedTags([...guessedTags, ...hiddenTags]);
+    }
 
     // reset on new post
     useEffect(() => {
@@ -94,5 +90,5 @@ export default function useTagListGuesser(startingTags : PostTagType[]) : [
 
     }, [connectionManager, guessedTags, handleGuess, readyStates, setReadyStates])
 
-    return [ guessedTags, guessTag ];
+    return [ guessedTags, guessTag, revealAllTags ];
   }

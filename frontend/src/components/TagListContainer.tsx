@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useContext, useCallback } from 'react';
 import type { ReadyUpEventDataType, ReadyUpEventDataToClientType, RequestPostEventDataToClientType, PostTagType } from '../types';
 import { EventType } from '../types';
-import { TagList } from './TagList';
+import TagList from './TagList';
 import useTagListGuesser from '../useTagListGuesser';
 import styled from 'styled-components';
 import { ProgressBar } from './ProgressBar';
@@ -21,7 +21,8 @@ interface Props {
 const TagListContainerElement: React.FC<Props> = (props: Props) => {
     const { tags, className } = props;
     const [guess, setGuess] = useState('');
-    const [guessedTags, guessTag] = useTagListGuesser(tags);
+    const [hasRevealedAll, setHasRevealedAll] = useState(false);
+    const [guessedTags, guessTag, revealAllTags] = useTagListGuesser(tags);
     const {userID, roomID, readyStates, setReadyStates, connectionManager} = useContext(UserContext);
 
     const [generalTags, artistTags, characterTags, speciesTags] = useMemo(() => {
@@ -78,6 +79,10 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
         return readyState;
       }, [readyStates, userID]);
 
+      const allUsersFinished = useMemo(() => {
+        return readyStates.every(readyState => readyState.ready);
+      }, [readyStates]);
+
     useEffect(() => {
         // frame rate of 60 fps for timer
         const timer = setInterval(() => setTime(time - (1 / FRAME_RATE)), (1000 / FRAME_RATE));
@@ -85,11 +90,50 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
         if (time <= 0 && !myReadyState?.ready) {
             readyForNextRound(true);
         }
+
+        if(allUsersFinished && !hasRevealedAll) {
+            revealAllTags();
+            setHasRevealedAll(true);
+        }
+
+        if(!allUsersFinished && hasRevealedAll) {
+            setHasRevealedAll(false);
+        }
+
         return () => {
             clearInterval(timer);
         }
-    }, [myReadyState?.ready, readyForNextRound, time])
+    }, [allUsersFinished, hasRevealedAll, myReadyState?.ready, readyForNextRound, revealAllTags, time]);
 
+    const generalTagLists = useMemo(() => {
+        const tagList1 = generalTags.slice(0, Math.ceil(generalTags.length / 3));
+        const tagList2 = generalTags.slice(Math.ceil(generalTags.length / 3), Math.ceil(generalTags.length / 3) * 2);
+        const tagList3 = generalTags.slice(Math.ceil(generalTags.length / 3) * 2);
+        const tagLists = [
+            tagList1,
+            tagList2,
+            tagList3,
+        ];
+        return tagLists;
+    }, [generalTags]);
+
+    const tagListBaseDelays = useMemo(() => {
+       const tagListDelays = [];
+       let baseDelay = 0;
+       for (const tagList of generalTagLists) {
+        tagListDelays.push(baseDelay);
+        baseDelay += tagList.length;
+       }
+       // base delay for species tags
+       tagListDelays.push(baseDelay);
+       baseDelay += speciesTags.length;
+       // base delay for character tags
+       tagListDelays.push(baseDelay);
+       baseDelay += characterTags.length;
+       // base delay for artist tags
+       tagListDelays.push(baseDelay);
+       return tagListDelays;
+    }, [characterTags.length, generalTagLists, speciesTags.length]);
 
     return (
         <div className={className}>
@@ -124,16 +168,30 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                 {/* 1/3 side of grid */}
                 <TagsList>
                     {/* Big large general tag block, takes up 1/3 of right side of screen */}
-                    <TagList tags={generalTags.slice(0, Math.ceil(generalTags.length / 3))} guessedTags={guessedGeneralTags}
+                    <TagList 
+                    tags={generalTagLists[0]} 
+                    guessedTags={guessedGeneralTags} 
+                    baseDelayIndex={tagListBaseDelays[0]}
+                    revealAll={hasRevealedAll}
                     ></TagList>
                 </TagsList>
                 <TagsList>
                     {/* 1 / 3 of grid */}
-                    <TagList tags={generalTags.slice(Math.ceil(generalTags.length / 3), Math.ceil(generalTags.length / 3) * 2)} guessedTags={guessedGeneralTags}></TagList>
+                    <TagList 
+                    tags={generalTagLists[1]} 
+                    guessedTags={guessedGeneralTags}
+                    baseDelayIndex={tagListBaseDelays[1]}
+                    revealAll={hasRevealedAll}
+                    ></TagList>
                 </TagsList>
                 <TagsList>
                     {/* 1 / 3 of grid */}
-                    <TagList tags={generalTags.slice(Math.ceil(generalTags.length / 3) * 2)} guessedTags={guessedGeneralTags}></TagList>
+                    <TagList 
+                    tags={generalTagLists[2]} 
+                    guessedTags={guessedGeneralTags} 
+                    baseDelayIndex={tagListBaseDelays[2]}
+                    revealAll={hasRevealedAll}
+                    ></TagList>
                 </TagsList>
             </TagsGrid>
             {/* Artist, chracter, and species tags */}
@@ -141,20 +199,35 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                 <div>
                     <TagListLabel> Species Tags </TagListLabel>
                     <TagsList>
-                        <TagList tags={speciesTags} guessedTags={guessedSpeciesTags}></TagList>
+                        <TagList 
+                        tags={speciesTags} 
+                        guessedTags={guessedSpeciesTags}
+                        baseDelayIndex={tagListBaseDelays[3]}
+                        revealAll={hasRevealedAll}
+                        ></TagList>
                     </TagsList>
                 </div>
                 <div>
                     <TagListLabel> Character Tags </TagListLabel>
                     <TagsList>
-                        <TagList tags={characterTags} guessedTags={guessedCharacterTags}></TagList>
+                        <TagList 
+                        tags={characterTags} 
+                        guessedTags={guessedCharacterTags}
+                        baseDelayIndex={tagListBaseDelays[4]}
+                        revealAll={hasRevealedAll}
+                        ></TagList>
                     </TagsList>
                 </div>
                 <div>
                     <TagListLabel> Artist Tags </TagListLabel>
                     {/* Rest of the tags, stacked on top of one another. Takes up the other 1/2 side of right screen */}
                     <TagsList>
-                        <TagList tags={artistTags} guessedTags={guessedArtistTags}></TagList>
+                        <TagList 
+                        tags={artistTags} 
+                        guessedTags={guessedArtistTags}
+                        baseDelayIndex={tagListBaseDelays[5]}
+                        revealAll={hasRevealedAll}
+                        ></TagList>
                     </TagsList>
                 </div>
             </TagsGrid>
