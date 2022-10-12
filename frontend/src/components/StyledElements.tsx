@@ -16,6 +16,7 @@ export const List = styled.ul`
     flex-direction: column;
     align-items: center;
     text-align: left;
+    padding: 16px; 
 
     li {
         display: grid;
@@ -38,20 +39,32 @@ export const Header = styled.span`
 `;
 
 export const TitleText = styled.h1`
-    font-size: 3.5em;
+    font-size: 2em;
     color: #b4c7d9;
     text-decoration: none;
+    
+    @media (min-width: 800px) {
+        font-size: 3.5em;
+    }
 `;
 
 export const Container = styled.div`
-    display: grid; 
-    grid-template-columns: 1fr 0.5fr 1fr; 
-    grid-template-rows: 2.25fr 2.25fr 0.75fr; 
-    grid-template-areas:
-    '. . rooms'
-    '. e6-join rooms'
-    '. e6-create rooms';
-    column-gap: 2.5rem;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    /* TODO make responsive */
+    @media (min-width: 1600px) {
+        display: grid; 
+        grid-template-columns: 1fr 0.5fr 1fr; 
+        grid-template-rows: 2.25fr 2.25fr 0.75fr; 
+        grid-template-areas:
+        '. . rooms'
+        '. e6-join rooms'
+        '. e6-create rooms';
+        column-gap: 2.5rem;
+    }
 
     text-align: center;
     position: absolute;

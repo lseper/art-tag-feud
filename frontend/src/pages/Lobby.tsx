@@ -6,7 +6,7 @@ import { EventType } from '../types';
 import {
     useNavigate,
 } from 'react-router-dom';
-import { Container, List, Header, TitleText, TitleContainer } from '../components/StyledElements';
+import { Container, TitleText, TitleContainer } from '../components/StyledElements';
 
 
 type Props = {
@@ -141,43 +141,148 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
             <input type="submit" style={{marginRight: 8}} value="Start" form="roomIDForm"/>
             </BlurredImage>
         </Container>
+        } else {
+            return (
+                <LobbyContainer>
+                    <Card centered>
+                        <CardTitle>
+                            e621 Tag Feud
+                        </CardTitle>
+                        <CardSubtitle>
+                            Create a Room!
+                        </CardSubtitle>
+                        <CreateRoomButton onClick={createRoom}>
+                            Create Room
+                        </CreateRoomButton>
+                    </Card>
+                    <Card inline>
+                        <Credit href={'https://github.com/Zaverose/e621-tag-feud'}>
+                            contribute
+                        </Credit>
+                        <Credit href={'https://twitter.com/zaverose_nsfw'}>
+                            twitter
+                        </Credit>
+                    </Card>
+                    <Card centered>
+                        <CardTitle>
+                            Joinable Rooms
+                        </CardTitle>
+                        {
+                            rooms.length === 0 && <p>No Rooms available to join</p>
+                        }
+                        <RoomsList>
+                            {
+                                rooms.map(room => renderRoom(room))
+                            }
+                        </RoomsList>
+                    </Card>
+                </LobbyContainer>
+            )
         }
-        return <Container>
-            <TitleContainer style={{gridArea: 'e6-join', paddingBottom: 12}}>
-        <TitleText>
-            e621 Tag Feud
-        </TitleText>
-        <h1 style={{marginTop: 0}}>Create a Room!</h1>
-        <button onClick={createRoom}>
-        Create Room
-        </button>
-    </TitleContainer>
-    <TitleContainer style={{gridArea: 'e6-create', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
-        <InfoBar>
-            <a href="https://github.com/Zaverose/e621-tag-feud">contribute</a>
-            <a href="https://twitter.com/zaverose_nsfw">twitter</a>
-        </InfoBar>
-    </TitleContainer>
-    <TitleContainer style={{gridArea: 'rooms', width: 'auto', marginLeft: '1rem', marginRight: '1rem'}}>
-        <TitleText>
-            Joinable Rooms
-        </TitleText>
-        <List>
-            <Header>
-                <p>room name</p>
-                <p></p>
-                <p>users</p>
-            </Header>
-            {
-                rooms.map(room => renderRoom(room))
-            }  
-        </List>
-    </TitleContainer>
-    </Container>;
     }
 
     return renderSignUp();
 }
+
+const LobbyContainer = styled.div`
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    padding: 24px 8px;
+
+    @media (min-width: 600px) {
+        padding: 64px 8px;
+    }
+`
+
+type CardProps = {
+    centered?: boolean,
+    inline?: boolean,
+    width?: number,
+}
+
+const Card = styled.div<CardProps>`
+    display: flex;
+    flex-direction: ${p => p.inline ? 'row' : 'column'};
+    justify-content: center;
+    align-items: ${p => p.centered ? 'center' : 'flex-start'};
+
+    border-radius: 5px;
+    box-shadow: 0 0 5px #000;
+    text-shadow: 0 0 2px black, 0 0 6px black;
+    text-align: center;
+
+    width: ${p => p.width ? `${p.width}%` : 'auto'};
+
+    padding: 8px 24px;
+    margin-bottom: 24px;
+`
+
+const CardTitle = styled.h1`
+    color: #b4c7d9;
+    font-size: 2.5em;
+
+    padding: 8px;
+`
+
+const CardSubtitle = styled.h2`
+    font-size: 2em;
+    margin-bottom: 8px;
+`
+
+const Credit = styled.a`
+    color: #a3bcd3;
+    text-decoration: none;
+    padding: 0.25rem 0.5rem;
+    border: 0;
+    font-family: inherit;
+    font-size: 100%;
+    line-height: 1.25em;
+    margin: 0;
+
+    &:hover {
+        color: #e9f2fa;
+    }
+`
+
+const RoomsList = styled.ul`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: left;
+    padding: 16px;
+
+    li {
+        display: grid;
+        grid-template-columns: 3fr 1fr 4fr;
+        column-gap: 2.5rem;
+        background-color: ${p => p.theme.cBodyLight};
+        border-radius: 4px;
+        padding: 0 1rem 0.25rem 1rem;
+    }
+`
+
+const CreateRoomButton = styled.button`
+    min-width: 8rem;
+    border-radius: 2px;
+    padding: 1px 4px;
+    line-height: normal;
+    margin-bottom: 8px;
+    vertical-align: middle;
+    outline: none;
+    cursor: pointer;
+    border: none;
+    
+    &:focus {
+        background: #ffc;
+        color: #000;
+        outline: none;
+    }
+`
+
+
 
 const ReadyUpStatesContainer = styled.div`
     display: flex;
