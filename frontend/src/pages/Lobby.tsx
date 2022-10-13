@@ -42,6 +42,7 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
                 setUserID(data.user.id);
             }
             setUsername(data.user.username);
+            document.body.style.backgroundImage = 'none';
         }
         // orchestrate game start
         const unsubscribers = [
@@ -135,7 +136,6 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
                     <form id="roomIDForm" style={{paddingTop: 4, marginBottom: 4}}onSubmit={(e) => {
                     e.preventDefault();
                     createUsername(usernameInput);
-                    document.body.style.backgroundImage = 'none';
                 }}>
             </form>
             <input type="submit" style={{marginRight: 8}} value="Start" form="roomIDForm"/>

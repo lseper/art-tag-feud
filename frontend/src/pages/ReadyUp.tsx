@@ -132,25 +132,23 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
 
   return currentPost ? <MainPage currentPost={currentPost} update={update}/> : (
     <ReadyUpView>
-      <UsersInLobbyContainer style={{gridArea: 'ready-up'}}>
-        <ReadyUpContainer style={{width: '50%'}}>
-            <TitleText>
-                {roomName ?? "Unnamed Room"}
-            </TitleText>
-            <ReadyUpList>
-                {
-                    readyStates.map(readyState => renderReadyState(readyState))
-                }  
-            </ReadyUpList>
-        </ReadyUpContainer>
-      </UsersInLobbyContainer>
+      <ReadyUpContainer>
+          <TitleText>
+              {roomName ?? "Unnamed Room"}
+          </TitleText>
+          <ReadyUpList>
+              {
+                  readyStates.map(readyState => renderReadyState(readyState))
+              }  
+          </ReadyUpList>
+      </ReadyUpContainer>
       <ReadyUpContainer style={{gridArea: 'icons'}}>
         <IconPicker allIcons={icons}/>
       </ReadyUpContainer>
       {
         <StartGameContainer style={{gridArea:'start-game'}}>
           {
-            roomID && userID && <RoomUpdateButton color={Theme.cTagSpecies} onClick={leaveRoom}>Leave Room</RoomUpdateButton>
+            roomID && userID && <RoomUpdateButton marginRight={owner && userID === owner.id} color={Theme.cTagSpecies} onClick={leaveRoom}>Leave Room</RoomUpdateButton>
           }
           {
             owner && userID === owner.id && <RoomUpdateButton color={Theme.cPrimaryText} onClick={startGame}>Start Game</RoomUpdateButton>
@@ -162,6 +160,7 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
 }
 
 const ReadyStatus = styled.p`
+  /* font-size: 0.75rem; */
   transition: color .2s;
   &.ready {
     color: ${p => p.theme.cTagCharacter};
@@ -173,8 +172,22 @@ const ReadyStatus = styled.p`
 `
 
 const ReadyUpButton = styled.button`
-  width: 120px;
-  height: 40px;
+  width: 60px;
+  height: 25px;
+  font-size: 0.5rem;
+
+  @media (min-width: 260px) {
+    font-size: 0.75rem;
+    width: 90px;
+    height: 35px;
+  }
+  @media (min-width: 350px) {
+    font-size: 1rem;
+    width: 120px;
+    height: 40px;
+  }
+
+
   &.ready-up {
     color: ${p => p.theme.cTagCharacter};
     background-color: ${p => p.theme.cTagCharacter};
@@ -199,21 +212,36 @@ const ReadyUpButton = styled.button`
 `
 
 type RoomUpdateButtonProps = {
-  color: string
+  color: string,
+  marginRight?: boolean,
 }
 
 export const RoomUpdateButton = styled.button<RoomUpdateButtonProps>`
-  width: 140px;
-  min-height: 40px;
+  width: 100px;
+  height: 28px;
   border:2px solid ${p => p.color};
   background-color: transparent;
   
-  font-size: 1em;
   font-weight: bold;
   color: ${p => p.color};
   border-radius: 10%;
-  font-size: 1em;
   font-weight: bold;
+  font-size: 0.75rem;
+  
+  margin-right: ${p => p.marginRight ? '8px' : '0'};
+
+  @media (min-width: 400px) {
+    width: 110px;
+    height: 35px; 
+    font-size: 0.9rem;
+    margin-right: ${p => p.marginRight ? '16px' : '0'};
+  }
+  @media (min-width: 440px) {
+    width: 120px;
+    height: 40px; 
+    font-size: 1rem;
+    margin-right: ${p => p.marginRight ? '24px' : '0'};
+  }
   
   transition: background-color .2s, transform .2s, color .2s, border .2s;
 
@@ -229,13 +257,8 @@ const StartGameContainer = styled.div`
   flex-direction: row;
   justify-content: center;
   align-items: flex-start;
-  margin-top: 12px;
-`
-
-const UsersInLobbyContainer = styled.div`
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
+  margin-top: 4px;
+  margin-bottom: 16px;
 `
 
 const ReadyUpList = styled.ul`
@@ -252,7 +275,7 @@ const ReadyUpList = styled.ul`
         column-gap: 1rem;
         border-radius: 4px;
         width: calc(100% - 4rem);
-        padding: 0 1rem 0.25rem 1rem;
+        padding: 0 8px 8px 0;
 
         font-size: 1em;
         font-weight: bold;
@@ -265,27 +288,46 @@ const ReadyUpList = styled.ul`
           justify-content: center;
           align-items: center;
 
+          
           &.icon-unchosen {
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
             border: 2px dashed ${p => p.theme.cPrimaryText};
             background-color: transparent;
-
+            
             color: ${p => p.theme.cPrimaryText};
-
+            
             text-shadow: none;
+            
+            width: 30px;
+            height: 30px;
+  
+            @media (min-width: 450px) {
+              width: 40px;
+              height: 40px;
+            }
           }
 
           &.icon-chosen {
             border-radius: 50%;
             border: 2px solid ${p => p.theme.cPrimaryText};
-            width: 40px;
-            height: 40px;
-            img {
+
+            width: 30px;
+            height: 30px;
+  
+            @media (min-width: 450px) {
               width: 40px;
               height: 40px;
+            }
+
+            img {
+              width: 30px;
+              height: 30px;
               border-radius: 50%;
+
+              @media (min-width: 450px) {
+                width: 40px;
+                height: 40px;
+              }
             }
           }
         }
@@ -294,8 +336,9 @@ const ReadyUpList = styled.ul`
 
 const ReadyUpContainer = styled.div`
     margin: 10px;
-    padding: 2px 0 16px 0;
+    padding: 16px;
     max-width: 98vw;
+    text-align: center;
     border-radius: 5px;
     box-shadow: 0 0 5px #000;
     text-shadow: 0 0 2px black, 0 0 6px black;
@@ -303,21 +346,13 @@ const ReadyUpContainer = styled.div`
 `
 
 const ReadyUpView = styled.div`
-  text-align: center;
-  display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
-  grid-template-rows: 1fr 2fr 2fr 1fr;
-  grid-template-areas: 
-  '. . .'
-  '. ready-up .'
-  '. icons .'
-  '. start-game .';
-  column-gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 
   button {
     transition: background-color .2s, transform .2s, color .2s, border .2s;
     border-radius: 10%;
-    font-size: 1em;
     font-weight: bold;
   }
 

@@ -31,13 +31,13 @@ export const icons : IconData[] = [
         artist: "zackary911",
     },
     {
-        character: "Falco Lombardi",
+        character: "Falco",
         file: 'falco.jpg',
         source: "https://e621.net/posts/1927518",
         artist: "zackary911",
     },
     {
-        character: "Fox Mccloud",
+        character: "Fox",
         file: 'fox.jpg',
         source: "https://e621.net/posts/1985010",
         artist: "braeburned",
@@ -85,7 +85,7 @@ export const icons : IconData[] = [
         artist: "kaffii",
     },
     {
-        character: "Nick Wilde",
+        character: "Nick",
         file: 'nick wilde.jpg',
         source: "https://e621.net/posts/2735733",
         artist: "zaush",
@@ -97,7 +97,7 @@ export const icons : IconData[] = [
         artist: "fluff-kevlar",
     },
     {
-        character: "Rocket Raccoon",
+        character: "Rocket",
         file: 'rocket.jpg',
         source: "https://e621.net/posts/2131319",
         artist: "brunchpup",
@@ -121,7 +121,7 @@ export const icons : IconData[] = [
         artist: "zackary911",
     },
     {
-        character: 'Wolf O\'Donnel',
+        character: 'Wolf',
         file: 'wolf.jpg',
         source: "https://e621.net/posts/1807318",
         artist: "glitter trap boy",
