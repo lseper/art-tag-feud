@@ -21,7 +21,6 @@ interface Props {
 const TagListContainerElement: React.FC<Props> = (props: Props) => {
     const { tags, className } = props;
     const [guess, setGuess] = useState('');
-    const [hasRevealedAll, setHasRevealedAll] = useState(false);
     const [guessedTags, guessTag, revealAllTags] = useTagListGuesser(tags);
     const {userID, roomID, readyStates, setReadyStates, connectionManager} = useContext(UserContext);
 
@@ -91,19 +90,17 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
             readyForNextRound(true);
         }
 
-        if(allUsersFinished && !hasRevealedAll) {
+        if(allUsersFinished) {
             revealAllTags();
-            setHasRevealedAll(true);
         }
 
-        if(!allUsersFinished && hasRevealedAll) {
-            setHasRevealedAll(false);
+        if(!allUsersFinished) {
         }
 
         return () => {
             clearInterval(timer);
         }
-    }, [allUsersFinished, hasRevealedAll, myReadyState?.ready, readyForNextRound, revealAllTags, time]);
+    }, [allUsersFinished, myReadyState?.ready, readyForNextRound, revealAllTags, time]);
 
     const generalTagLists = useMemo(() => {
         const tagList1 = generalTags.slice(0, Math.ceil(generalTags.length / 3));
@@ -171,8 +168,6 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                     <TagList 
                     tags={generalTagLists[0]} 
                     guessedTags={guessedGeneralTags} 
-                    baseDelayIndex={tagListBaseDelays[0]}
-                    revealAll={hasRevealedAll}
                     ></TagList>
                 </TagsList>
                 <TagsList>
@@ -180,8 +175,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                     <TagList 
                     tags={generalTagLists[1]} 
                     guessedTags={guessedGeneralTags}
-                    baseDelayIndex={tagListBaseDelays[1]}
-                    revealAll={hasRevealedAll}
+                    
                     ></TagList>
                 </TagsList>
                 <TagsList>
@@ -189,8 +183,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                     <TagList 
                     tags={generalTagLists[2]} 
                     guessedTags={guessedGeneralTags} 
-                    baseDelayIndex={tagListBaseDelays[2]}
-                    revealAll={hasRevealedAll}
+                    
                     ></TagList>
                 </TagsList>
             </TagsGrid>
@@ -202,8 +195,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                         <TagList 
                         tags={speciesTags} 
                         guessedTags={guessedSpeciesTags}
-                        baseDelayIndex={tagListBaseDelays[3]}
-                        revealAll={hasRevealedAll}
+                        
                         ></TagList>
                     </TagsList>
                 </div>
@@ -213,8 +205,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                         <TagList 
                         tags={characterTags} 
                         guessedTags={guessedCharacterTags}
-                        baseDelayIndex={tagListBaseDelays[4]}
-                        revealAll={hasRevealedAll}
+                        
                         ></TagList>
                     </TagsList>
                 </div>
@@ -225,8 +216,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                         <TagList 
                         tags={artistTags} 
                         guessedTags={guessedArtistTags}
-                        baseDelayIndex={tagListBaseDelays[5]}
-                        revealAll={hasRevealedAll}
+                        
                         ></TagList>
                     </TagsList>
                 </div>

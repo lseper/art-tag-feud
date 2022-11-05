@@ -7,8 +7,6 @@ import Theme from '../styles/theme/Theme';
 
 interface Props {
    tag?: PostTagType,
-   abnormalReveal: boolean,
-   delay: number
 }
 
 const TAG_COLORS = new Map<TagTypeType, string>([
@@ -20,32 +18,24 @@ const TAG_COLORS = new Map<TagTypeType, string>([
 
 const REVEAL_TRANSITION_TIME = 200;
 
-const Tag : React.FC<Props> = ({tag, abnormalReveal, delay} : Props) => {
-    const [revealed, setRevealed] = useState(false);
-    const revealDelay = abnormalReveal ? delay : REVEAL_TRANSITION_TIME;
+const Tag : React.FC<Props> = ({tag } : Props) => {
     if (!tag) {
-        return <TagElement className='hidden' color={Theme.cPrimaryText} delay={revealDelay}>???</TagElement>
+        return <TagElement className='hidden' color={Theme.cPrimaryText}>???</TagElement>
     } else {
-        setTimeout(() => setRevealed(true), revealDelay);
-        if(revealed) {
-            return (
-            <TagElement color={TAG_COLORS.get(tag.type) ?? Theme.cPrimaryText} delay={revealDelay}>
-                    <p>
-                        {tag.name}
-                    </p>
-                    <span>
-                        {tag.score}
-                    </span>
-            </TagElement>)
-        } else {
-            return <TagElement className='hidden revealing' color={Theme.cPrimaryText} delay={revealDelay}>???</TagElement>
+        return (
+        <TagElement color={TAG_COLORS.get(tag.type) ?? Theme.cPrimaryText}>
+                <p>
+                    {tag.name}
+                </p>
+                <span>
+                    {tag.score}
+                </span>
+        </TagElement>)
         }
     }
-}
 
 type TagProps = {
     color: string,
-    delay: number,
 }
 
 const TagElement = styled.li<TagProps>`
@@ -67,8 +57,6 @@ const TagElement = styled.li<TagProps>`
     transition-delay: 0ms;
 
     &.hidden {
-        transition-delay: ${p => p.delay}ms;
-
         justify-content: center;
         letter-spacing: 20px;
 
@@ -79,11 +67,6 @@ const TagElement = styled.li<TagProps>`
         text-align: center;
         font-style: italic;
         opacity: 1;
-        
-        &.revealing {
-            opacity: 0;
-            transition-delay: 0ms;
-        }
     }
 
 

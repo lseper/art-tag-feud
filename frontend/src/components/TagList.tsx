@@ -3,14 +3,12 @@ import Tag from './Tag';
 
 interface Props {
     tags: PostTagType[],
-    guessedTags: PostTagType[],
-    revealAll: boolean,
-    baseDelayIndex: number,
+    guessedTags: PostTagType[]
 }
 // reveal stagger in ms
 const TAG_REVEAL_DELAY = 500;
 
-const TagList : React.FC<Props> = ({tags, guessedTags, revealAll, baseDelayIndex} : Props) => {
+const TagList : React.FC<Props> = ({tags, guessedTags} : Props) => {
     
     return (
         <>
@@ -19,9 +17,9 @@ const TagList : React.FC<Props> = ({tags, guessedTags, revealAll, baseDelayIndex
                     tags.map((tag, i) => {
                         if(guessedTags.includes(tag)) {
                             // TODO: lazy tag reveal delay time - should be better
-                            return <Tag tag={tag} abnormalReveal={revealAll} delay={(i + baseDelayIndex) * TAG_REVEAL_DELAY}/>
+                            return <Tag tag={tag}/>
                         } else {
-                            return <Tag abnormalReveal={revealAll} delay={(i + baseDelayIndex) * TAG_REVEAL_DELAY}/>
+                            return <Tag />
                         }
                     })
                 }
