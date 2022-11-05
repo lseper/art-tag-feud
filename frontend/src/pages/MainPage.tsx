@@ -2,7 +2,7 @@ import { DisplayedPost } from '../components/DisplayedPost';
 import { TagListContainer } from '../components/TagListContainer';
 import styled from 'styled-components';
 import { UserContext } from '../contexts/UserContext';
-import { useContext, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { PostTagType, PostType, ShowLeaderboardEventDataToClientType, EndGameEventDataToClientType, RequestPostEventDataToClientType } from '../types';
 import { EventType } from '../types';
 import LeaderBoard from '../components/Leaderboard';
@@ -51,11 +51,17 @@ function MainPage({currentPost, update} : Props): JSX.Element {
     }
   }, [connectionManager, navigate])
 
-  const startNewRound = () => {
+  const startNewRound = useCallback(() => {
     if(canStartNewRound) {
       update();
     }
-  }
+  }, [canStartNewRound, update])
+
+  const nextRoundButton = useMemo(() => {
+    return <NextRoundButton className={canStartNewRound ? 'enabled' : ''} onClick={startNewRound}>
+      Next Round
+    </NextRoundButton>
+  }, [canStartNewRound, startNewRound])
 
   const shouldShowLeaderboard = roomID != null && !showLeaderboard;
 
@@ -68,12 +74,9 @@ function MainPage({currentPost, update} : Props): JSX.Element {
             {/* Delete this wrapper div once done. Only here so that Next Post is under it */}
             <DisplayedPost post={currentPost} />
             {/* pass in an empty TagList placeholder if there's no post */}
-            <TagListContainer tags={currentPost ? currentPost.tags : emptyTagList} />
+            <TagListContainer tags={currentPost ? currentPost.tags : emptyTagList} nextRoundButton={nextRoundButton}/>
           </> 
         }
-        <button onClick={startNewRound}>
-          next round
-        </button>
       </MediaContainer> : <LeaderBoardPageView>
           <LeaderBoard />
           {
@@ -94,23 +97,34 @@ const LeaderBoardPageView = styled.div`
 
 const NextRoundButton = styled.button`
   color: ${p => p.theme.cTagCharacter};
-  border: 4px solid ${p => p.theme.cTagCharacter};
-  border-radius: 12px;
+  border: 2px solid ${p => p.theme.cTagCharacter};
+  border-radius: 8px;
   background-color: transparent;
 
-  font-size: 1.25em;
+  margin-top: 8px;
+  margin-bottom: 4px;
+
+  font-size: 1em;
   font-weight: bold;
   padding: 12px;
-  transition: background-color .2s, color .2s, transform .2s;
+  transition: background-color .2s, color .2s, transform .2s, opacity .2s;
 
-  &:hover {
-    transform: scale(125%);
-    background-color: ${p => p.theme.cTagCharacter};
-    color: ${p => p.theme.cLobbyBackground};
-  }
+  opacity: 0.25;
 
-  &:focus {
-    transform: scale(105%);
+  &.enabled {
+
+    opacity: 1;
+
+    &:hover {
+      transform: scale(125%);
+      background-color: ${p => p.theme.cTagCharacter};
+      color: ${p => p.theme.cLobbyBackground};
+    }
+
+    &:focus {
+      transform: scale(105%);
+    }
+
   }
 `
 

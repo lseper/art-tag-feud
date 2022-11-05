@@ -16,10 +16,11 @@ const INCORRECT_GUESS_PENALTY = 3;
 interface Props {
     tags: PostTagType[];
     className?: string;
+    nextRoundButton: React.ReactNode
 };
 
 const TagListContainerElement: React.FC<Props> = (props: Props) => {
-    const { tags, className } = props;
+    const { tags, className, nextRoundButton } = props;
     const [guess, setGuess] = useState('');
     const [guessedTags, guessTag, revealAllTags] = useTagListGuesser(tags);
     const {userID, roomID, readyStates, setReadyStates, connectionManager} = useContext(UserContext);
@@ -114,24 +115,6 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
         return tagLists;
     }, [generalTags]);
 
-    const tagListBaseDelays = useMemo(() => {
-       const tagListDelays = [];
-       let baseDelay = 0;
-       for (const tagList of generalTagLists) {
-        tagListDelays.push(baseDelay);
-        baseDelay += tagList.length;
-       }
-       // base delay for species tags
-       tagListDelays.push(baseDelay);
-       baseDelay += speciesTags.length;
-       // base delay for character tags
-       tagListDelays.push(baseDelay);
-       baseDelay += characterTags.length;
-       // base delay for artist tags
-       tagListDelays.push(baseDelay);
-       return tagListDelays;
-    }, [characterTags.length, generalTagLists, speciesTags.length]);
-
     return (
         <div className={className}>
             <h1>Guess a tag!{ }</h1>
@@ -154,11 +137,12 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
             </TagsInputContainer>
             {/* <button onClick={revealAllTags}>
                 reveal tags
-            </button>
-            <button onClick={hideAllTags}>
+                </button>
+                <button onClick={hideAllTags}>
                 clear tags
             </button> */}
             <InRoundLeaderboard />
+            { nextRoundButton }
             {/* Grid definition */}
             <TagListLabel> General Tags </TagListLabel>
             <TagsGrid>
