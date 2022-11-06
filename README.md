@@ -1,46 +1,31 @@
-# Getting Started with Create React App
+# First time setup
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Start off by cloning the repository onto your local machine.
 
-## Available Scripts
+Now, you'll want to `cd` into the `backend` folder. Run `npm i` to install any needed packages.
 
-In the project directory, you can run:
+Similarily, you'll want to `cd` into the `frontend` folder, and run `npm i` to install the needed packages for the client side of the app as well.
 
-### `yarn start`
+This should be all you need to get setup initially before running the app!
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+# Running the application locally
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+Then simply start up the server on your computer by running `npm run dev`. This will spin up the backend server.
 
-### `yarn test`
+NOTE: a reminder that any changes locally done to `server.ts` will not be testable until you restart the server (killing the process and running `npm run dev` again)
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Your backend should be up and running. Great! Now simply navigate to the `frontend` repository and run an `npm start`
 
-### `yarn build`
+This will start up the client side application. This may take a few seconds!
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Congratulations, you should now have the app fully running! 🎉
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+# Contributing
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+To start contributing, please take a look at the outstanding issues linked in the "issues" tab.
 
-### `yarn eject`
+To tackle an issue, make a separate branch off of `main`, and use the naming convention `{IssueName}{IssueNumber}`
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+For example, if I made a branch to tackle the issue "#7 - Add Leaderboard Transitions" my branch would be titled `AddLeaderboardTransitions7`
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+Once you've completed the issue, simply make a PR request and I'll comment and approve it as soon as I can! :D
