@@ -22,6 +22,8 @@ Congratulations, you should now have the app fully running! 🎉
 
 # Contributing
 
+## Working on Existing Issues
+
 To start contributing, please take a look at the outstanding issues linked in the "issues" tab.
 
 To tackle an issue, make a separate branch off of `main`, and use the naming convention `{IssueName}{IssueNumber}`
@@ -29,3 +31,9 @@ To tackle an issue, make a separate branch off of `main`, and use the naming con
 For example, if I made a branch to tackle the issue "#7 - Add Leaderboard Transitions" my branch would be titled `AddLeaderboardTransitions7`
 
 Once you've completed the issue, simply make a PR request and I'll comment and approve it as soon as I can! :D
+
+## Submitting New Issues
+
+If you encounter a new issue or think of a feature you'd like to see in the app, let me know!
+
+Feel free to submit a new issue on the Issues tab of the github repo. Thank you!
