@@ -58,10 +58,10 @@ function MainPage({currentPost, update} : Props): JSX.Element {
   }, [canStartNewRound, update])
 
   const nextRoundButton = useMemo(() => {
-    return <NextRoundButton className={canStartNewRound ? 'enabled' : ''} onClick={startNewRound}>
+    return (owner && owner.id === userID) ? <NextRoundButton className={canStartNewRound ? 'enabled' : ''} onClick={startNewRound}>
       Next Round
-    </NextRoundButton>
-  }, [canStartNewRound, startNewRound])
+    </NextRoundButton> : null
+  }, [owner, userID, canStartNewRound, startNewRound])
 
   const shouldShowLeaderboard = roomID != null && !showLeaderboard;
 
@@ -80,7 +80,7 @@ function MainPage({currentPost, update} : Props): JSX.Element {
       </MediaContainer> : <LeaderBoardPageView>
           <LeaderBoard />
           {
-            userID === owner?.id && <NextRoundButton onClick={startNewRound}>Start Next Round</NextRoundButton>
+            userID === owner?.id && <NextRoundButton className='enabled' onClick={startNewRound}>Start Next Round</NextRoundButton>
           }
       </LeaderBoardPageView>
       }

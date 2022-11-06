@@ -16,7 +16,7 @@ const INCORRECT_GUESS_PENALTY = 3;
 interface Props {
     tags: PostTagType[];
     className?: string;
-    nextRoundButton: React.ReactNode
+    nextRoundButton?: React.ReactNode
 };
 
 const TagListContainerElement: React.FC<Props> = (props: Props) => {
