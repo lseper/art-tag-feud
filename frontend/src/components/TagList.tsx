@@ -5,8 +5,6 @@ interface Props {
     tags: PostTagType[],
     guessedTags: PostTagType[]
 }
-// reveal stagger in ms
-const TAG_REVEAL_DELAY = 500;
 
 const TagList : React.FC<Props> = ({tags, guessedTags} : Props) => {
     

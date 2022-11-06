@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { PostTagType, TagTypeType } from '../types';
 import { TagType } from '../types';
 import styled from 'styled-components';
