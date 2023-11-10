@@ -94,7 +94,7 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
     if(userIcon) {
       return (
         <div style={{gridArea: 'icon'}} className='icon-chosen'>
-          {buildUIIconImg('./profile_icons/', userIcon)}
+          {buildUIIconImg(true, 'profile_icons/', userIcon)}
         </div>
       )
     }
@@ -143,7 +143,7 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
           </ReadyUpList>
       </ReadyUpContainer>
       <ReadyUpContainer style={{gridArea: 'icons'}}>
-        <IconPicker allIcons={icons}/>
+        <IconPicker allIcons={icons.sfw}/>
       </ReadyUpContainer>
       {
         <StartGameContainer style={{gridArea:'start-game'}}>

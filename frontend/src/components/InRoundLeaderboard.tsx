@@ -54,7 +54,7 @@ const InRoundLeaderboard: React.FC<Props> = ({className} : Props) => {
         }
         return <InRoundLeaderboardEntry className={className} style={{order: order, zIndex: zIndex}}>
             {
-                readyState.icon && buildUIIconImg('./profile_icons/', readyState.icon, isRanked ? 'ranked' : '')
+                readyState.icon && buildUIIconImg(true, 'profile_icons/', readyState.icon, isRanked ? 'ranked' : '')
             }
             <InRoundLeaderboardName  className={isFirst && !readyState.ready ? 'dark' : ''}>{readyState.user.username}</InRoundLeaderboardName>
             <InRoundLeaderboardScore className={isFirst && !readyState.ready ? 'dark' : ''}>{readyState.user.score}</InRoundLeaderboardScore>

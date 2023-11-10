@@ -1,5 +1,7 @@
-import reg from '../../images/e6TagGameMascot.png';
-import blur from '../../images/e6TagGameMascotBlur.png';
+import nsfwReg from '../../images/nsfw/e6TagGameMascotNSFW.png';
+import nsfwBlur from '../../images/nsfw/e6TagGameMascotBlurNSFW.png';
+import sfwReg from '../../images/sfw/e6TagGameMascotSFW.png';
+import sfwBlur from '../../images/sfw/e6TagGameMascotBlurSFW.png';
 
 /**
  * Theme for the application. Update with variables as needed!
@@ -18,8 +20,10 @@ const Theme = {
   cRankThird: "#e28c1c",
 
   // image paths
-  bgImage: reg,
-  bgImageBlur: blur,
+  bgImageNSFW: nsfwReg,
+  bgImageBlurNSFW: nsfwBlur,
+  bgImageSFW: sfwReg,
+  bgImageBlurSFW: sfwBlur,
   
   // padding
   pTagList: "10px",

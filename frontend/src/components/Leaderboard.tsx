@@ -76,7 +76,7 @@ function LeaderBoard(): JSX.Element {
                             icon && 
                             <LeaderBoardUserIconContainer>
                                 {
-                                    buildUIIconImg('./profile_icons/', icon)
+                                    buildUIIconImg(true, 'profile_icons/', icon)
                                 }
                             </LeaderBoardUserIconContainer>
                         }

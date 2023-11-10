@@ -69,7 +69,7 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
   return (
         <IconList>
           {
-            icons.map((gameIcon) => {
+            icons.sfw.map((gameIcon) => {
                 let buttonClass;
                 if(icon === gameIcon.file) {
                     buttonClass = 'selected';
@@ -82,7 +82,7 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
                 }
                 return <li className={buttonClass}>
                   <CharacterName>{gameIcon.character}</CharacterName>
-                  <button onClick={() => selectIcon(gameIcon.file)}>{buildUIIconImg('./profile_icons/', gameIcon.file)}</button>
+                  <button onClick={() => selectIcon(gameIcon.file)}>{buildUIIconImg(true, 'profile_icons/', gameIcon.file)}</button>
                   <IconArtist href={gameIcon.source}>
                     <span style={{color: '#b4c7d9'}}>art by </span>
                     {gameIcon.artist}
