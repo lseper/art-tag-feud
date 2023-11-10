@@ -5,13 +5,13 @@ import species_tag_data from './data/tag-data-species.json';
 import type { PostType, TagTypeType } from './types';
 import { PostTagType, TagType } from './types';
 
-const BASE_URL = 'https://e621.net/';
+const BASE_URL = 'https://e926.net/';
 const POSTS_BASE = 'posts.json';
 // currently not used
 //const TAGS_BASE = 'tags.json';
 // copied the tags here from the ones on furbot, as well as filtering out animated media files 
 const BLACKLIST = ['gore', 'scat', 'feral', 'cub', 'loli', 'young', 'forced', 'animated', 'flash'];
-const META_MODIFIERS = ['score:>=25', 'gentags:>=10', 'rating:explicit', 'order:random'];
+const META_MODIFIERS = ['score:>=25', 'gentags:>=10', 'rating:safe', 'order:random'];
 
 const ARTIST_TAG_SCORE = 150;
 const CHARACTER_TAG_SCORE = 300;
