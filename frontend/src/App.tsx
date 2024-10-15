@@ -55,7 +55,7 @@ function App(): JSX.Element {
   return (
     <ThemeProvider theme={theme}>
       <UserContext.Provider value={value}>
-        <GlobalStyles />
+        <GlobalStyles theme={theme} />
         <Routes>
           <Route path="/" element={<Lobby />} />
           <Route path="/play" element={<ReadyUp />} />

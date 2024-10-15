@@ -5,7 +5,7 @@ import species_tag_data from './data/tag-data-species.json';
 import type { PostType, TagTypeType } from './types';
 import { PostTagType, TagType } from './types';
 
-const BASE_URL = 'https://e926.net/';
+const BASE_URL = 'https://e621.net/';
 const POSTS_BASE = 'posts.json';
 // currently not used
 //const TAGS_BASE = 'tags.json';

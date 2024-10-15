@@ -251,5 +251,5 @@ sfw: [
 ]}
 
 export const buildUIIconImg = (sfw: boolean, path: string, icon: string, className?: string) => {
-    return <img src={`${path}${sfw ? "sfw/" : "nsfw/"}${icon}`} alt={`${icon}`} className={className ?? ''} />;
+    return <img src={`${path}${icon}`} alt={`${icon}`} className={className ?? ''} />;
 }
