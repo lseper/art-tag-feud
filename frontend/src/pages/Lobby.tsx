@@ -346,7 +346,7 @@ const InfoBar = styled.div`
 
 const BlurredImage = styled(TitleContainer)`
     background-color: ${p => p.theme.cLobbyBackground};
-    background-image: url('${p => p.theme.bgImageBlurSFW}');
+    background-image: url('${p => p.theme.bgImageBlurNSFW}');
     background-repeat: no-repeat;
     background-attachment: fixed;
     background-position: 50% 30%;

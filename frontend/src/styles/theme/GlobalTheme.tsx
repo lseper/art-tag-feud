@@ -13,7 +13,7 @@ const GlobalStyles = createGlobalStyle<{ theme: typeof Theme }>`
     background-color: ${p => p.theme.cLobbyBackground};
     font-family: Verdana, sans-serif;
     color: white;
-    background-image: url('${p => p.theme.bgImageSFW}');
+    background-image: url('${p => p.theme.bgImageNSFW}');
     background-repeat: no-repeat;
     background-attachment: fixed;
     background-position: 50% 30%;
