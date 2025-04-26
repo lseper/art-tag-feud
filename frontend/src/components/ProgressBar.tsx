@@ -22,6 +22,10 @@ background-color: white;
 border-radius: 10px;
 height: ${p => p.theme.inputHeight};
 
+@media (max-width: 768px) {
+    opacity: 0.35;
+  }
+
 .inner-bar {
     height: 100%;
     border-radius: 8px;

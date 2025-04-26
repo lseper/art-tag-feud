@@ -112,11 +112,10 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
             return <Container>
                 <BlurredImage style={{gridArea: 'e6-join', paddingBottom: 12}}>
                     <TitleText>
-                        e621 Tag Feud
+                        Art Feud
                     </TitleText>
                     <InfoBar>
-                        <a href="https://github.com/Zaverose/e621-tag-feud">contribute</a>
-                        <a href="https://twitter.com/zaverose_nsfw">twitter</a>
+                        <a href="https://github.com/lseper/art-tag-feud">contribute</a>
                     </InfoBar>
                     <label form="roomIDForm">
                             Log in wtih a username
@@ -146,7 +145,7 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
                 <LobbyContainer>
                     <Card centered>
                         <CardTitle>
-                            e621 Tag Feud
+                            Art Feud
                         </CardTitle>
                         <CardSubtitle>
                             Create a Room!
@@ -156,11 +155,8 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
                         </CreateRoomButton>
                     </Card>
                     <Card inline>
-                        <Credit href={'https://github.com/Zaverose/e621-tag-feud'}>
+                        <Credit href={'https://github.com/lseper/art-tag-feud'}>
                             contribute
-                        </Credit>
-                        <Credit href={'https://twitter.com/zaverose_nsfw'}>
-                            twitter
                         </Credit>
                     </Card>
                     <Card centered>

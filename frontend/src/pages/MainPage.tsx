@@ -135,6 +135,14 @@ const MediaContainer = styled.div`
   gap: 30px 0px; 
   grid-template-areas: 
       ". .";
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    grid-template-areas: 
+        "."
+        ".";
+  }
 `;
 
 export default MainPage;

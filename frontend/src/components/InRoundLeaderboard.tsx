@@ -80,6 +80,10 @@ const InRoundLeaderboardContainer = styled.ul`
     width: 100%;
     height: 60px;
     background-color: transparent;
+
+    @media (max-width: 768px) {
+    opacity: 0.35;
+  }
     `;
 
 const InRoundLeaderboardName = styled.p`

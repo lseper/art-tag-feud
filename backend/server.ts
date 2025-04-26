@@ -209,6 +209,9 @@ const resetRoom = (room: ServerRoomType): void => {
 server.on("connection", response => {
     numUsers += 1;
 
+    const address = server.options.host;
+    const port = server.options.port;
+    console.log(`Server is running at ws://${address}:${port}`);
     // handle tag guess
     response.on("message", async (data) => {
         const dataJSON = JSON.parse(data.toString());

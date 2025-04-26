@@ -9,6 +9,19 @@ export const TagsInputContainer = styled.div`
   grid-template-columns: 1fr 2fr; 
   grid-template-rows: 1fr; 
   gap: 30px 10px;
+
+  @media (max-width: 768px) {
+    opacity: 0.65;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas: 
+        "."
+        ".";
+    :focus {
+      opacity: 0.85;
+    }
+  }
+
 `;
 
 export const TagsInput = styled.div`
@@ -16,6 +29,10 @@ export const TagsInput = styled.div`
   padding: 0px 5px 5px 0px;
   font-size: 20px;
   border-radius: 10px;
+
+  @media (max-width: 768px) {
+    opacity: 0.35;
+  }
 
   :focus {
     outline: none;
@@ -46,6 +63,28 @@ export const TagsGrid = styled.div`
   padding-top: 5px;
 
   min-width: 90%;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    grid-template-areas: 
+        "."
+        "."
+        ".";
+  }
+`;
+
+export const MobileTagsGrid = styled.div`
+  display: grid; 
+  grid-template-columns: 1fr 1fr; 
+
+  font-size: 0.15em;
+  grid-template-areas: 
+      "." ".";
+
+  padding-top: 5px;
+
+  min-width: 90%;
 `;
 
 export const TagsList = styled.div`
@@ -59,4 +98,8 @@ export const TagsList = styled.div`
   font-size: 0.85em;
 
   padding: ${p => p.theme.pTagList};
+
+  @media (max-width: 768px) {
+    opacity: 0.35;
+  }
 `;

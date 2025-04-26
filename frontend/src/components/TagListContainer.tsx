@@ -6,21 +6,20 @@ import useTagListGuesser from '../useTagListGuesser';
 import styled from 'styled-components';
 import { ProgressBar } from './ProgressBar';
 import InRoundLeaderboard from './InRoundLeaderboard';
-import { TagListLabel, TagsGrid, TagsInput, TagsInputContainer, TagsList } from './TagListContainerStyles';
+import { MobileTagsGrid, TagListLabel, TagsGrid, TagsInput, TagsInputContainer, TagsList } from './TagListContainerStyles';
 import { UserContext } from '../contexts/UserContext';
 
 const STARTING_TIME = 30;
 const FRAME_RATE = 60;
-const INCORRECT_GUESS_PENALTY = 3;
+const INCORRECT_GUESS_PENALTY = 0.25;
 
 interface Props {
     tags: PostTagType[];
-    className?: string;
     nextRoundButton?: React.ReactNode
 };
 
 const TagListContainerElement: React.FC<Props> = (props: Props) => {
-    const { tags, className, nextRoundButton } = props;
+    const { tags, nextRoundButton } = props;
     const [guess, setGuess] = useState('');
     const [guessedTags, guessTag, revealAllTags] = useTagListGuesser(tags);
     const {userID, roomID, readyStates, setReadyStates, connectionManager} = useContext(UserContext);
@@ -41,7 +40,14 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
         return [guessedGeneralTags, guessedArtistTags, guessedCharacterTags, guessedSpeciesTags];
     }, [guessedTags])
 
+    const mobileTags = useMemo(() => [...guessedGeneralTags, ...guessedSpeciesTags, ...guessedCharacterTags, ...guessedArtistTags].flat(), 
+    [guessedGeneralTags, guessedSpeciesTags, guessedCharacterTags, guessedArtistTags])
+
     const [time, setTime] = useState(STARTING_TIME);
+
+    const isMobileViewport = useMemo(() => {
+        return window.innerWidth < 768;
+    }, []);
 
     useEffect(() => {
         const onTimerEnd = (data: ReadyUpEventDataToClientType) => {
@@ -116,7 +122,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
     }, [generalTags]);
 
     return (
-        <div className={className}>
+        <TagListAndInputContainer>
             <h1>Guess a tag!{ }</h1>
             <TagsInputContainer>
                 <TagsInput>
@@ -144,7 +150,9 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
             <InRoundLeaderboard />
             { nextRoundButton }
             {/* Grid definition */}
-            <TagListLabel> General Tags </TagListLabel>
+            <TagListLabel> { isMobileViewport ? "General Tags" : "Tags" } </TagListLabel>
+            { 
+                !isMobileViewport ?
             <TagsGrid>
                 {/* 1/3 side of grid */}
                 <TagsList>
@@ -170,8 +178,9 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                     
                     ></TagList>
                 </TagsList>
-            </TagsGrid>
-            {/* Artist, chracter, and species tags */}
+            </TagsGrid> : <> </>
+}
+{!isMobileViewport ?
             <TagsGrid>
                 <div>
                     <TagListLabel> Species Tags </TagListLabel>
@@ -204,8 +213,26 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                         ></TagList>
                     </TagsList>
                 </div>
-            </TagsGrid>
-        </div>
+            </TagsGrid> : <></>
+            }
+            {
+            isMobileViewport ? <MobileTagsGrid>
+                <TagsList>
+                    <TagList 
+                    tags={[...generalTagLists, ...speciesTags, ...characterTags, ...artistTags].flat()} 
+                    guessedTags={mobileTags.splice(0, Math.floor(mobileTags.length / 2))}
+                    >
+                    </TagList>
+                </TagsList>
+                <TagsList>
+                    <TagList 
+                    tags={[...generalTagLists, ...speciesTags, ...characterTags, ...artistTags].flat()} 
+                    guessedTags={mobileTags.splice(Math.floor(mobileTags.length / 2))}
+                    />
+                </TagsList>
+            </MobileTagsGrid> : <></>
+            }
+        </TagListAndInputContainer>
     );
 };
 
@@ -217,3 +244,20 @@ export const TagListContainer = styled(TagListContainerElement)`
     align-content: flex-start;
     align-items: flex-start;
 `;
+
+const TagListAndInputContainer = styled.div`
+@media (max-width: 768px) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+
+`
+

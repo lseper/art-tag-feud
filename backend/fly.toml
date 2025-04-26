@@ -1,12 +1,12 @@
 # fly.toml file generated for e621-tag-feud-server on 2022-09-17T23:41:17-05:00
 
-app = "e621-tag-feud-server"
+app = "e621-tag-feud"
 kill_signal = "SIGINT"
 kill_timeout = 5
 processes = []
 
 [build]
-  builder = "heroku/buildpacks:20"
+  builder = "heroku/builder:24"
 
 [env]
   PORT = "8080"

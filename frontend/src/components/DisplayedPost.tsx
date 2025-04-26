@@ -33,4 +33,10 @@ export const DisplayedPost = styled(DisplayedPostElement)`
     margin: 20px 75px 0px 75px;
 
     border-radius: 20px;
+
+    @media (max-width: 768px) {
+        width: 100%;
+        padding: 5px;
+        margin: 0;
+    }
 `
