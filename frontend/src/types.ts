@@ -15,7 +15,8 @@ export const EventType = z.enum(['DEFAULT',
     'JOIN_ROOM',
     'LEAVE_ROOM',
     'REQUEST_POST',
-    'SHOW_LEADERBOARD']);
+    'SHOW_LEADERBOARD',
+    'UPDATE_BLACKLIST']);
 
 /**
  * Server-Only Types
@@ -49,6 +50,7 @@ export const ServerRoom = z.object({
     roundsPerGame: z.number(),
     owner: User,
     members: z.array(User),
+    blacklist: z.array(z.string()),
     postQueue: z.array(Post),
     curRound: z.number(),
     postsViewedThisRound: z.number(),
@@ -113,6 +115,12 @@ export const StartGameEventData = z.object({
 export const AllRoomsEventData = z.object({
     type: z.literal(EventType.enum.ALL_ROOMS)
 })
+export const UpdateBlacklistEventData = z.object({
+    roomID: z.string(),
+    tag: z.string(),
+    action: z.enum(['add', 'remove']),
+    type: z.literal(EventType.enum.UPDATE_BLACKLIST)
+})
 
 /**
  * Client Types
@@ -127,7 +135,8 @@ export const ClientRoom = z.object({
     roomID: z.string(),
     roomName: z.string(),
     owner: User,
-    readyStates: z.array(UserReadyState)
+    readyStates: z.array(UserReadyState),
+    blacklist: z.array(z.string())
 })
 
 export const CreateRoomEventDataToClient = z.object({
@@ -198,6 +207,11 @@ export const EndGameEventDataToClient = z.object({
 export const ShowLeaderboardEventDataToClient = z.object({
     type: z.literal(EventType.enum.SHOW_LEADERBOARD)
 });
+export const UpdateBlacklistEventDataToClient = z.object({
+    roomID: z.string(),
+    blacklist: z.array(z.string()),
+    type: z.literal(EventType.enum.UPDATE_BLACKLIST)
+})
 
 /**
  * Server-Only Object Types
@@ -218,6 +232,7 @@ export type GetSelectedIconsEventDataType = z.infer<typeof GetSelectedIconsEvent
 export type StartGameEventDataType = z.infer<typeof StartGameEventData>
 export type ReadyUpEventDataType = z.infer<typeof ReadyUpEventData>
 export type AllRoomsEventDataType = z.infer<typeof AllRoomsEventData>
+export type UpdateBlacklistEventDataType = z.infer<typeof UpdateBlacklistEventData>
 
 /**
  * Client-Only Types
@@ -235,6 +250,7 @@ export type ReadyUpEventDataToClientType = z.infer<typeof ReadyUpEventDataToClie
 export type StartGameEventDataToClientType = z.infer<typeof StartGameEventDataToClient>
 export type EndGameEventDataToClientType = z.infer<typeof EndGameEventDataToClient>
 export type ShowLeaderboardEventDataToClientType = z.infer<typeof ShowLeaderboardEventDataToClient>
+export type UpdateBlacklistEventDataToClientType = z.infer<typeof UpdateBlacklistEventDataToClient>
 
 export type ClientRoomType = z.infer<typeof ClientRoom>;
 

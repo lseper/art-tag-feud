@@ -12,6 +12,7 @@ import {
     SetUserIconEventData, 
     LeaveRoomEventData, 
     GetSelectedIconsEventData,
+    UpdateBlacklistEventData,
     EndGameEventDataToClientType, 
 } from "./types"; // DTO Types
 import type { 
@@ -27,6 +28,7 @@ import type {
     SetUserIconEventDataToClientType, 
     ReadyUpEventDataToClientType, 
     ShowLeaderboardEventDataToClientType, 
+    UpdateBlacklistEventDataToClientType,
     LeaveRoomEventDataToClientType 
 } from "./types";
 import { getPosts } from "./fetching_utility";
@@ -150,7 +152,8 @@ const convertServerRoomToClientRoom = (serverRoom: ServerRoomType): ClientRoomTy
         roomID: serverRoom.id,
         roomName: serverRoom.name, 
         readyStates: readyStates, 
-        owner: serverRoom.owner
+        owner: serverRoom.owner,
+        blacklist: serverRoom.blacklist
     };
 }
 
@@ -204,6 +207,10 @@ const resetRoom = (room: ServerRoomType): void => {
     for (const userID of room.allUsersReady.keys()) {
         newReadyStates.set(userID, false);
     }
+}
+
+const normalizeBlacklistTag = (tag: string): string => {
+    return tag.trim().toLowerCase().replace(/\s+/g, "_");
 }
 
 server.on("connection", response => {
@@ -338,7 +345,8 @@ server.on("connection", response => {
                             roomID: room.id,
                             roomName: room.name, 
                             readyStates: getReadyStates(room), 
-                            owner: user
+                            owner: user,
+                            blacklist: room.blacklist
                         };
                         broadcast<JoinRoomEventDataToClientType>(server, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient})
                     }
@@ -355,6 +363,7 @@ server.on("connection", response => {
                             postsPerRound: data.postsPerRound,
                             roundsPerGame: data.roundsPerGame,
                             members: [user], 
+                            blacklist: [],
                             curRound: 0,
                             postQueue: [], 
                             allUsersReady: newRoomAllUsersReady, 
@@ -368,7 +377,8 @@ server.on("connection", response => {
                             roomID: newRoom.id,
                             roomName: newRoom.name, 
                             readyStates: readyStates, 
-                            owner: user
+                            owner: user,
+                            blacklist: newRoom.blacklist
                         };
                         // broadcase to the user their updated roomID
                         broadcast<JoinRoomEventDataToClientType>(server, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient})
@@ -401,7 +411,8 @@ server.on("connection", response => {
                         roomID: room.id,
                         roomName: room.name,
                         readyStates: getReadyStates(room), 
-                        owner: room.owner
+                        owner: room.owner,
+                        blacklist: room.blacklist
                     };
                     // broadcast to room newly updated members
                     broadcastToRoom<JoinRoomEventDataToClientType>(room, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient});
@@ -430,7 +441,7 @@ server.on("connection", response => {
                     roomToSendPost.allUsersReady.set(data.userID, true);
 
                     if(roomToSendPost.postQueue.length === 0){
-                        roomToSendPost.postQueue = await getPosts();
+                        roomToSendPost.postQueue = await getPosts(roomToSendPost.blacklist);
                     }
 
                     if(roomIsReadyForNewPost(roomToSendPost)) {
@@ -477,7 +488,8 @@ server.on("connection", response => {
                             roomID: room.id,
                             roomName: room.name, 
                             readyStates: readyStates, 
-                            owner: user
+                            owner: user,
+                            blacklist: room.blacklist
                         };
                         room.allUsersReady.set(data.userID, data.ready);
                         broadcastToRoom<ReadyUpEventDataToClientType>(room, {type: EventType.enum.READY_UP, roomID: room.id, room: updatedRoom})
@@ -501,6 +513,36 @@ server.on("connection", response => {
                 } else {
                     console.error(`room ${data.roomID} does not exist, so a game cannot be started in it`);
                 }
+                break;
+            }
+            case EventType.enum.UPDATE_BLACKLIST: {
+                const result = UpdateBlacklistEventData.safeParse(dataJSON);
+                if(!result.success) {
+                    break;
+                }
+                const data = result.data;
+                const room = rooms.get(data.roomID);
+                if(!room) {
+                    break;
+                }
+                const normalizedTag = normalizeBlacklistTag(data.tag);
+                if(!normalizedTag) {
+                    break;
+                }
+                if(data.action === 'add') {
+                    if(!room.blacklist.includes(normalizedTag)) {
+                        room.blacklist.push(normalizedTag);
+                    }
+                } else {
+                    room.blacklist = room.blacklist.filter(tag => tag !== normalizedTag);
+                }
+                rooms.set(room.id, room);
+                const responseData: UpdateBlacklistEventDataToClientType = {
+                    type: EventType.enum.UPDATE_BLACKLIST,
+                    roomID: room.id,
+                    blacklist: room.blacklist
+                };
+                broadcastToRoom(room, responseData);
                 break;
             }
             default:

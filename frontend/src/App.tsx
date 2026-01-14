@@ -22,6 +22,7 @@ function App(): JSX.Element {
   const [readyStates, setReadyStates] = useState<UserReadyStateType[]>([]);
   const [icon, setIcon] = useState<string | undefined>();
   const [owner, setOwner] = useState<UserType | undefined>();
+  const [blacklist, setBlacklist] = useState<string[]>([]);
 
   const leaveRoomCleanup = () => {
     setRoomID(undefined);
@@ -29,6 +30,7 @@ function App(): JSX.Element {
     setReadyStates([]);
     setIcon(undefined);
     setOwner(undefined);
+    setBlacklist([]);
   }
 
   const value = {
@@ -40,6 +42,7 @@ function App(): JSX.Element {
     icon, 
     readyStates, 
     owner, 
+    blacklist,
     setUsername, 
     setUserID, 
     setScore, 
@@ -48,6 +51,7 @@ function App(): JSX.Element {
     setIcon, 
     setReadyStates, 
     setOwner, 
+    setBlacklist,
     leaveRoomCleanup, 
     connectionManager
   };

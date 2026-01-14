@@ -14,7 +14,7 @@ type Props = {
 }
 
 export const Lobby: React.FC<Props> = ({className}: Props) => {
-    const {roomID, setRoomID, setRoomName, userID, setUserID, setUsername, setReadyStates, setOwner, username, connectionManager} = useContext(UserContext);
+    const {roomID, setRoomID, setRoomName, userID, setUserID, setUsername, setReadyStates, setOwner, setBlacklist, username, connectionManager} = useContext(UserContext);
     const [usernameInput, setUsernameInput] = useState<string>('');
     const [rooms, setRooms] = useState<ClientRoomType[]>([]);
     const navigate = useNavigate();
@@ -27,7 +27,8 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
               setRoomID(data.room.roomID);
               setReadyStates(data.room.readyStates);
               setRoomName(data.room.roomName);
-              setOwner(data.room.owner)
+              setOwner(data.room.owner);
+              setBlacklist(data.room.blacklist);
               navigate("/play");
               document.body.style.backgroundImage = 'none';
             }
@@ -54,7 +55,7 @@ export const Lobby: React.FC<Props> = ({className}: Props) => {
         return () => {
             unsubscribers.forEach(unsubscribe => unsubscribe());
         }
-    }, [connectionManager, navigate, roomID, rooms, setOwner, setReadyStates, setRoomID, setRoomName, setUserID, setUsername, userID]);
+    }, [connectionManager, navigate, roomID, rooms, setBlacklist, setOwner, setReadyStates, setRoomID, setRoomName, setUserID, setUsername, userID]);
 
     
     const createUsername = useCallback((username: string) => {

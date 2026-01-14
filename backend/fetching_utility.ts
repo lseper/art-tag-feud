@@ -10,7 +10,7 @@ const POSTS_BASE = 'posts.json';
 // currently not used
 //const TAGS_BASE = 'tags.json';
 // copied the tags here from the ones on furbot, as well as filtering out animated media files 
-const BLACKLIST = ['gore', 'scat', 'feral', 'cub', 'loli', 'young', 'forced', 'animated', 'diaper', 'flash'];
+const DEFAULT_BLACKLIST = ['gore', 'scat', 'feral', 'cub', 'loli', 'young', 'forced', 'animated', 'diaper', 'flash'];
 const META_MODIFIERS = ['score:>=25', 'gentags:>=10', 'rating:explicit', 'order:random'];
 
 const ARTIST_TAG_SCORE = 150;
@@ -21,8 +21,10 @@ const TAG_STD = 25;
 const BASE_TAG_SCORE = 1;
 
 // fetches and formats 10 random posts from e621
-export async function getPosts(): Promise<PostType[]> {
-    const URL = `${BASE_URL}${POSTS_BASE}?limit=${10}&tags=+-${BLACKLIST.join('+-')}+${META_MODIFIERS.join('+')}`;
+export async function getPosts(additionalBlacklist: string[] = []): Promise<PostType[]> {
+    const mergedBlacklist = [...new Set([...DEFAULT_BLACKLIST, ...additionalBlacklist.map(tag => tag.trim()).filter(Boolean)])];
+    const tagParts = mergedBlacklist.map(tag => `-${tag}`).concat(META_MODIFIERS);
+    const URL = `${BASE_URL}${POSTS_BASE}?limit=${10}&tags=${tagParts.join('+')}`;
     // get the response - currently HTTP 403 - Forbidden
     const data = await axios.get(URL, {
         headers: {'User-Agent': 'e621-tag-feud/1.1 - by Zaverose'}

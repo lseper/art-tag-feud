@@ -1,8 +1,8 @@
 import { UserContext } from '../contexts/UserContext';
-import { useContext, useMemo, useEffect, useCallback } from 'react';
+import { useContext, useMemo, useEffect, useCallback, useState } from 'react';
 import styled from 'styled-components';
 import { TitleText, } from '../components/StyledElements';
-import type {JoinRoomEventDataToClientType, LeaveRoomEventDataType, LeaveRoomEventDataToClientType, ReadyUpEventDataType, ReadyUpEventDataToClientType, RequestPostEventDataType, UserReadyStateType } from '../types';
+import type {JoinRoomEventDataToClientType, LeaveRoomEventDataType, LeaveRoomEventDataToClientType, ReadyUpEventDataType, ReadyUpEventDataToClientType, RequestPostEventDataType, UpdateBlacklistEventDataToClientType, UpdateBlacklistEventDataType, UserReadyStateType } from '../types';
 import { EventType } from '../types';
 import MainPage from './MainPage';
 import IconPicker from '../components/IconPicker';
@@ -14,6 +14,8 @@ import {
 
 import Theme from '../styles/theme/Theme';
 
+// https://e621.net/help/api
+
 type Props = {
   className?: string;
 }
@@ -22,19 +24,22 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
   /**
    * Server-driven user values
    */
-  const {userID, roomID, readyStates, owner, roomName, setOwner, setReadyStates, leaveRoomCleanup, connectionManager} = useContext(UserContext);
+  const {userID, roomID, readyStates, owner, roomName, blacklist, setOwner, setReadyStates, setBlacklist, leaveRoomCleanup, connectionManager} = useContext(UserContext);
   const { currentPost, update } = usePostFetcher(connectionManager, roomID);
   const navigate = useNavigate();
+  const [blacklistInput, setBlacklistInput] = useState('');
   
   useEffect(() => {
     const onNewUserJoin = (data: JoinRoomEventDataToClientType) => {
       setReadyStates(data.room.readyStates);
+      setBlacklist(data.room.blacklist);
     }
     
     const onNewReadyStates = (data: ReadyUpEventDataToClientType) => {
       const readyStates = data.room.readyStates;
       // populate new ready states
       setReadyStates(readyStates);
+      setBlacklist(data.room.blacklist);
     }
 
     const onUserLeftRoom = (data: LeaveRoomEventDataToClientType) => {
@@ -48,7 +53,14 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
         }
       }
       setReadyStates(newReadyStates);
+      setBlacklist(data.room.blacklist);
 
+    }
+
+    const onBlacklistUpdate = (data: UpdateBlacklistEventDataToClientType) => {
+      if(data.roomID === roomID) {
+        setBlacklist(data.blacklist);
+      }
     }
 
     // orchestrate game start
@@ -56,12 +68,13 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
         connectionManager.listen<ReadyUpEventDataToClientType>(EventType.enum.READY_UP, onNewReadyStates),
         connectionManager.listen<JoinRoomEventDataToClientType>(EventType.enum.JOIN_ROOM, onNewUserJoin),
         connectionManager.listen<LeaveRoomEventDataToClientType>(EventType.enum.LEAVE_ROOM, onUserLeftRoom),
+        connectionManager.listen<UpdateBlacklistEventDataToClientType>(EventType.enum.UPDATE_BLACKLIST, onBlacklistUpdate),
     ];
 
     return () => {
         unsubscribers.forEach(unsubscribe => unsubscribe());
     }
-}, [connectionManager, owner, readyStates, setOwner, setReadyStates])
+}, [connectionManager, owner, readyStates, roomID, setBlacklist, setOwner, setReadyStates])
 
   const readyUp = useCallback((ready: boolean) => {
     if(userID != null && roomID != null) {
@@ -73,6 +86,34 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
   }, [connectionManager, userID, roomID]);
 
   const canStartGame = useMemo(() => readyStates.every(readyState => readyState.ready && readyState.icon), [readyStates]);
+
+  const normalizeBlacklistTag = useCallback((tag: string) => {
+    return tag.trim().toLowerCase().replace(/\s+/g, '_');
+  }, []);
+
+  const addBlacklistTag = useCallback((tag: string) => {
+    if(!roomID) {
+      return;
+    }
+    const normalizedTag = normalizeBlacklistTag(tag);
+    if(!normalizedTag) {
+      return;
+    }
+    const data: UpdateBlacklistEventDataType = {type: EventType.enum.UPDATE_BLACKLIST, roomID, tag: normalizedTag, action: 'add'};
+    connectionManager.send(data);
+  }, [connectionManager, normalizeBlacklistTag, roomID]);
+
+  const removeBlacklistTag = useCallback((tag: string) => {
+    if(!roomID) {
+      return;
+    }
+    const normalizedTag = normalizeBlacklistTag(tag);
+    if(!normalizedTag) {
+      return;
+    }
+    const data: UpdateBlacklistEventDataType = {type: EventType.enum.UPDATE_BLACKLIST, roomID, tag: normalizedTag, action: 'remove'};
+    connectionManager.send(data);
+  }, [connectionManager, normalizeBlacklistTag, roomID]);
 
   const startGame = useCallback(() => {
     if(roomID && userID && userID === owner?.id && canStartGame) {
@@ -144,6 +185,37 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
       </ReadyUpContainer>
       <ReadyUpContainer style={{gridArea: 'icons'}}>
         <IconPicker allIcons={icons.sfw}/>
+      </ReadyUpContainer>
+      <ReadyUpContainer style={{gridArea: 'blacklist'}}>
+        <TitleText>Blacklist</TitleText>
+        <BlacklistForm onSubmit={(event) => {
+          event.preventDefault();
+          addBlacklistTag(blacklistInput);
+          setBlacklistInput('');
+        }}>
+          <BlacklistInput
+            type="text"
+            placeholder="Add a tag to blacklist"
+            value={blacklistInput}
+            onChange={(event) => setBlacklistInput(event.target.value)}
+          />
+          <BlacklistAddButton type="submit">Add</BlacklistAddButton>
+        </BlacklistForm>
+        <BlacklistList>
+          {
+            blacklist.length === 0 && <BlacklistEmptyText>No tags blacklisted</BlacklistEmptyText>
+          }
+          {
+            blacklist.map((tag) => (
+              <BlacklistTag key={tag}>
+                <span>{tag}</span>
+                <BlacklistRemoveButton onClick={() => removeBlacklistTag(tag)} aria-label={`Remove ${tag} from blacklist`}>
+                  x
+                </BlacklistRemoveButton>
+              </BlacklistTag>
+            ))
+          }
+        </BlacklistList>
       </ReadyUpContainer>
       {
         <StartGameContainer style={{gridArea:'start-game'}}>
@@ -343,6 +415,67 @@ const ReadyUpContainer = styled.div`
     box-shadow: 0 0 5px #000;
     text-shadow: 0 0 2px black, 0 0 6px black;
     z-index: 2;
+`
+
+const BlacklistForm = styled.form`
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+`
+
+const BlacklistInput = styled.input`
+  border-radius: 4px;
+  padding: 4px 6px;
+  width: 180px;
+
+  :focus {
+    background: #ffc;
+    color: #000;
+    outline: none;
+  }
+`
+
+const BlacklistAddButton = styled.button`
+  border-radius: 8%;
+  padding: 2px 8px;
+  border: 2px solid ${p => p.theme.cTagCharacter};
+  background-color: transparent;
+  color: ${p => p.theme.cTagCharacter};
+`
+
+const BlacklistList = styled.ul`
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+`
+
+const BlacklistTag = styled.li`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background-color: ${p => p.theme.cBodyLight};
+  border-radius: 6px;
+`
+
+const BlacklistRemoveButton = styled.button`
+  border: 0;
+  background-color: transparent;
+  color: ${p => p.theme.cTagSpecies};
+  font-weight: bold;
+  cursor: pointer;
+`
+
+const BlacklistEmptyText = styled.p`
+  margin: 0;
+  color: ${p => p.theme.cPrimaryText};
 `
 
 const ReadyUpView = styled.div`

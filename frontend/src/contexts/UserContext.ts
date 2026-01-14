@@ -13,6 +13,7 @@ type UserContextType = {
     icon?: string,
     readyStates: UserReadyStateType[],
     owner?: UserType,
+    blacklist: string[],
     connectionManager: ConnectionManager
 
     setUserID: (userID: string) => void,
@@ -23,6 +24,7 @@ type UserContextType = {
     setReadyStates: (readyStates: UserReadyStateType[]) => void,
     setOwner: (owner: UserType) => void,
     setScore: (score: number) => void,
+    setBlacklist: (blacklist: string[]) => void,
     leaveRoomCleanup: () => void,
 }
 
@@ -30,6 +32,7 @@ export const UserContext = createContext<UserContextType>({
         score: 0,
         connectionManager: ConnectionManager.getInstance(),
         readyStates: [],
+        blacklist: [],
     
         setUserID: (userID: string) => {},
         setUsername: (username: string) => {},
@@ -39,5 +42,6 @@ export const UserContext = createContext<UserContextType>({
         setIcon: (icon: string) => {},
         setOwner: (owner: UserType) => {},
         setReadyStates: (readyStates: UserReadyStateType[]) => {},
+        setBlacklist: (blacklist: string[]) => {},
         leaveRoomCleanup: () => {},
 });
