@@ -5,6 +5,7 @@ import type { GetSelectedIconsEventDataType, GetSelectedIconsEventDataToClientTy
 import { EventType } from '../types';
 import { icons, buildUIIconImg } from '../util/UIUtil';
 import type {IconData} from '../util/UIUtil';
+import { media } from '../styles/theme/breakpoints';
 
 type Props = {
   className?: string;
@@ -70,7 +71,7 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
   return (
         <IconList>
           {
-            icons.nsfw.map((gameIcon) => {
+            icons.nsfw.map((gameIcon, index) => {
                 let buttonClass;
                 if(icon === gameIcon.file) {
                     buttonClass = 'selected';
@@ -81,7 +82,7 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
                         buttonClass = 'selectable';
                     }
                 }
-                return <li className={buttonClass}>
+                return <li key={`icon-${index}`} className={buttonClass}>
                   <CharacterName>{gameIcon.character}</CharacterName>
                   <button onClick={() => selectIcon(gameIcon.file)}>{buildUIIconImg(false, 'profile_icons/', gameIcon.file)}</button>
                   <IconArtist href={gameIcon.source}>
@@ -95,7 +96,6 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
   );
 }
 
-// TODO: artist credit
 const IconArtist = styled.a`
   opacity: 0;
   transition: opacity .2s;
@@ -107,27 +107,49 @@ const IconArtist = styled.a`
   &:focus {
     opacity: 0.5;
   }
-`
+`;
 
 const CharacterName = styled.p`
   font-size: 1rem;
   color: #b4c7d9;
   z-index: 4;
-`
+
+  ${media.xl} {
+    font-size: 0.9rem;
+  }
+
+  ${media.lg} {
+    font-size: 0.85rem;
+  }
+
+  ${media.md} {
+    font-size: 0.8rem;
+  }
+
+  ${media.sm} {
+    font-size: 0.75rem;
+  }
+
+  ${media.xs} {
+    font-size: 0.7rem;
+  }
+`;
 
 const IconList = styled.ul`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  margin-top: 32;
+  margin-top: 32px;
 
-  @media (min-width: 450px) {
-    grid-template-columns: 1fr 1fr;
-  }
   @media (min-width: 450px) {
     grid-template-columns: 1fr 1fr 1fr;
   }
   @media (min-width: 1000px) {
     grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+
+  ${media.xs} {
+    grid-template-columns: 1fr 1fr;
+    margin-top: 16px;
   }
 
   li {
@@ -247,7 +269,55 @@ const IconList = styled.ul`
         font-size: 1rem;
       }
     }
+
+    ${media.xl} {
+      margin: 6px;
+      
+      button img {
+        width: 38px;
+        height: 38px;
+        border-width: 4px;
+      }
+    }
+
+    ${media.lg} {
+      margin: 5px;
+      
+      button img {
+        width: 35px;
+        height: 35px;
+      }
+    }
+
+    ${media.md} {
+      margin: 4px;
+      
+      button img {
+        width: 32px;
+        height: 32px;
+        border-width: 3px;
+      }
+    }
+
+    ${media.sm} {
+      margin: 3px;
+      
+      button img {
+        width: 30px;
+        height: 30px;
+      }
+    }
+
+    ${media.xs} {
+      margin: 2px;
+      
+      button img {
+        width: 28px;
+        height: 28px;
+        border-width: 2px;
+      }
+    }
   }
-`
+`;
 
 export default IconPicker;

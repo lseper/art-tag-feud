@@ -25,7 +25,22 @@ export default function useTagListGuesser(startingTags : PostTagType[]) : [
 
     // TODO: uncomment once reveal all tags functionality is added
     function revealAllTags() {
-        setGuessedTags([...guessedTags, ...hiddenTags]);
+        setGuessedTags((prevGuessedTags) => {
+            if (hiddenTags.length === 0) {
+                return prevGuessedTags;
+            }
+            const existingNames = new Set(prevGuessedTags.map(tag => tag.name));
+            let didAdd = false;
+            const nextGuessedTags = [...prevGuessedTags];
+            hiddenTags.forEach((tag) => {
+                if (!existingNames.has(tag.name)) {
+                    existingNames.add(tag.name);
+                    nextGuessedTags.push(tag);
+                    didAdd = true;
+                }
+            });
+            return didAdd ? nextGuessedTags : prevGuessedTags;
+        });
     }
 
     // reset on new post

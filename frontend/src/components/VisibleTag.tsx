@@ -2,6 +2,7 @@ import type { PostTagType } from '../types';
 import { VisibleTagName } from './VisibleTagName';
 import styled from 'styled-components';
 import { VisibleTagScore } from './VisibleTagScore';
+import { media } from '../styles/theme/breakpoints';
 
 interface VisibleProps {
     tag: PostTagType;
@@ -28,7 +29,29 @@ export const VisibleTag = styled(TagElement)`
     align-items: flex-start;
 
     padding: 2px;
-`
+
+    ${media.xl} {
+        padding: 2px 1px;
+        font-size: 0.95em;
+    }
+
+    ${media.lg} {
+        font-size: 0.9em;
+    }
+
+    ${media.md} {
+        padding: 1px;
+        font-size: 0.85em;
+    }
+
+    ${media.sm} {
+        font-size: 0.8em;
+    }
+
+    ${media.xs} {
+        font-size: 0.75em;
+    }
+`;
 
 interface HiddenProps {
     className?: string
@@ -52,4 +75,30 @@ export const HiddenTag = styled(HiddenTagElement)`
 
     text-align: center;
     font-style: italic;
-`
+
+    ${media.xl} {
+        letter-spacing: 15px;
+        margin: 6px;
+    }
+
+    ${media.lg} {
+        letter-spacing: 12px;
+    }
+
+    ${media.md} {
+        letter-spacing: 10px;
+        margin: 5px;
+        border-width: 1px;
+    }
+
+    ${media.sm} {
+        letter-spacing: 8px;
+        margin: 4px;
+    }
+
+    ${media.xs} {
+        letter-spacing: 6px;
+        margin: 3px;
+        border-radius: 3px;
+    }
+`;

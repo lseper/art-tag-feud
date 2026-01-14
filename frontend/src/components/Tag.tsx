@@ -3,6 +3,7 @@ import { TagType } from '../types';
 import styled from 'styled-components';
 
 import Theme from '../styles/theme/Theme';
+import { media } from '../styles/theme/breakpoints';
 
 interface Props {
    tag?: PostTagType,
@@ -68,12 +69,57 @@ const TagElement = styled.li<TagProps>`
         opacity: 1;
     }
 
-
     /* Tag Score */
     span {
         color: ${p => p.theme.cTagCharacter};
     }
-`
+
+    ${media.xl} {
+        padding: 2px 1px;
+        margin-bottom: 3px;
+        font-size: 0.95em;
+
+        &.hidden {
+            letter-spacing: 15px;
+        }
+    }
+
+    ${media.lg} {
+        font-size: 0.9em;
+
+        &.hidden {
+            letter-spacing: 12px;
+        }
+    }
+
+    ${media.md} {
+        padding: 1px;
+        margin-bottom: 2px;
+        font-size: 0.85em;
+
+        &.hidden {
+            letter-spacing: 10px;
+            border-width: 1px;
+        }
+    }
+
+    ${media.sm} {
+        font-size: 0.8em;
+
+        &.hidden {
+            letter-spacing: 8px;
+        }
+    }
+
+    ${media.xs} {
+        font-size: 0.75em;
+
+        &.hidden {
+            letter-spacing: 6px;
+            border-radius: 3px;
+        }
+    }
+`;
 
 
 export default Tag;

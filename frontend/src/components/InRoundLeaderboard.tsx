@@ -4,14 +4,16 @@ import type { UserReadyStateType, GuessTagEventDataToClientType } from '../types
 import { EventType } from '../types';
 import { UserContext } from '../contexts/UserContext';
 import { buildUIIconImg } from '../util/UIUtil';
+import { media } from '../styles/theme/breakpoints';
 
 interface Props {
     className?: string;
+    isMobile?: boolean;
 };
 
 const IN_GAME_LEADERBOARD_CLASS_NAMES = ['first', 'second', 'third'];
 
-const InRoundLeaderboard: React.FC<Props> = ({className} : Props) => {
+const InRoundLeaderboard: React.FC<Props> = ({className, isMobile = false} : Props) => {
     const {readyStates, setReadyStates, connectionManager} = useContext(UserContext);
 
     useEffect(() => {
@@ -52,20 +54,22 @@ const InRoundLeaderboard: React.FC<Props> = ({className} : Props) => {
                 className = IN_GAME_LEADERBOARD_CLASS_NAMES[(order ?? 0)];
             }
         }
-        return <InRoundLeaderboardEntry className={className} style={{order: order, zIndex: zIndex}}>
+        return <InRoundLeaderboardEntry className={className} style={{order: order, zIndex: zIndex}} key={readyState.user.id}>
             {
                 readyState.icon && buildUIIconImg(true, 'profile_icons/', readyState.icon, isRanked ? 'ranked' : '')
             }
-            <InRoundLeaderboardName  className={isFirst && !readyState.ready ? 'dark' : ''}>{readyState.user.username}</InRoundLeaderboardName>
+            <InRoundLeaderboardName className={isFirst && !readyState.ready ? 'dark' : ''}>{readyState.user.username}</InRoundLeaderboardName>
             <InRoundLeaderboardScore className={isFirst && !readyState.ready ? 'dark' : ''}>{readyState.user.score}</InRoundLeaderboardScore>
         </InRoundLeaderboardEntry>;
     }, [leaderBoardOrder, readyStates])
 
-    return <InRoundLeaderboardContainer>
+    const Container = isMobile ? MobileInRoundLeaderboardContainer : InRoundLeaderboardContainer;
+
+    return <Container className={className}>
         {
             readyStates.map(readyState => renderLeaderboardEntry(readyState))
         }
-    </InRoundLeaderboardContainer>;
+    </Container>;
 }
 
 
@@ -81,10 +85,36 @@ const InRoundLeaderboardContainer = styled.ul`
     height: 60px;
     background-color: transparent;
 
-    @media (max-width: 768px) {
-    opacity: 0.35;
-  }
-    `;
+    ${media.xl} {
+        height: 50px;
+    }
+
+    ${media.lg} {
+        height: 45px;
+    }
+`;
+
+/**
+ * Mobile overlay container - floats above input bar with 50% opacity
+ */
+const MobileInRoundLeaderboardContainer = styled.ul`
+    position: fixed;
+    bottom: 68px;
+    left: 0;
+    right: 0;
+    height: auto;
+    padding: 8px;
+    background: rgba(31, 60, 103, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 15;
+    
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+`;
 
 const InRoundLeaderboardName = styled.p`
     color: ${p => p.theme.cPrimaryText};
@@ -96,6 +126,24 @@ const InRoundLeaderboardName = styled.p`
     &.dark {
         color: ${p => p.theme.cLobbyBackground};
     }
+
+    ${media.xl} {
+        font-size: 0.9em;
+        padding-right: 6px;
+    }
+
+    ${media.lg} {
+        font-size: 0.8em;
+        padding-right: 4px;
+    }
+
+    ${media.md} {
+        font-size: 0.75em;
+    }
+
+    ${media.sm} {
+        font-size: 0.7em;
+    }
 `
 
 const InRoundLeaderboardScore = styled.p`
@@ -105,10 +153,28 @@ const InRoundLeaderboardScore = styled.p`
     &.dark {
         color: #c03a00;
     }
+
+    ${media.xl} {
+        font-size: 0.9em;
+        padding-right: 6px;
+    }
+
+    ${media.lg} {
+        font-size: 0.8em;
+        padding-right: 4px;
+    }
+
+    ${media.md} {
+        font-size: 0.75em;
+    }
+
+    ${media.sm} {
+        font-size: 0.7em;
+    }
 `
 
 const InRoundLeaderboardEntry = styled.li`
-    padding: 2 0 2 0;
+    padding: 2px 0;
     border-radius: 30px;
     display: flex;
     align-items: center;
@@ -146,6 +212,43 @@ const InRoundLeaderboardEntry = styled.li`
         transition: border-color .2s;
         &.ranked{
             border-color: ${p => p.theme.cLobbyBackground};
+        }
+    }
+
+    ${media.xl} {
+        margin-right: 8px;
+        
+        img {
+            width: 26px;
+            height: 26px;
+            margin-right: 6px;
+        }
+    }
+
+    ${media.lg} {
+        margin-right: 6px;
+        
+        img {
+            width: 22px;
+            height: 22px;
+            margin-right: 4px;
+        }
+    }
+
+    ${media.md} {
+        margin-right: 4px;
+        
+        img {
+            width: 20px;
+            height: 20px;
+            margin-right: 4px;
+        }
+    }
+
+    ${media.sm} {
+        img {
+            width: 18px;
+            height: 18px;
         }
     }
 `;
