@@ -18,10 +18,11 @@ export default function usePostFetcher(connectionManager: ConnectionManager, roo
       const onRequestPost = (data: RequestPostEventDataToClientType) => {
         const newPost = data.post;
         if(newPost != null) {
-          newPost.tags.sort((a, b) => b.score - a.score);
-          setCurrentPost(newPost);
+          const tags = Array.isArray(newPost.tags) ? [...newPost.tags] : [];
+          tags.sort((a, b) => b.score - a.score);
+          setCurrentPost({ ...newPost, tags });
           // reset client side ready states to false
-          const newReadyStates = readyStates.map(readyState => ({...readyState, ready: false}))
+          const newReadyStates = (Array.isArray(readyStates) ? readyStates : []).map(readyState => ({...readyState, ready: false}))
           setReadyStates(newReadyStates);
         }
       }

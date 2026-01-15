@@ -469,12 +469,21 @@ server.on("connection", response => {
                             broadcastToRoom<ShowLeaderboardEventDataToClientType>(roomToSendPost, {type: EventType.enum.SHOW_LEADERBOARD});
                             break;
                         }
-                        const postToSend = roomToSendPost.postQueue.shift()!;
+                        const postToSend = roomToSendPost.postQueue.shift();
+                        if (!postToSend) {
+                            console.error('No posts available to send.');
+                            broadcastToRoom<RequestPostEventDataToClientType>(roomToSendPost, {type: EventType.enum.REQUEST_POST});
+                            break;
+                        }
                         const preferlistAllTimeTags = new Set(roomToSendPost.preferlist.filter(entry => entry.frequency === 'all').map(entry => entry.tag));
+                        const tags = Array.isArray(postToSend.tags) ? postToSend.tags : [];
                         const postToSendWithPreferlist = preferlistAllTimeTags.size > 0 ? {
                             ...postToSend,
-                            tags: postToSend.tags.map(tag => preferlistAllTimeTags.has(tag.name) ? {...tag, score: 0} : tag)
-                        } : postToSend;
+                            tags: tags.map(tag => preferlistAllTimeTags.has(tag.name) ? {...tag, score: 0} : tag)
+                        } : {
+                            ...postToSend,
+                            tags
+                        };
                         broadcastToRoom<RequestPostEventDataToClientType>(roomToSendPost, {type: EventType.enum.REQUEST_POST, post: postToSendWithPreferlist});
                         roomToSendPost.postsViewedThisRound += 1;
                         // reset ready map to all false

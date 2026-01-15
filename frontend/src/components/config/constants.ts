@@ -5,7 +5,7 @@ type Config = {
 const envUrl = import.meta.env.VITE_WS_URL as string | undefined;
 
 const production : Config = {
-    url: envUrl ?? "wss://e621-tag-feud.fly.dev/"
+    url: "wss://e621-tag-feud.fly.dev/"
 }
 
 const development : Config = {
