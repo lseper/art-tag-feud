@@ -8,6 +8,13 @@
   z-index: 20;
 }
 
+.nextRoundOverlay {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 30;
+}
+
 .form {
   display: flex;
   width: 100%;

@@ -85,6 +85,16 @@ export const Lobby: React.FC = () => {
         getAllRooms();
     }, [getAllRooms])
 
+    useEffect(() => {
+        const intervalId = window.setInterval(() => {
+            getAllRooms();
+        }, 8000);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, [getAllRooms]);
+
     const renderRoom = useCallback((room: ClientRoomType) => {
         const {roomName, readyStates} = room;
         return (

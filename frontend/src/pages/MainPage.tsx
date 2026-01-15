@@ -59,15 +59,19 @@ function MainPage({currentPost, update} : Props): JSX.Element {
   }, [canStartNewRound, update])
 
   const nextRoundButton = useMemo(() => {
-    return (owner && owner.id === userID) ? (
+    if (!(owner && owner.id === userID && canStartNewRound)) {
+      return null;
+    }
+
+    return (
       <Button
-        className={`${styles.nextRoundButton} ${canStartNewRound ? styles.nextRoundButtonEnabled : ''}`.trim()}
+        className={`${styles.nextRoundButton} ${styles.nextRoundButtonEnabled}`.trim()}
         onClick={startNewRound}
         variant="outline"
       >
         Next Round
       </Button>
-    ) : null
+    );
   }, [owner, userID, canStartNewRound, startNewRound])
 
   const shouldShowLeaderboard = roomID != null && !showLeaderboard;

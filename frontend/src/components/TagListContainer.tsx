@@ -155,8 +155,8 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                     guess={guess}
                     setGuess={setGuess}
                     onSubmit={handleGuessSubmit}
+                    nextRoundButton={nextRoundButton}
                 />
-                { nextRoundButton }
             </>
         );
     }
