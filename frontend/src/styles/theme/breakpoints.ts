@@ -12,19 +12,6 @@ export const breakpoints = {
 } as const;
 
 /**
- * Media query helpers for styled-components.
- * Usage: ${media.xl} { ... }
- */
-export const media = {
-  xs: `@media (max-width: ${breakpoints.xs})`,
-  sm: `@media (max-width: ${breakpoints.sm})`,
-  md: `@media (max-width: ${breakpoints.md})`,
-  lg: `@media (max-width: ${breakpoints.lg})`,
-  xl: `@media (max-width: ${breakpoints.xl})`,
-  mobile: `@media (max-width: ${breakpoints.mobile})`,
-};
-
-/**
  * Numeric breakpoint values for JS comparisons.
  */
 export const breakpointValues = {

@@ -1,0 +1,61 @@
+.progressBar {
+  padding: 5px;
+  background-color: white;
+  border-radius: 10px;
+  height: var(--input-height);
+}
+
+.progressBarInner {
+  height: 100%;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.character {
+  background-color: var(--c-tag-character);
+}
+
+.artist {
+  background-color: var(--c-tag-artist);
+}
+
+.species {
+  background-color: var(--c-tag-species);
+}
+
+@media (max-width: 600px) {
+  .progressBar {
+    padding: 4px;
+    height: 22px;
+  }
+}
+
+@media (max-width: 490px) {
+  .progressBar {
+    padding: 3px;
+    height: 20px;
+  }
+}
+
+@media (max-width: 430px) {
+  .progressBar {
+    height: 18px;
+  }
+}
+
+.mobileProgressBar {
+  position: fixed;
+  bottom: 56px;
+  left: 8px;
+  right: 8px;
+  height: 8px;
+  padding: 2px;
+  z-index: 16;
+  background-color: rgba(255, 255, 255, 0.7);
+  border-radius: 4px;
+}
+
+.mobileProgressBarInner {
+  height: 100%;
+  border-radius: 3px;
+}

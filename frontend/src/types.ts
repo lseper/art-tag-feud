@@ -16,7 +16,8 @@ export const EventType = z.enum(['DEFAULT',
     'LEAVE_ROOM',
     'REQUEST_POST',
     'SHOW_LEADERBOARD',
-    'UPDATE_BLACKLIST']);
+    'UPDATE_BLACKLIST',
+    'UPDATE_PREFERLIST']);
 
 /**
  * Server-Only Types
@@ -35,6 +36,13 @@ export const Post = z.object({
     tags: z.array(PostTag)
 })
 
+export const PreferlistFrequency = z.enum(['most', 'all']);
+
+export const PreferlistTag = z.object({
+    tag: z.string(),
+    frequency: PreferlistFrequency,
+})
+
 export const User = z.object({
     username: z.string(),
     id: z.string(),
@@ -51,6 +59,7 @@ export const ServerRoom = z.object({
     owner: User,
     members: z.array(User),
     blacklist: z.array(z.string()),
+    preferlist: z.array(PreferlistTag),
     postQueue: z.array(Post),
     curRound: z.number(),
     postsViewedThisRound: z.number(),
@@ -121,6 +130,13 @@ export const UpdateBlacklistEventData = z.object({
     action: z.enum(['add', 'remove']),
     type: z.literal(EventType.enum.UPDATE_BLACKLIST)
 })
+export const UpdatePreferlistEventData = z.object({
+    roomID: z.string(),
+    tag: z.string(),
+    action: z.enum(['add', 'remove', 'set_frequency']),
+    frequency: z.optional(PreferlistFrequency),
+    type: z.literal(EventType.enum.UPDATE_PREFERLIST)
+})
 
 /**
  * Client Types
@@ -136,7 +152,8 @@ export const ClientRoom = z.object({
     roomName: z.string(),
     owner: User,
     readyStates: z.array(UserReadyState),
-    blacklist: z.array(z.string())
+    blacklist: z.array(z.string()),
+    preferlist: z.array(PreferlistTag)
 })
 
 export const CreateRoomEventDataToClient = z.object({
@@ -212,6 +229,11 @@ export const UpdateBlacklistEventDataToClient = z.object({
     blacklist: z.array(z.string()),
     type: z.literal(EventType.enum.UPDATE_BLACKLIST)
 })
+export const UpdatePreferlistEventDataToClient = z.object({
+    roomID: z.string(),
+    preferlist: z.array(PreferlistTag),
+    type: z.literal(EventType.enum.UPDATE_PREFERLIST)
+})
 
 /**
  * Server-Only Object Types
@@ -233,6 +255,7 @@ export type StartGameEventDataType = z.infer<typeof StartGameEventData>
 export type ReadyUpEventDataType = z.infer<typeof ReadyUpEventData>
 export type AllRoomsEventDataType = z.infer<typeof AllRoomsEventData>
 export type UpdateBlacklistEventDataType = z.infer<typeof UpdateBlacklistEventData>
+export type UpdatePreferlistEventDataType = z.infer<typeof UpdatePreferlistEventData>
 
 /**
  * Client-Only Types
@@ -251,6 +274,7 @@ export type StartGameEventDataToClientType = z.infer<typeof StartGameEventDataTo
 export type EndGameEventDataToClientType = z.infer<typeof EndGameEventDataToClient>
 export type ShowLeaderboardEventDataToClientType = z.infer<typeof ShowLeaderboardEventDataToClient>
 export type UpdateBlacklistEventDataToClientType = z.infer<typeof UpdateBlacklistEventDataToClient>
+export type UpdatePreferlistEventDataToClientType = z.infer<typeof UpdatePreferlistEventDataToClient>
 
 export type ClientRoomType = z.infer<typeof ClientRoom>;
 
@@ -260,6 +284,8 @@ export type ClientRoomType = z.infer<typeof ClientRoom>;
 export type TagTypeType = z.infer<typeof TagType>
 export type PostTagType = z.infer<typeof PostTag>;
 export type PostType = z.infer<typeof Post>;
+export type PreferlistTagType = z.infer<typeof PreferlistTag>;
+export type PreferlistFrequencyType = z.infer<typeof PreferlistFrequency>;
 export type UserType = z.infer<typeof User>;
 export type EventTypeType = z.infer<typeof EventType>;
 export type UserReadyStateType = z.infer<typeof UserReadyState>;

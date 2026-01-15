@@ -1,5 +1,4 @@
-import styled from 'styled-components';
-import { media } from '../styles/theme/breakpoints';
+import styles from '@/styles/components/visible-tag-score.module.css';
 
 interface Props {
     score: number;
@@ -7,36 +6,10 @@ interface Props {
 }
 
 const VisibleTagScoreElement : React.FC<Props> = (props) => {
-    const { score, className } = props;
+    const { score } = props;
     return (
-        <span className={className}>{score}</span>
+        <span className={styles.score}>{score}</span>
     )
 }
 
-export const VisibleTagScore = styled(VisibleTagScoreElement)<Props>`
-    order: 0;
-    flex: 0 1 auto;
-    align-self: auto;
-
-    color: ${p => p.theme.cTagCharacter};
-
-    ${media.xl} {
-        font-size: 0.95em;
-    }
-
-    ${media.lg} {
-        font-size: 0.9em;
-    }
-
-    ${media.md} {
-        font-size: 0.85em;
-    }
-
-    ${media.sm} {
-        font-size: 0.8em;
-    }
-
-    ${media.xs} {
-        font-size: 0.75em;
-    }
-`;
+export const VisibleTagScore = VisibleTagScoreElement;

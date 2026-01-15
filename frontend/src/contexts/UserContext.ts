@@ -1,6 +1,6 @@
 import { createContext } from 'react';
 import { ConnectionManager } from '../util/ConnectionManager';
-import type {UserReadyStateType, UserType} from '../types';
+import type {PreferlistTagType, UserReadyStateType, UserType} from '../types';
 
 type UserContextType = {
     // user specific things
@@ -14,6 +14,7 @@ type UserContextType = {
     readyStates: UserReadyStateType[],
     owner?: UserType,
     blacklist: string[],
+    preferlist: PreferlistTagType[],
     connectionManager: ConnectionManager
 
     setUserID: (userID: string) => void,
@@ -25,6 +26,7 @@ type UserContextType = {
     setOwner: (owner: UserType) => void,
     setScore: (score: number) => void,
     setBlacklist: (blacklist: string[]) => void,
+    setPreferlist: (preferlist: PreferlistTagType[]) => void,
     leaveRoomCleanup: () => void,
 }
 
@@ -33,15 +35,17 @@ export const UserContext = createContext<UserContextType>({
         connectionManager: ConnectionManager.getInstance(),
         readyStates: [],
         blacklist: [],
+        preferlist: [],
     
-        setUserID: (userID: string) => {},
-        setUsername: (username: string) => {},
-        setRoomID: (roomID: string) => {},
-        setRoomName: (roomID: string) => {},
-        setScore: (score: number) => {},
-        setIcon: (icon: string) => {},
-        setOwner: (owner: UserType) => {},
-        setReadyStates: (readyStates: UserReadyStateType[]) => {},
-        setBlacklist: (blacklist: string[]) => {},
+        setUserID: (_userID: string) => {},
+        setUsername: (_username: string) => {},
+        setRoomID: (_roomID: string) => {},
+        setRoomName: (_roomID: string) => {},
+        setScore: (_score: number) => {},
+        setIcon: (_icon: string) => {},
+        setOwner: (_owner: UserType) => {},
+        setReadyStates: (_readyStates: UserReadyStateType[]) => {},
+        setBlacklist: (_blacklist: string[]) => {},
+        setPreferlist: (_preferlist: PreferlistTagType[]) => {},
         leaveRoomCleanup: () => {},
 });

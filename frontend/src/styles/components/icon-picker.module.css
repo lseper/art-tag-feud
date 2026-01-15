@@ -1,0 +1,237 @@
+.iconList {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 32px;
+}
+
+@media (min-width: 450px) {
+  .iconList {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+@media (min-width: 1000px) {
+  .iconList {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+}
+
+@media (max-width: 360px) {
+  .iconList {
+    grid-template-columns: 1fr 1fr;
+    margin-top: 16px;
+  }
+}
+
+.item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin: 8px;
+  transition: filter 0.2s, transform 0.2s;
+}
+
+.disabled {
+  filter: brightness(40%);
+}
+
+.selected {
+  filter: brightness(115%);
+  transform: scale(1.25);
+  z-index: 3;
+}
+
+.selectable {
+  filter: brightness(75%);
+  vertical-align: middle;
+  border-radius: 50%;
+}
+
+.selectable:hover {
+  transform: scale(1.5);
+  filter: brightness(115%);
+  z-index: 99;
+}
+
+.selectable:focus {
+  transform: scale(1.25);
+  filter: brightness(115%);
+}
+
+.iconButton {
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  text-shadow: none;
+  padding: 0;
+}
+
+.iconButton img {
+  width: 40px;
+  height: 40px;
+  border: 5px solid var(--card);
+  border-radius: 50%;
+}
+
+@media (min-width: 440px) {
+  .iconButton img {
+    width: 50px;
+    height: 50px;
+  }
+}
+
+@media (min-width: 800px) {
+  .iconButton img {
+    width: 60px;
+    height: 60px;
+  }
+}
+
+@media (min-width: 900px) {
+  .iconButton img {
+    width: 70px;
+    height: 70px;
+  }
+}
+
+@media (min-width: 1000px) {
+  .iconButton img {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+.characterName {
+  font-size: 1rem;
+  color: var(--c-tag-general);
+  z-index: 4;
+  max-width: 105%;
+}
+
+@media (max-width: 600px) {
+  .characterName {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 490px) {
+  .characterName {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .characterName {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .characterName {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .characterName {
+    font-size: 0.7rem;
+  }
+}
+
+.iconArtist {
+  opacity: 0;
+  transition: opacity 0.2s;
+  text-decoration: none;
+  font-size: 0.5rem;
+  max-width: 105%;
+}
+
+.iconArtist:hover {
+  opacity: 1;
+}
+
+.iconArtist:focus {
+  opacity: 0.5;
+}
+
+@media (min-width: 350px) {
+  .iconArtist {
+    font-size: 0.75rem;
+  }
+}
+
+@media (min-width: 500px) {
+  .iconArtist {
+    font-size: 1rem;
+  }
+}
+
+.item:hover .iconArtist {
+  opacity: 1;
+}
+
+.item:hover .iconArtist,
+.item:focus .iconArtist {
+  opacity: 1;
+}
+
+@media (max-width: 600px) {
+  .item {
+    margin: 6px;
+  }
+
+  .iconButton img {
+    width: 38px;
+    height: 38px;
+    border-width: 4px;
+  }
+}
+
+@media (max-width: 490px) {
+  .item {
+    margin: 5px;
+  }
+
+  .iconButton img {
+    width: 35px;
+    height: 35px;
+  }
+}
+
+@media (max-width: 430px) {
+  .item {
+    margin: 4px;
+  }
+
+  .iconButton img {
+    width: 32px;
+    height: 32px;
+    border-width: 3px;
+  }
+}
+
+@media (max-width: 390px) {
+  .item {
+    margin: 3px;
+  }
+
+  .iconButton img {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+@media (max-width: 360px) {
+  .item {
+    margin: 2px;
+  }
+
+  .iconButton img {
+    width: 28px;
+    height: 28px;
+    border-width: 2px;
+  }
+}

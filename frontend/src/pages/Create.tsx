@@ -1,6 +1,5 @@
 import { UserContext } from '../contexts/UserContext';
 import { useContext, useEffect, useState, useMemo, useCallback } from 'react';
-import styled from 'styled-components';
 import type { JoinRoomEventDataToClientType, CreateRoomEventDataType } from '../types';
 import { EventType } from '../types';
 import {
@@ -9,7 +8,9 @@ import {
 
 import NumberPicker from '../components/NumberPicker';
 import { Title } from '../components/NumberPicker'; 
-import Theme from '../styles/theme/Theme';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import styles from '@/styles/pages/create.module.css';
 
 type Props = {
   className?: string;
@@ -75,26 +76,26 @@ export const Create : React.FC<Props> = ({className}: Props) => {
         }
     }, [connectionManager, inputsAreValid, postsPerRound, roomID, roomNameInput, roundsPerGame, userID]);
 
-    return <CreateWrapper>
-        <CreateContent>
+    return <div className={styles.wrapper}>
+        <div className={styles.content}>
             <Title style={{alignSelf: 'center', fontSize: '3rem'}}>
                 {
                     username ? `${username}'s Room` : DEFAULT_OWNER_TEXT
                 }
             </Title>
-            <RoomNameInputContainer>
+            <div className={styles.roomNameInputContainer}>
                 <Title>
                     Room Name
                 </Title>
-                <RoomNameIput type="text" placeholder='e.g "My Room"' value={roomNameInput} onChange={e => setRoomNameInput(e.target.value)}/>
-            </RoomNameInputContainer>
+                <Input className={styles.roomNameInput} type="text" placeholder='e.g "My Room"' value={roomNameInput} onChange={e => setRoomNameInput(e.target.value)}/>
+            </div>
             <NumberPicker 
             title={'Posts Per Round'}
             options={POSTS_PER_ROUND_OPTIONS} 
             selected={postsPerRound} 
             setSelected={setPostsPerRound}
-            color={Theme.cTagSpecies} 
-            backgroundColor={Theme.cLobbyBackground} 
+            color="var(--c-tag-species)" 
+            backgroundColor="var(--background)" 
             singleSelect={true}
             />
             <NumberPicker 
@@ -102,116 +103,24 @@ export const Create : React.FC<Props> = ({className}: Props) => {
             options={ROUNDS_PER_GAME_OPTIONS} 
             selected={roundsPerGame} 
             setSelected={setRoundsPerGame} 
-            color={Theme.cTagSpecies} 
-            backgroundColor={Theme.cLobbyBackground}
+            color="var(--c-tag-species)" 
+            backgroundColor="var(--background)"
             singleSelect={true}
             />
-            <div style={{display: "flex", flexDirection: "row", justifyContent: "center", alignItems: "flex-start"}}>
-                <BackButton onClick={() => navigate('/')}>
+            <div className={styles.buttonRow}>
+                <Button className={`${styles.actionButton} ${styles.backButton}`} onClick={() => navigate('/')}>
                     Back
-                </BackButton>
-                <CreateRoomButton disabled={!inputsAreValid} className={inputsAreValid ? '' : 'disabled'} onClick={() => createGame()}>
+                </Button>
+                <Button
+                  className={`${styles.actionButton} ${styles.createButton} ${inputsAreValid ? '' : styles.disabled}`.trim()}
+                  disabled={!inputsAreValid}
+                  onClick={() => createGame()}
+                >
                     Create Room
-                </CreateRoomButton>
+                </Button>
             </div>
-        </CreateContent>
-    </CreateWrapper>;
+        </div>
+    </div>;
 }
-
-const CreateWrapper = styled.div`
-    display: flex;
-    justify-content: center;
-    align-items: center;
-`
-
-const CreateContent = styled.div`
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-
-    padding: 0 16px 0 16px;
-
-    box-shadow: 0 0 5px #000;
-    border-radius: 5px;
-`
-
-const RoomNameInputContainer = styled.div`
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-start;
-    align-items: center;
-
-    margin-top: 16px;
-    width: 100%;
-`
-
-const RoomNameIput = styled.input`
-    padding: 12px 20px;
-    margin-left: 32px;
-    
-    border: 4px solid ${p => p.theme.cTagSpecies};
-    border-radius: 4px;
-    background-color: transparent;
-
-    color: ${p => p.theme.cTagSpecies};
-    caret-color: ${p => p.theme.cTagSpecies};
-    transition: background-color 0.2s, transform 0.2s, color 0.2s, caret-color 0.2s;
-
-    ::placeholder {
-        color: ${p => p.theme.cTagSpecies};
-        opacity: 0.5;
-    }
-
-    &:hover {
-        outline: none;
-        transform: scale(115%);
-    }
-
-    &:focus {
-        outline: none;
-        background-color: ${p => p.theme.cTagSpecies};
-        color: ${p => p.theme.cLobbyBackground};
-        caret-color: ${p => p.theme.cLobbyBackground};
-
-        ::placeholder {
-            color: ${p => p.theme.cLobbyBackground};
-        }
-    }
-`
-
-const Button = styled.button`
-    padding: 12px;
-    margin: 0 24px 16px 24px;
-
-    color: ${p => p.theme.cLobbyBackground};
-    opacity: 1;
-    border-radius: 12px;
-    border-style: none;
-
-    transition: transform .2s, opacity .2s;
-
-    font-size: 1.5rem;
-    font-weight: bold;
-
-    &:hover {
-        transform: scale(115%);
-    }
-
-    &.disabled {
-        opacity: 0.5;
-        &:hover {
-            transform: scale(100%);
-        }
-    }
-`
-
-const BackButton = styled(Button)`
-    background-color: ${p => p.theme.cPrimaryText}
-`
-
-const CreateRoomButton = styled(Button)`
-    background-color: ${p => p.theme.cTagCharacter};
-`
 
 export default Create;

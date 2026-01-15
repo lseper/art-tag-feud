@@ -1,0 +1,38 @@
+.card {
+  background-color: var(--card);
+  color: var(--card-foreground);
+  border-radius: var(--radius);
+  box-shadow: 0 0 5px color-mix(in oklch, var(--foreground), transparent 70%);
+  text-shadow: 0 0 2px color-mix(in oklch, var(--foreground), transparent 70%),
+    0 0 6px color-mix(in oklch, var(--foreground), transparent 70%);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.5rem 0 1.5rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.description {
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+}
+
+.content {
+  padding: 1rem 1.5rem;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0 1.5rem 1rem 1.5rem;
+}

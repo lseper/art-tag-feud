@@ -1,6 +1,5 @@
 import type { TagTypeType } from '../types';
-import styled from 'styled-components';
-import { media } from '../styles/theme/breakpoints';
+import styles from '@/styles/components/visible-tag-name.module.css';
 
 interface Props {
     name: string;
@@ -8,38 +7,18 @@ interface Props {
     className?: string;
 }
 
+const tagClassMap: Record<TagTypeType, string> = {
+  artist: styles.artist,
+  character: styles.character,
+  species: styles.species,
+  general: styles.general,
+};
+
 const VisibleTagNameElement : React.FC<Props> = (props) => {
-    const { name, className } = props;
+    const { name, tagType } = props;
     return (
-        <p className={className}>{name}</p>
+        <p className={`${styles.name} ${tagClassMap[tagType] ?? styles.general}`.trim()}>{name}</p>
     )
 }
 
-export const VisibleTagName = styled(VisibleTagNameElement)<Props>`
-    order: 0;
-    flex: 0 1 auto;
-    align-self: auto;
-
-    /* Extracting tagType from this */
-    color: var(--c-tag-${({ tagType }) => tagType});
-
-    ${media.xl} {
-        font-size: 0.95em;
-    }
-
-    ${media.lg} {
-        font-size: 0.9em;
-    }
-
-    ${media.md} {
-        font-size: 0.85em;
-    }
-
-    ${media.sm} {
-        font-size: 0.8em;
-    }
-
-    ${media.xs} {
-        font-size: 0.75em;
-    }
-`;
+export const VisibleTagName = VisibleTagNameElement;

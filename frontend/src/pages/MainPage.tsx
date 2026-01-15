@@ -1,12 +1,13 @@
 import { DisplayedPost } from '../components/DisplayedPost';
 import { TagListContainer } from '../components/TagListContainer';
-import styled from 'styled-components';
 import { UserContext } from '../contexts/UserContext';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { PostTagType, PostType, ShowLeaderboardEventDataToClientType, EndGameEventDataToClientType, RequestPostEventDataToClientType } from '../types';
 import { EventType } from '../types';
 import LeaderBoard from '../components/Leaderboard';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import styles from '@/styles/pages/main-page.module.css';
 // TODO: ^ use this lol
 
 const emptyTagList : PostTagType[] = [];
@@ -58,9 +59,15 @@ function MainPage({currentPost, update} : Props): JSX.Element {
   }, [canStartNewRound, update])
 
   const nextRoundButton = useMemo(() => {
-    return (owner && owner.id === userID) ? <NextRoundButton className={canStartNewRound ? 'enabled' : ''} onClick={startNewRound}>
-      Next Round
-    </NextRoundButton> : null
+    return (owner && owner.id === userID) ? (
+      <Button
+        className={`${styles.nextRoundButton} ${canStartNewRound ? styles.nextRoundButtonEnabled : ''}`.trim()}
+        onClick={startNewRound}
+        variant="outline"
+      >
+        Next Round
+      </Button>
+    ) : null
   }, [owner, userID, canStartNewRound, startNewRound])
 
   const shouldShowLeaderboard = roomID != null && !showLeaderboard;
@@ -68,7 +75,7 @@ function MainPage({currentPost, update} : Props): JSX.Element {
   return (
     <div>
       {
-        shouldShowLeaderboard ? <MediaContainer>
+        shouldShowLeaderboard ? <div className={styles.mediaContainer}>
         {
           currentPost && <>
             {/* Delete this wrapper div once done. Only here so that Next Post is under it */}
@@ -77,72 +84,19 @@ function MainPage({currentPost, update} : Props): JSX.Element {
             <TagListContainer tags={currentPost ? currentPost.tags : emptyTagList} nextRoundButton={nextRoundButton}/>
           </> 
         }
-      </MediaContainer> : <LeaderBoardPageView>
+      </div> : <div className={styles.leaderboardPage}>
           <LeaderBoard />
           {
-            userID === owner?.id && <NextRoundButton className='enabled' onClick={startNewRound}>Start Next Round</NextRoundButton>
+            userID === owner?.id && (
+              <Button className={`${styles.nextRoundButton} ${styles.nextRoundButtonEnabled}`} onClick={startNewRound} variant="outline">
+                Start Next Round
+              </Button>
+            )
           }
-      </LeaderBoardPageView>
+      </div>
       }
     </div>
   )
 }
-
-const LeaderBoardPageView = styled.div`
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-`
-
-const NextRoundButton = styled.button`
-  color: ${p => p.theme.cTagCharacter};
-  border: 2px solid ${p => p.theme.cTagCharacter};
-  border-radius: 8px;
-  background-color: transparent;
-
-  margin-top: 8px;
-  margin-bottom: 4px;
-
-  font-size: 1em;
-  font-weight: bold;
-  padding: 12px;
-  transition: background-color .2s, color .2s, transform .2s, opacity .2s;
-
-  opacity: 0.25;
-
-  &.enabled {
-
-    opacity: 1;
-
-    &:hover {
-      transform: scale(125%);
-      background-color: ${p => p.theme.cTagCharacter};
-      color: ${p => p.theme.cLobbyBackground};
-    }
-
-    &:focus {
-      transform: scale(105%);
-    }
-
-  }
-`
-
-const MediaContainer = styled.div`
-  display: grid; 
-  grid-template-columns: 1fr 1fr; 
-  grid-template-rows: 1fr; 
-  gap: 30px 0px; 
-  grid-template-areas: 
-      ". .";
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
-    grid-template-areas: 
-        "."
-        ".";
-  }
-`;
 
 export default MainPage;

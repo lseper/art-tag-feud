@@ -1,5 +1,5 @@
-import styled from 'styled-components';
 import type { ReactNode } from 'react';
+import styles from '@/styles/components/mobile-game-layout.module.css';
 
 interface Props {
   children: ReactNode;
@@ -10,16 +10,7 @@ interface Props {
  * for the game view on mobile devices.
  */
 const MobileGameLayout: React.FC<Props> = ({ children }) => {
-  return <MobileGameContainer>{children}</MobileGameContainer>;
+  return <div className={styles.container}>{children}</div>;
 };
-
-const MobileGameContainer = styled.div`
-  position: fixed;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  background-color: black;
-  overflow: hidden;
-`;
 
 export default MobileGameLayout;

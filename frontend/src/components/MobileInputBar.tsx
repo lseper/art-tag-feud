@@ -1,5 +1,6 @@
-import styled from 'styled-components';
 import type { FormEvent } from 'react';
+import { Input } from '@/components/ui/input';
+import styles from '@/styles/components/mobile-input-bar.module.css';
 
 interface Props {
   guess: string;
@@ -13,9 +14,10 @@ interface Props {
  */
 const MobileInputBar: React.FC<Props> = ({ guess, setGuess, onSubmit, className }) => {
   return (
-    <MobileInputBarContainer className={className}>
-      <InputForm onSubmit={onSubmit}>
-        <GuessInput
+    <div className={`${styles.container} ${className ?? ''}`.trim()}>
+      <form className={styles.form} onSubmit={onSubmit}>
+        <Input
+          className={styles.input}
           type="text"
           value={guess}
           onChange={(e) => setGuess(e.target.value)}
@@ -23,44 +25,8 @@ const MobileInputBar: React.FC<Props> = ({ guess, setGuess, onSubmit, className 
           autoComplete="off"
           autoCapitalize="off"
         />
-      </InputForm>
-    </MobileInputBarContainer>
+      </form>
+    </div>
   );
 };
-
-const MobileInputBarContainer = styled.div`
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 12px;
-  background: rgba(0, 45, 85, 0.95);
-  z-index: 20;
-`;
-
-const InputForm = styled.form`
-  display: flex;
-  width: 100%;
-`;
-
-const GuessInput = styled.input`
-  flex: 1;
-  height: 44px;
-  border-radius: 8px;
-  padding: 0 12px;
-  font-size: 1rem;
-  border: none;
-  outline: none;
-  background-color: white;
-  color: #000;
-  
-  &:focus {
-    background-color: #ffc;
-  }
-  
-  &::placeholder {
-    color: #888;
-  }
-`;
-
 export default MobileInputBar;

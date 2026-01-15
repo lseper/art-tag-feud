@@ -1,6 +1,6 @@
-import styled from 'styled-components';
 import type { PostTagType } from '../types';
 import { VisibleTag } from './VisibleTag';
+import styles from '@/styles/components/mobile-tags-overlay.module.css';
 
 interface Props {
   guessedTags: PostTagType[];
@@ -16,63 +16,20 @@ const MobileTagsOverlay: React.FC<Props> = ({ guessedTags, totalTags, className 
   const remainingCount = totalTags - guessedTags.length;
 
   return (
-    <MobileTagsOverlayContainer className={className}>
-      <RemainingCount>
+    <div className={`${styles.container} ${className ?? ''}`.trim()}>
+      <p className={styles.remainingCount}>
         {remainingCount} tag{remainingCount !== 1 ? 's' : ''} remaining
-      </RemainingCount>
+      </p>
       {guessedTags.length > 0 && (
-        <GuessedTagsList>
+        <ul className={styles.list}>
           {guessedTags.map((tag, index) => (
-            <GuessedTagItem key={`${tag.name}-${index}`}>
+            <li className={styles.item} key={`${tag.name}-${index}`}>
               <VisibleTag tag={tag} />
-            </GuessedTagItem>
+            </li>
           ))}
-        </GuessedTagsList>
+        </ul>
       )}
-    </MobileTagsOverlayContainer>
+    </div>
   );
 };
-
-const MobileTagsOverlayContainer = styled.div`
-  position: fixed;
-  top: 8px;
-  right: 8px;
-  max-width: 45%;
-  max-height: 40vh;
-  overflow-y: auto;
-  
-  background: rgba(31, 60, 103, 0.5);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border-radius: 8px;
-  padding: 8px;
-  z-index: 10;
-  
-  color: rgba(180, 199, 217, 0.9);
-`;
-
-const RemainingCount = styled.p`
-  font-size: 0.8rem;
-  font-weight: bold;
-  margin-bottom: 4px;
-  text-align: center;
-  color: ${p => p.theme.cTagSpecies};
-`;
-
-const GuessedTagsList = styled.ul`
-  list-style: none;
-  padding: 0;
-  margin: 0;
-`;
-
-const GuessedTagItem = styled.li`
-  font-size: 0.7rem;
-  padding: 2px 0;
-  border-bottom: 1px solid rgba(180, 199, 217, 0.2);
-  
-  &:last-child {
-    border-bottom: none;
-  }
-`;
-
 export default MobileTagsOverlay;

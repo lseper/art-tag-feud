@@ -15,7 +15,7 @@ function checkAlias(tag_name: string) : string {
     }
 }
 // custom hook, returns an object that has the CurrentPost, and an update callback function that we define
-export default function useTagListGuesser(startingTags : PostTagType[]) : [
+export default function useTagListGuesser(startingTags : PostTagType[], forcedGuessedTagNames: string[] = []) : [
     PostTagType[], (guess: string) => boolean, () => void
 ] {
     // want component re-rendering when this changes
@@ -45,9 +45,10 @@ export default function useTagListGuesser(startingTags : PostTagType[]) : [
 
     // reset on new post
     useEffect(() => {
+        const forcedGuessedSet = new Set(forcedGuessedTagNames);
         setHiddenTags(startingTags);
-        setGuessedTags([]);
-    }, [startingTags])
+        setGuessedTags(startingTags.filter(tag => forcedGuessedSet.has(tag.name)));
+    }, [forcedGuessedTagNames, startingTags])
 
     const handleGuess = useCallback((guess: string) : {isCorrect: boolean, tag?: PostTagType} => {
         let tagIndex = hiddenTags.findIndex((tag : PostTagType) => tag.name === guess);

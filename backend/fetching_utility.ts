@@ -1,16 +1,24 @@
 import axios from 'axios';
+import path from 'path';
+import dotenv from 'dotenv';
 
 import general_tag_data from './data/tag-data-general.json';
 import species_tag_data from './data/tag-data-species.json';
-import type { PostType, TagTypeType } from './types';
+import type { PostType, PreferlistTagType, TagTypeType } from './types';
 import { PostTagType, TagType } from './types';
+
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+const username = process.env.E621_USERNAME ?? '';
+const api_key = process.env.E621_API_KEY ?? '';
 
 const BASE_URL = 'https://e621.net/';
 const POSTS_BASE = 'posts.json';
 // currently not used
 //const TAGS_BASE = 'tags.json';
 // copied the tags here from the ones on furbot, as well as filtering out animated media files 
-const DEFAULT_BLACKLIST = ['gore', 'scat', 'feral', 'cub', 'loli', 'young', 'forced', 'animated', 'diaper', 'flash'];
+// const DEFAULT_BLACKLIST = ['gore', 'scat', 'feral', 'cub', 'loli', 'young', 'forced', 'animated', 'diaper', 'flash'];
+const DEFAULT_BLACKLIST = ['animated', 'flash'];
 const META_MODIFIERS = ['score:>=25', 'gentags:>=10', 'rating:explicit', 'order:random'];
 
 const ARTIST_TAG_SCORE = 150;
@@ -19,18 +27,41 @@ const CHARACTER_TAG_SCORE = 300;
 const TAG_MEAN_SCORE = 75;
 const TAG_STD = 25;
 const BASE_TAG_SCORE = 1;
+const MOST_TAG_INCLUDE_CHANCE = 0.6;
+
+const normalizeTag = (tag: string): string => {
+    return tag.trim().toLowerCase().replace(/\s+/g, '_');
+}
 
 // fetches and formats 10 random posts from e621
-export async function getPosts(additionalBlacklist: string[] = []): Promise<PostType[]> {
-    const mergedBlacklist = [...new Set([...DEFAULT_BLACKLIST, ...additionalBlacklist.map(tag => tag.trim()).filter(Boolean)])];
-    const tagParts = mergedBlacklist.map(tag => `-${tag}`).concat(META_MODIFIERS);
+export async function getPosts(additionalBlacklist: string[] = [], preferlist: PreferlistTagType[] = []): Promise<PostType[]> {
+    if (!username || !api_key) {
+        throw new Error('Missing E621_USERNAME or E621_API_KEY in backend/.env');
+    }
+    const mergedBlacklist = [...new Set([...DEFAULT_BLACKLIST, ...additionalBlacklist.map(tag => normalizeTag(tag)).filter(Boolean)])];
+    const blacklistSet = new Set(mergedBlacklist);
+    const allTimeTags = preferlist
+        .filter(entry => entry.frequency === 'all')
+        .map(entry => normalizeTag(entry.tag))
+        .filter(tag => tag && !blacklistSet.has(tag));
+    const mostTimeTags = preferlist
+        .filter(entry => entry.frequency === 'most')
+        .map(entry => normalizeTag(entry.tag))
+        .filter(tag => tag && !blacklistSet.has(tag));
+    const selectedMostTimeTags = mostTimeTags.filter(() => Math.random() < MOST_TAG_INCLUDE_CHANCE);
+    const includeTags = [...new Set([...allTimeTags, ...selectedMostTimeTags])];
+    const tagParts = includeTags.concat(mergedBlacklist.map(tag => `-${tag}`)).concat(META_MODIFIERS);
     const URL = `${BASE_URL}${POSTS_BASE}?limit=${10}&tags=${tagParts.join('+')}`;
     // get the response - currently HTTP 403 - Forbidden
     const data = await axios.get(URL, {
-        headers: {'User-Agent': 'e621-tag-feud/1.1 - by Zaverose'}
+        headers: {
+            'User-Agent': `e621-tag-feud/1.1 - by ${username}`,
+            'Authorization': "Basic " + Buffer.from(`${username}:${api_key}`).toString('base64')
+        }
     }).then((response) => {
         return response.data;
     }).catch(err => console.error(err.message));
+    const posts = data?.posts ?? [];
     const result = data.posts.map((post: any): PostType => {
         // return a list of objects containing only the URL and id of the post
         const url : string = post.file.url;
@@ -42,6 +73,8 @@ export async function getPosts(additionalBlacklist: string[] = []): Promise<Post
         const characterTags : PostTagType[] = post.tags.character.map((tag_name: string) : PostTagType =>  { return { name: tag_name, type: TagType.enum.character, score: CHARACTER_TAG_SCORE} });
 
         const allTags = scaleScores(generalTags.concat(artistTags).concat(speciesTags).concat(characterTags).filter((tag) => tag.score !== 0));
+
+        console.log(url)
 
         return { url: url, id: id, tags: allTags };
     });

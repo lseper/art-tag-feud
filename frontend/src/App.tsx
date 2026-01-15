@@ -1,15 +1,12 @@
 import ReadyUp from './pages/ReadyUp';
 import { UserContext } from './contexts/UserContext';
-import type { UserType, UserReadyStateType } from './types';
+import type { PreferlistTagType, UserType, UserReadyStateType } from './types';
 import { useState } from 'react';
 import { ConnectionManager } from './util/ConnectionManager';
 import { Routes, Route } from 'react-router-dom';
 import { Lobby } from './pages/Lobby';
 import Create from './pages/Create';
 import Finish from './pages/Finish';
-import { ThemeProvider } from 'styled-components';
-import theme from './styles/theme/Theme';
-import GlobalStyles from './styles/theme/GlobalTheme';
 
 const connectionManager = ConnectionManager.getInstance();
 
@@ -23,6 +20,7 @@ function App(): JSX.Element {
   const [icon, setIcon] = useState<string | undefined>();
   const [owner, setOwner] = useState<UserType | undefined>();
   const [blacklist, setBlacklist] = useState<string[]>([]);
+  const [preferlist, setPreferlist] = useState<PreferlistTagType[]>([]);
 
   const leaveRoomCleanup = () => {
     setRoomID(undefined);
@@ -31,6 +29,7 @@ function App(): JSX.Element {
     setIcon(undefined);
     setOwner(undefined);
     setBlacklist([]);
+    setPreferlist([]);
   }
 
   const value = {
@@ -43,6 +42,7 @@ function App(): JSX.Element {
     readyStates, 
     owner, 
     blacklist,
+    preferlist,
     setUsername, 
     setUserID, 
     setScore, 
@@ -52,22 +52,20 @@ function App(): JSX.Element {
     setReadyStates, 
     setOwner, 
     setBlacklist,
+    setPreferlist,
     leaveRoomCleanup, 
     connectionManager
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <UserContext.Provider value={value}>
-        <GlobalStyles theme={theme} />
-        <Routes>
-          <Route path="/" element={<Lobby />} />
-          <Route path="/play" element={<ReadyUp />} />
-          <Route path="/create" element={<Create />} />
-          <Route path="/finish" element={<Finish />} />
-        </Routes>
-      </UserContext.Provider>
-    </ThemeProvider>
+    <UserContext.Provider value={value}>
+      <Routes>
+        <Route path="/" element={<Lobby />} />
+        <Route path="/play" element={<ReadyUp />} />
+        <Route path="/create" element={<Create />} />
+        <Route path="/finish" element={<Finish />} />
+      </Routes>
+    </UserContext.Provider>
   )
 }
 // comment

@@ -3,7 +3,6 @@ import type { ReadyUpEventDataType, ReadyUpEventDataToClientType, RequestPostEve
 import { EventType } from '../types';
 import TagList from './TagList';
 import useTagListGuesser from '../useTagListGuesser';
-import styled from 'styled-components';
 import { ProgressBar, MobileProgressBar } from './ProgressBar';
 import InRoundLeaderboard from './InRoundLeaderboard';
 import { TagListLabel, TagsGrid, TagsInput, TagsInputContainer, TagsList } from './TagListContainerStyles';
@@ -11,6 +10,8 @@ import { UserContext } from '../contexts/UserContext';
 import MobileTagsOverlay from './MobileTagsOverlay';
 import MobileInputBar from './MobileInputBar';
 import { breakpointValues } from '../styles/theme/breakpoints';
+import styles from '@/styles/components/tag-list-container-wrapper.module.css';
+import { Input } from '@/components/ui/input';
 
 const STARTING_TIME = 30;
 const FRAME_RATE = 60;
@@ -24,8 +25,12 @@ interface Props {
 const TagListContainerElement: React.FC<Props> = (props: Props) => {
     const { tags, nextRoundButton } = props;
     const [guess, setGuess] = useState('');
-    const [guessedTags, guessTag, revealAllTags] = useTagListGuesser(tags);
-    const {userID, roomID, readyStates, setReadyStates, connectionManager} = useContext(UserContext);
+    const {userID, roomID, readyStates, setReadyStates, connectionManager, preferlist} = useContext(UserContext);
+    const allTimePreferTagNames = useMemo(() => {
+        return (preferlist ?? []).filter(entry => entry.frequency === 'all').map(entry => entry.tag);
+    }, [preferlist]);
+    const allTimePreferTagSet = useMemo(() => new Set(allTimePreferTagNames), [allTimePreferTagNames]);
+    const [guessedTags, guessTag, revealAllTags] = useTagListGuesser(tags, allTimePreferTagNames);
 
     const [generalTags, artistTags, characterTags, speciesTags] = useMemo(() => {
         const generalTags = tags.filter(tag => tag.type === 'general');
@@ -158,12 +163,12 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
 
     // Desktop layout
     return (
-        <TagListAndInputContainer>
+        <div className={styles.tagListAndInput}>
             <h1>Guess a tag!</h1>
             <TagsInputContainer>
                 <TagsInput>
                     <form onSubmit={handleGuessSubmit}>
-                        <input type="text" value={guess} onChange={(e) => setGuess(e.target.value)} />
+                        <Input type="text" value={guess} onChange={(e) => setGuess(e.target.value)} />
                     </form>
                 </TagsInput>
                 <ProgressBar percentComplete={time / STARTING_TIME * 100} totalTime={STARTING_TIME}/>
@@ -179,6 +184,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                     <TagList 
                         tags={generalTagLists[0]} 
                         guessedTags={guessedGeneralTags} 
+                        autoRevealedTagNames={allTimePreferTagSet}
                     />
                 </TagsList>
                 <TagsList>
@@ -186,6 +192,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                     <TagList 
                         tags={generalTagLists[1]} 
                         guessedTags={guessedGeneralTags}
+                        autoRevealedTagNames={allTimePreferTagSet}
                     />
                 </TagsList>
                 <TagsList>
@@ -193,6 +200,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                     <TagList 
                         tags={generalTagLists[2]} 
                         guessedTags={guessedGeneralTags} 
+                        autoRevealedTagNames={allTimePreferTagSet}
                     />
                 </TagsList>
             </TagsGrid>
@@ -203,6 +211,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                         <TagList 
                             tags={speciesTags} 
                             guessedTags={guessedSpeciesTags}
+                            autoRevealedTagNames={allTimePreferTagSet}
                         />
                     </TagsList>
                 </div>
@@ -212,6 +221,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                         <TagList 
                             tags={characterTags} 
                             guessedTags={guessedCharacterTags}
+                            autoRevealedTagNames={allTimePreferTagSet}
                         />
                     </TagsList>
                 </div>
@@ -222,27 +232,18 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
                         <TagList 
                             tags={artistTags} 
                             guessedTags={guessedArtistTags}
+                            autoRevealedTagNames={allTimePreferTagSet}
                         />
                     </TagsList>
                 </div>
             </TagsGrid>
-        </TagListAndInputContainer>
+        </div>
     );
 };
 
-export const TagListContainer = styled(TagListContainerElement)`
-    display: flex;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    align-content: flex-start;
-    align-items: flex-start;
-`;
-
-const TagListAndInputContainer = styled.div`
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-`;
+export const TagListContainer = (props: Props) => (
+  <div className={styles.container}>
+    <TagListContainerElement {...props} />
+  </div>
+);
 
