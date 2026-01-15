@@ -61,7 +61,9 @@ export async function getPosts(additionalBlacklist: string[] = [], preferlist: P
         }
     }).then((response) => {
         return response.data;
-    }).catch(err => console.error(err.message));
+    }).catch(err => {
+        console.error(err.message);
+    });
     const posts = data?.posts ?? [];
     const result = data.posts.map((post: any): PostType => {
         // return a list of objects containing only the URL and id of the post
