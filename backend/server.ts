@@ -12,6 +12,8 @@ import {
     SetUserIconEventData, 
     LeaveRoomEventData, 
     GetSelectedIconsEventData,
+    UpdateBlacklistEventData,
+    UpdatePreferlistEventData,
     EndGameEventDataToClientType, 
 } from "./types"; // DTO Types
 import type { 
@@ -27,6 +29,8 @@ import type {
     SetUserIconEventDataToClientType, 
     ReadyUpEventDataToClientType, 
     ShowLeaderboardEventDataToClientType, 
+    UpdateBlacklistEventDataToClientType,
+    UpdatePreferlistEventDataToClientType,
     LeaveRoomEventDataToClientType 
 } from "./types";
 import { getPosts } from "./fetching_utility";
@@ -150,7 +154,9 @@ const convertServerRoomToClientRoom = (serverRoom: ServerRoomType): ClientRoomTy
         roomID: serverRoom.id,
         roomName: serverRoom.name, 
         readyStates: readyStates, 
-        owner: serverRoom.owner
+        owner: serverRoom.owner,
+        blacklist: serverRoom.blacklist,
+        preferlist: serverRoom.preferlist
     };
 }
 
@@ -206,6 +212,13 @@ const resetRoom = (room: ServerRoomType): void => {
     }
 }
 
+const normalizeBlacklistTag = (tag: string): string => {
+    return tag.trim().toLowerCase().replace(/\s+/g, "_");
+}
+const normalizePreferlistTag = (tag: string): string => {
+    return normalizeBlacklistTag(tag);
+}
+
 server.on("connection", response => {
     numUsers += 1;
 
@@ -235,6 +248,9 @@ server.on("connection", response => {
                     // short-circuit if user has already finished the round
                     if(room.allUsersReady.get(userToUpdateScore.id)) {
                         break;
+                    }
+                    if(room.preferlist.some(entry => entry.tag === data.tag.name && entry.frequency === 'all')) {
+                        data.tag.score = 0;
                     }
                     userToUpdateScore.score += data.tag.score;
                     const guessTagData = {type: EventType.enum.GUESS_TAG, tag: data.tag, user: userToUpdateScore};
@@ -338,7 +354,9 @@ server.on("connection", response => {
                             roomID: room.id,
                             roomName: room.name, 
                             readyStates: getReadyStates(room), 
-                            owner: user
+                            owner: user,
+                            blacklist: room.blacklist,
+                            preferlist: room.preferlist
                         };
                         broadcast<JoinRoomEventDataToClientType>(server, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient})
                     }
@@ -355,6 +373,8 @@ server.on("connection", response => {
                             postsPerRound: data.postsPerRound,
                             roundsPerGame: data.roundsPerGame,
                             members: [user], 
+                            blacklist: [],
+                            preferlist: [],
                             curRound: 0,
                             postQueue: [], 
                             allUsersReady: newRoomAllUsersReady, 
@@ -368,7 +388,9 @@ server.on("connection", response => {
                             roomID: newRoom.id,
                             roomName: newRoom.name, 
                             readyStates: readyStates, 
-                            owner: user
+                            owner: user,
+                            blacklist: newRoom.blacklist,
+                            preferlist: newRoom.preferlist
                         };
                         // broadcase to the user their updated roomID
                         broadcast<JoinRoomEventDataToClientType>(server, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient})
@@ -401,7 +423,9 @@ server.on("connection", response => {
                         roomID: room.id,
                         roomName: room.name,
                         readyStates: getReadyStates(room), 
-                        owner: room.owner
+                        owner: room.owner,
+                        blacklist: room.blacklist,
+                        preferlist: room.preferlist
                     };
                     // broadcast to room newly updated members
                     broadcastToRoom<JoinRoomEventDataToClientType>(room, {type: EventType.enum.JOIN_ROOM, user: user, room: roomToClient});
@@ -430,7 +454,7 @@ server.on("connection", response => {
                     roomToSendPost.allUsersReady.set(data.userID, true);
 
                     if(roomToSendPost.postQueue.length === 0){
-                        roomToSendPost.postQueue = await getPosts();
+                        roomToSendPost.postQueue = await getPosts(roomToSendPost.blacklist, roomToSendPost.preferlist);
                     }
 
                     if(roomIsReadyForNewPost(roomToSendPost)) {
@@ -446,7 +470,12 @@ server.on("connection", response => {
                             break;
                         }
                         const postToSend = roomToSendPost.postQueue.shift()!;
-                        broadcastToRoom<RequestPostEventDataToClientType>(roomToSendPost, {type: EventType.enum.REQUEST_POST, post: postToSend});
+                        const preferlistAllTimeTags = new Set(roomToSendPost.preferlist.filter(entry => entry.frequency === 'all').map(entry => entry.tag));
+                        const postToSendWithPreferlist = preferlistAllTimeTags.size > 0 ? {
+                            ...postToSend,
+                            tags: postToSend.tags.map(tag => preferlistAllTimeTags.has(tag.name) ? {...tag, score: 0} : tag)
+                        } : postToSend;
+                        broadcastToRoom<RequestPostEventDataToClientType>(roomToSendPost, {type: EventType.enum.REQUEST_POST, post: postToSendWithPreferlist});
                         roomToSendPost.postsViewedThisRound += 1;
                         // reset ready map to all false
                         const newReadyMap = new Map<string, boolean>();
@@ -477,7 +506,9 @@ server.on("connection", response => {
                             roomID: room.id,
                             roomName: room.name, 
                             readyStates: readyStates, 
-                            owner: user
+                            owner: user,
+                            blacklist: room.blacklist,
+                            preferlist: room.preferlist
                         };
                         room.allUsersReady.set(data.userID, data.ready);
                         broadcastToRoom<ReadyUpEventDataToClientType>(room, {type: EventType.enum.READY_UP, roomID: room.id, room: updatedRoom})
@@ -500,6 +531,86 @@ server.on("connection", response => {
                     broadcastToRoom(room, {type: EventType.enum.START_GAME});
                 } else {
                     console.error(`room ${data.roomID} does not exist, so a game cannot be started in it`);
+                }
+                break;
+            }
+            case EventType.enum.UPDATE_BLACKLIST: {
+                const result = UpdateBlacklistEventData.safeParse(dataJSON);
+                if(!result.success) {
+                    break;
+                }
+                const data = result.data;
+                const room = rooms.get(data.roomID);
+                if(!room) {
+                    break;
+                }
+                const normalizedTag = normalizeBlacklistTag(data.tag);
+                if(!normalizedTag) {
+                    break;
+                }
+                if(data.action === 'add') {
+                    if(!room.blacklist.includes(normalizedTag)) {
+                        room.blacklist.push(normalizedTag);
+                    }
+                    if(room.preferlist.some(entry => entry.tag === normalizedTag)) {
+                        room.blacklist = room.blacklist.filter(tag => tag !== normalizedTag);
+                    }
+                } else {
+                    room.blacklist = room.blacklist.filter(tag => tag !== normalizedTag);
+                }
+                rooms.set(room.id, room);
+                const responseData: UpdateBlacklistEventDataToClientType = {
+                    type: EventType.enum.UPDATE_BLACKLIST,
+                    roomID: room.id,
+                    blacklist: room.blacklist
+                };
+                broadcastToRoom(room, responseData);
+                break;
+            }
+            case EventType.enum.UPDATE_PREFERLIST: {
+                const result = UpdatePreferlistEventData.safeParse(dataJSON);
+                if(!result.success) {
+                    break;
+                }
+                const data = result.data;
+                const room = rooms.get(data.roomID);
+                if(!room) {
+                    break;
+                }
+                const normalizedTag = normalizePreferlistTag(data.tag);
+                if(!normalizedTag) {
+                    break;
+                }
+                const preferlistIndex = room.preferlist.findIndex(entry => entry.tag === normalizedTag);
+                if(data.action === 'add') {
+                    const frequency = data.frequency ?? 'most';
+                    if(preferlistIndex === -1) {
+                        room.preferlist.push({tag: normalizedTag, frequency});
+                    } else {
+                        room.preferlist[preferlistIndex].frequency = frequency;
+                    }
+                    room.blacklist = room.blacklist.filter(tag => tag !== normalizedTag);
+                } else if(data.action === 'set_frequency') {
+                    if(data.frequency && preferlistIndex !== -1) {
+                        room.preferlist[preferlistIndex].frequency = data.frequency;
+                    }
+                } else {
+                    room.preferlist = room.preferlist.filter(entry => entry.tag !== normalizedTag);
+                }
+                rooms.set(room.id, room);
+                const responseData: UpdatePreferlistEventDataToClientType = {
+                    type: EventType.enum.UPDATE_PREFERLIST,
+                    roomID: room.id,
+                    preferlist: room.preferlist
+                };
+                broadcastToRoom(room, responseData);
+                if(data.action === 'add') {
+                    const blacklistResponse: UpdateBlacklistEventDataToClientType = {
+                        type: EventType.enum.UPDATE_BLACKLIST,
+                        roomID: room.id,
+                        blacklist: room.blacklist
+                    };
+                    broadcastToRoom(room, blacklistResponse);
                 }
                 break;
             }

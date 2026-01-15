@@ -1,0 +1,39 @@
+.container {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  max-width: 45%;
+  max-height: 40vh;
+  overflow-y: auto;
+  background: color-mix(in oklch, var(--card), transparent 50%);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border-radius: 8px;
+  padding: 8px;
+  z-index: 10;
+  color: color-mix(in oklch, var(--foreground), transparent 10%);
+}
+
+.remainingCount {
+  font-size: 0.8rem;
+  font-weight: bold;
+  margin-bottom: 4px;
+  text-align: center;
+  color: var(--c-tag-species);
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.item {
+  font-size: 0.7rem;
+  padding: 2px 0;
+  border-bottom: 1px solid color-mix(in oklch, var(--foreground), transparent 80%);
+}
+
+.item:last-child {
+  border-bottom: none;
+}

@@ -1,0 +1,36 @@
+.score {
+  order: 0;
+  flex: 0 1 auto;
+  align-self: auto;
+  color: var(--c-tag-character);
+}
+
+@media (max-width: 600px) {
+  .score {
+    font-size: 0.95em;
+  }
+}
+
+@media (max-width: 490px) {
+  .score {
+    font-size: 0.9em;
+  }
+}
+
+@media (max-width: 430px) {
+  .score {
+    font-size: 0.85em;
+  }
+}
+
+@media (max-width: 390px) {
+  .score {
+    font-size: 0.8em;
+  }
+}
+
+@media (max-width: 360px) {
+  .score {
+    font-size: 0.75em;
+  }
+}

@@ -1,0 +1,166 @@
+.lobbyContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 8px;
+}
+
+@media (min-width: 600px) {
+  .lobbyContainer {
+    padding: 64px 8px;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  text-align: center;
+  padding: 8px 24px;
+  margin-bottom: 24px;
+}
+
+.cardCentered {
+  align-items: center;
+}
+
+.cardInline {
+  flex-direction: row;
+}
+
+.cardTitle {
+  color: var(--c-tag-general);
+  font-size: 2.5em;
+  padding: 8px;
+}
+
+.cardSubtitle {
+  font-size: 2em;
+  margin-bottom: 8px;
+}
+
+.creditLink {
+  color: #a3bcd3;
+  text-decoration: none;
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  font-family: inherit;
+  font-size: 100%;
+  line-height: 1.25em;
+  margin: 0;
+}
+
+.creditLink:hover {
+  color: #e9f2fa;
+}
+
+.roomsList {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: left;
+  padding: 16px;
+}
+
+.roomsList li {
+  display: grid;
+  grid-template-columns: 3fr 1fr 4fr;
+  column-gap: 2.5rem;
+  background-color: var(--card);
+  border-radius: 4px;
+  padding: 0 1rem 0.25rem 1rem;
+}
+
+.createRoomButton {
+  min-width: 8rem;
+  border-radius: 2px;
+  padding: 1px 4px;
+  line-height: normal;
+  margin-bottom: 8px;
+  vertical-align: middle;
+  outline: none;
+  cursor: pointer;
+  border: none;
+}
+
+.createRoomButton:focus {
+  background: #ffc;
+  color: #000;
+  outline: none;
+}
+
+.readyUpStates {
+  display: flex;
+}
+
+.roomName {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.readyUpState {
+  height: 25px;
+  width: 25px;
+  border: 2px solid var(--c-tag-character);
+  border-radius: 50%;
+  background-color: transparent;
+  transition: background-color 0.2s;
+}
+
+.readyUpStateReady {
+  background-color: var(--c-tag-character);
+}
+
+.joinRoomButton {
+  transition: color 0.2s, background-color 0.2s;
+  border-radius: 25%;
+}
+
+.joinable {
+  color: var(--c-tag-character);
+  border: 2px solid var(--c-tag-character);
+  background-color: transparent;
+}
+
+.joinable:hover {
+  background-color: var(--c-tag-character);
+  color: var(--card);
+}
+
+.unjoinable {
+  color: var(--c-tag-species);
+  border: 2px solid var(--c-tag-species);
+  filter: brightness(50%);
+}
+
+.input {
+  border-radius: 4px;
+  padding: 1px 2px;
+  cursor: text;
+}
+
+.input:focus {
+  background: #ffc;
+  color: #000;
+  outline: none;
+}
+
+.infoBar {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+.blurredImage {
+  background-color: var(--background);
+  background-image: var(--app-bg-image-blur);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-position: 50% 30%;
+  background-size: 100%;
+  backdrop-filter: blur(15px);
+}

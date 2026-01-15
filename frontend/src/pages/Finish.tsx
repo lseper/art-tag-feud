@@ -1,6 +1,5 @@
 import { UserContext } from '../contexts/UserContext';
 import { useContext, useMemo, useEffect, useCallback } from 'react';
-import styled from 'styled-components';
 import { RoomUpdateButton } from './ReadyUp';
 import type {LeaveRoomEventDataType, LeaveRoomEventDataToClientType } from '../types';
 import { EventType } from '../types';
@@ -8,7 +7,7 @@ import LeaderBoard from '../components/Leaderboard';
 import {
   useNavigate,
 } from 'react-router-dom';
-import Theme from '../styles/theme/Theme';
+import styles from '@/styles/pages/finish.module.css';
 
 type Props = {
   className?: string;
@@ -72,61 +71,21 @@ export const Finish : React.FC<Props> = ({className}: Props) => {
         }
     }, [navigate, owner?.id, userID]);
 
-  return <FinishContainer>
+  return <div className={styles.container}>
     <span>
-        <WinnerText className='username'>{winner ? winner.user.username : 'Rory'}</WinnerText>
-        <WinnerText> is the winner!</WinnerText>
+        <h1 className={`${styles.winnerText} ${styles.winnerName}`}>{winner ? winner.user.username : 'Rory'}</h1>
+        <h1 className={styles.winnerText}> is the winner!</h1>
     </span>
     <LeaderBoard />
-    <ButtonContainer>
-        <RoomUpdateButton color={Theme.cTagSpecies} onClick={() => leaveRoom()}>
+    <div className={styles.buttonContainer}>
+        <RoomUpdateButton color="var(--c-tag-species)" onClick={() => leaveRoom()}>
             Leave Room
         </RoomUpdateButton>
-        <RoomUpdateButton color={Theme.cTagCharacter} onClick={() => playAgain()}>
+        <RoomUpdateButton color="var(--c-tag-character)" onClick={() => playAgain()}>
             Play Again
         </RoomUpdateButton>
-    </ButtonContainer>
-  </FinishContainer>;
+    </div>
+  </div>;
 }
-
-const WinnerText = styled.h1`
-    color: ${p => p.theme.cPrimaryText};
-    display: inline;
-
-    &.username {
-        color: ${p => p.theme.cRankFirst};
-    }
-`
-
-const FinishContainer = styled.div`
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-
-    padding-top: 10rem;
-`
-
-const ButtonContainer = styled.div`
-    display: flex;
-    flex-direction: row;
-    justify-content: space-around;
-    align-items: cener;
-
-    width: 100%;
-
-    @media (min-width: 650px) {
-        width: 80%;
-    }
-    @media (min-width: 850px) {
-        width: 60%;
-    }
-    @media (min-width: 1200px) {
-        width: 40%;
-    }
-    @media (min-width: 2200px) {
-        width: 30%;
-    }
-`
 
 export default Finish;

@@ -1,7 +1,7 @@
 import type { PostTagType } from '../types';
 import { VisibleTagName } from './VisibleTagName';
-import styled from 'styled-components';
 import { VisibleTagScore } from './VisibleTagScore';
+import styles from '@/styles/components/visible-tag.module.css';
 
 interface VisibleProps {
     tag: PostTagType;
@@ -9,47 +9,25 @@ interface VisibleProps {
 }
 
 const TagElement : React.FC<VisibleProps> = (props) => {
-    const { tag, className } = props;
+    const { tag } = props;
     return (
-        <div className={className}>
+        <div className={styles.visibleTag}>
             <VisibleTagName name={tag.name} tagType={tag.type}></VisibleTagName>
             <VisibleTagScore score={tag.score}/>
         </div>
     )
 }
 
-export const VisibleTag = styled(TagElement)`
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    flex-grow: 1;
-    justify-content: space-between;
-    align-content: flex-start;
-    align-items: flex-start;
-
-    padding: 2px;
-`
+export const VisibleTag = TagElement;
 
 interface HiddenProps {
     className?: string
 }
 
-const HiddenTagElement : React.FC<HiddenProps> = (props) => {
-    const { className } = props;
+const HiddenTagElement : React.FC<HiddenProps> = () => {
     return (
-        <li className={className}>???</li>
+        <li className={styles.hiddenTag}>???</li>
     )
 }
 
-export const HiddenTag = styled(HiddenTagElement)`
-    display: block;
-
-    margin: ${p => p.theme.mTag};
-    letter-spacing: 20px;
-
-    border: 2px dashed #B4C7D9;
-    border-radius: 5px;
-
-    text-align: center;
-    font-style: italic;
-`
+export const HiddenTag = HiddenTagElement;

@@ -1,19 +1,23 @@
 import type { PostType } from '../types';
-import styled from 'styled-components';
+import styles from '@/styles/components/displayed-post.module.css';
 
 interface Props {
     post?: PostType;
     className?: string;
+    isMobile?: boolean;
 }
 
 const DisplayedPostElement : React.FC<Props> = (props : Props) => {
     const { post, className } = props;
+    console.log(post?.url)
     if (post) {
         return ( 
             <div>
                 <div className={className}>
-                    <img style={{marginBottom: "20px"}} src={post?.url ?? ''} alt=''/>
-                    <br />
+                    <img
+                        src={post?.url ?? ''}
+                        alt=''
+                    />
                 </div>
             </div>
         );
@@ -24,19 +28,14 @@ const DisplayedPostElement : React.FC<Props> = (props : Props) => {
     };
 };
 
-export const DisplayedPost = styled(DisplayedPostElement)`
-    flex: 1 1 auto;
-    align-self: auto;
-    background-color: #1F3C67;
+export const DisplayedPost: React.FC<Props> = (props) => (
+  <DisplayedPostElement {...props} className={styles.container} />
+);
 
-    padding: 25px;
-    margin: 20px 75px 0px 75px;
-
-    border-radius: 20px;
-
-    @media (max-width: 768px) {
-        width: 100%;
-        padding: 5px;
-        margin: 0;
-    }
-`
+/**
+ * Mobile-specific fullscreen version of DisplayedPost.
+ * Takes up the entire viewport with the image centered.
+ */
+export const MobileDisplayedPost: React.FC<Props> = (props) => (
+  <DisplayedPostElement {...props} className={styles.mobileContainer} />
+);

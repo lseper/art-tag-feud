@@ -1,79 +1,36 @@
 import type { PostTagType, TagTypeType } from '../types';
-import { TagType } from '../types';
-import styled from 'styled-components';
-
-import Theme from '../styles/theme/Theme';
+import { Badge } from '@/components/ui/badge';
+import styles from '@/styles/components/tag.module.css';
 
 interface Props {
    tag?: PostTagType,
+   showAutoBadge?: boolean,
 }
 
-const TAG_COLORS = new Map<TagTypeType, string>([
-    [TagType.Enum.artist, Theme.cTagArtist],
-    [TagType.Enum.character, Theme.cTagCharacter],
-    [TagType.Enum.species, Theme.cTagSpecies],
-    [TagType.Enum.general, Theme.cPrimaryText],
-])
+const TAG_CLASS_BY_TYPE: Record<TagTypeType, string> = {
+  artist: styles.tagArtist,
+  character: styles.tagCharacter,
+  species: styles.tagSpecies,
+  general: styles.tagGeneral,
+};
 
-const REVEAL_TRANSITION_TIME = 200;
-
-const Tag : React.FC<Props> = ({tag } : Props) => {
-    if (!tag) {
-        return <TagElement className='hidden' color={Theme.cPrimaryText}>???</TagElement>
-    } else {
-        return (
-        <TagElement color={TAG_COLORS.get(tag.type) ?? Theme.cPrimaryText}>
-                <p>
-                    {tag.name}
-                </p>
-                <span>
-                    {tag.score}
-                </span>
-        </TagElement>)
-        }
-    }
-
-type TagProps = {
-    color: string,
+const Tag : React.FC<Props> = ({tag, showAutoBadge } : Props) => {
+  if (!tag) {
+    return <li className={`${styles.tag} ${styles.hidden}`}>???</li>;
+  }
+  return (
+    <li className={`${styles.tag} ${TAG_CLASS_BY_TYPE[tag.type] ?? styles.tagGeneral}`}>
+      <p className={styles.tagText}>
+        {tag.name}
+        {showAutoBadge && (
+          <Badge variant="outline" className={styles.autoBadge}>
+            Auto
+          </Badge>
+        )}
+      </p>
+      <span className={styles.score}>{tag.score}</span>
+    </li>
+  );
 }
-
-const TagElement = styled.li<TagProps>`
-    display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    flex-grow: 1;
-    justify-content: space-between;
-    align-content: flex-start;
-    align-items: flex-start;
-
-    padding: 2px;
-    margin-bottom: 4px;
-    opacity: 1;
-
-    color: ${p => p.color};
-
-    transition: border ${REVEAL_TRANSITION_TIME}ms, opacity ${REVEAL_TRANSITION_TIME}ms;
-    transition-delay: 0ms;
-
-    &.hidden {
-        justify-content: center;
-        letter-spacing: 20px;
-
-        border: 2px dashed #B4C7D9;
-        color: #B4C7D9;
-        border-radius: 5px;
-
-        text-align: center;
-        font-style: italic;
-        opacity: 1;
-    }
-
-
-    /* Tag Score */
-    span {
-        color: ${p => p.theme.cTagCharacter};
-    }
-`
-
 
 export default Tag;

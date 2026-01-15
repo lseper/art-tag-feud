@@ -7,8 +7,8 @@ const production : Config = {
 }
 
 const development : Config = {
-    url: "ws://192.168.1.57:8080"
-} 
+    url: `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:8080`
+}
 
 const config = process.env.NODE_ENV === 'development' ? development : production;
 //test

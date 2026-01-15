@@ -1,8 +1,7 @@
 import { UserContext } from '../contexts/UserContext';
-import { useContext, useMemo, useEffect, useCallback } from 'react';
-import styled from 'styled-components';
+import { useContext, useMemo, useEffect, useCallback, useState } from 'react';
 import { TitleText, } from '../components/StyledElements';
-import type {JoinRoomEventDataToClientType, LeaveRoomEventDataType, LeaveRoomEventDataToClientType, ReadyUpEventDataType, ReadyUpEventDataToClientType, RequestPostEventDataType, UserReadyStateType } from '../types';
+import type {JoinRoomEventDataToClientType, LeaveRoomEventDataType, LeaveRoomEventDataToClientType, PreferlistFrequencyType, ReadyUpEventDataType, ReadyUpEventDataToClientType, RequestPostEventDataType, UpdateBlacklistEventDataToClientType, UpdateBlacklistEventDataType, UpdatePreferlistEventDataToClientType, UpdatePreferlistEventDataType, UserReadyStateType } from '../types';
 import { EventType } from '../types';
 import MainPage from './MainPage';
 import IconPicker from '../components/IconPicker';
@@ -11,30 +10,38 @@ import usePostFetcher from '../usePostFetcher';
 import {
   useNavigate,
 } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import styles from '@/styles/pages/ready-up.module.css';
 
-import Theme from '../styles/theme/Theme';
+// https://e621.net/help/api
 
-type Props = {
-  className?: string;
-}
-
-export const ReadyUp : React.FC<Props> = ({className}: Props) => {
+export const ReadyUp : React.FC = () => {
   /**
    * Server-driven user values
    */
-  const {userID, roomID, readyStates, owner, roomName, setOwner, setReadyStates, leaveRoomCleanup, connectionManager} = useContext(UserContext);
+  const {userID, roomID, readyStates, owner, roomName, blacklist, preferlist, setOwner, setReadyStates, setBlacklist, setPreferlist, leaveRoomCleanup, connectionManager} = useContext(UserContext);
   const { currentPost, update } = usePostFetcher(connectionManager, roomID);
   const navigate = useNavigate();
+  const [blacklistInput, setBlacklistInput] = useState('');
+  const [preferlistInput, setPreferlistInput] = useState('');
+  const [preferlistFrequency, setPreferlistFrequency] = useState<PreferlistFrequencyType>('most');
   
   useEffect(() => {
     const onNewUserJoin = (data: JoinRoomEventDataToClientType) => {
       setReadyStates(data.room.readyStates);
+      setBlacklist(data.room.blacklist);
+      setPreferlist(data.room.preferlist ?? []);
     }
     
     const onNewReadyStates = (data: ReadyUpEventDataToClientType) => {
       const readyStates = data.room.readyStates;
       // populate new ready states
       setReadyStates(readyStates);
+      setBlacklist(data.room.blacklist);
+      setPreferlist(data.room.preferlist ?? []);
     }
 
     const onUserLeftRoom = (data: LeaveRoomEventDataToClientType) => {
@@ -48,7 +55,20 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
         }
       }
       setReadyStates(newReadyStates);
+      setBlacklist(data.room.blacklist);
+      setPreferlist(data.room.preferlist ?? []);
 
+    }
+
+    const onBlacklistUpdate = (data: UpdateBlacklistEventDataToClientType) => {
+      if(data.roomID === roomID) {
+        setBlacklist(data.blacklist);
+      }
+    }
+    const onPreferlistUpdate = (data: UpdatePreferlistEventDataToClientType) => {
+      if(data.roomID === roomID) {
+        setPreferlist(data.preferlist ?? []);
+      }
     }
 
     // orchestrate game start
@@ -56,12 +76,14 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
         connectionManager.listen<ReadyUpEventDataToClientType>(EventType.enum.READY_UP, onNewReadyStates),
         connectionManager.listen<JoinRoomEventDataToClientType>(EventType.enum.JOIN_ROOM, onNewUserJoin),
         connectionManager.listen<LeaveRoomEventDataToClientType>(EventType.enum.LEAVE_ROOM, onUserLeftRoom),
+        connectionManager.listen<UpdateBlacklistEventDataToClientType>(EventType.enum.UPDATE_BLACKLIST, onBlacklistUpdate),
+        connectionManager.listen<UpdatePreferlistEventDataToClientType>(EventType.enum.UPDATE_PREFERLIST, onPreferlistUpdate),
     ];
 
     return () => {
         unsubscribers.forEach(unsubscribe => unsubscribe());
     }
-}, [connectionManager, owner, readyStates, setOwner, setReadyStates])
+}, [connectionManager, owner, readyStates, roomID, setBlacklist, setOwner, setPreferlist, setReadyStates])
 
   const readyUp = useCallback((ready: boolean) => {
     if(userID != null && roomID != null) {
@@ -73,6 +95,73 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
   }, [connectionManager, userID, roomID]);
 
   const canStartGame = useMemo(() => readyStates.every(readyState => readyState.ready && readyState.icon), [readyStates]);
+
+  const normalizeBlacklistTag = useCallback((tag: string) => {
+    return tag.trim().toLowerCase().replace(/\s+/g, '_');
+  }, []);
+  const normalizePreferlistTag = useCallback((tag: string) => {
+    return normalizeBlacklistTag(tag);
+  }, [normalizeBlacklistTag]);
+
+  const addBlacklistTag = useCallback((tag: string) => {
+    if(!roomID) {
+      return;
+    }
+    const normalizedTag = normalizeBlacklistTag(tag);
+    if(!normalizedTag) {
+      return;
+    }
+    const data: UpdateBlacklistEventDataType = {type: EventType.enum.UPDATE_BLACKLIST, roomID, tag: normalizedTag, action: 'add'};
+    connectionManager.send(data);
+  }, [connectionManager, normalizeBlacklistTag, roomID]);
+
+  const addPreferlistTag = useCallback((tag: string, frequency: PreferlistFrequencyType) => {
+    if(!roomID) {
+      return;
+    }
+    const normalizedTag = normalizePreferlistTag(tag);
+    if(!normalizedTag) {
+      return;
+    }
+    const data: UpdatePreferlistEventDataType = {type: EventType.enum.UPDATE_PREFERLIST, roomID, tag: normalizedTag, action: 'add', frequency};
+    connectionManager.send(data);
+  }, [connectionManager, normalizePreferlistTag, roomID]);
+
+  const removeBlacklistTag = useCallback((tag: string) => {
+    if(!roomID) {
+      return;
+    }
+    const normalizedTag = normalizeBlacklistTag(tag);
+    if(!normalizedTag) {
+      return;
+    }
+    const data: UpdateBlacklistEventDataType = {type: EventType.enum.UPDATE_BLACKLIST, roomID, tag: normalizedTag, action: 'remove'};
+    connectionManager.send(data);
+  }, [connectionManager, normalizeBlacklistTag, roomID]);
+
+  const removePreferlistTag = useCallback((tag: string) => {
+    if(!roomID) {
+      return;
+    }
+    const normalizedTag = normalizePreferlistTag(tag);
+    if(!normalizedTag) {
+      return;
+    }
+    const data: UpdatePreferlistEventDataType = {type: EventType.enum.UPDATE_PREFERLIST, roomID, tag: normalizedTag, action: 'remove'};
+    connectionManager.send(data);
+  }, [connectionManager, normalizePreferlistTag, roomID]);
+
+  const updatePreferlistFrequency = useCallback((tag: string, frequency: PreferlistFrequencyType) => {
+    if(!roomID) {
+      return;
+    }
+    const normalizedTag = normalizePreferlistTag(tag);
+    if(!normalizedTag) {
+      return;
+    }
+    const data: UpdatePreferlistEventDataType = {type: EventType.enum.UPDATE_PREFERLIST, roomID, tag: normalizedTag, action: 'set_frequency', frequency};
+    connectionManager.send(data);
+  }, [connectionManager, normalizePreferlistTag, roomID]);
 
   const startGame = useCallback(() => {
     if(roomID && userID && userID === owner?.id && canStartGame) {
@@ -93,13 +182,13 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
   const renderLobbyUserIcon = useCallback((userIcon?: string) => {
     if(userIcon) {
       return (
-        <div style={{gridArea: 'icon'}} className='icon-chosen'>
+        <div style={{gridArea: 'icon'}} className={styles.iconChosen}>
           {buildUIIconImg(true, 'profile_icons/', userIcon)}
         </div>
       )
     }
     return (
-      <div style={{gridArea: 'icon'}} className='icon-unchosen'>
+      <div style={{gridArea: 'icon'}} className={styles.iconUnchosen}>
         <p>?</p>
       </div>
     )
@@ -110,20 +199,40 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
     const readyUpOnClick = () => readyUp(!readyState.ready);
     const readyUpButtonClassName = readyState.ready ? 'ready-down' : 'ready-up';
     const readyUpButtonText = readyState.ready ? 'Ready Down' : 'Ready Up';
-    const readyUpButton = <ReadyUpButton onClick={readyUpOnClick} className={readyUpButtonClassName}>{readyUpButtonText}</ReadyUpButton>
+    const readyUpButton = (
+      <Button
+        onClick={readyUpOnClick}
+        className={cn(
+          styles.readyUpButton,
+          readyUpButtonClassName === 'ready-up' ? styles.readyUp : styles.readyDown,
+        )}
+        variant="outline"
+      >
+        {readyUpButtonText}
+      </Button>
+    );
     return(
       <li>
         {
           renderLobbyUserIcon(readyState.icon)
         }
-        <div style={{gridArea: 'username'}} className='username-container'>
+        <div style={{gridArea: 'username'}} className={styles.usernameContainer}>
           <p>
               {readyState.user.username}
           </p>
         </div>
         <div style={{gridArea: 'ready-up-button'}}>
           {
-            userID === readyState.user.id ? readyUpButton : <ReadyStatus className={readyState.ready ? 'ready' : 'not-ready'}>{readyState.ready ? 'Ready!' : 'Waiting'}</ReadyStatus>
+            userID === readyState.user.id ? readyUpButton : (
+              <p
+                className={cn(
+                  styles.readyStatus,
+                  readyState.ready ? styles.readyStatusReady : styles.readyStatusNotReady,
+                )}
+              >
+                {readyState.ready ? 'Ready!' : 'Waiting'}
+              </p>
+            )
           }
         </div>
       </li>
@@ -131,235 +240,157 @@ export const ReadyUp : React.FC<Props> = ({className}: Props) => {
   }, [readyUp, renderLobbyUserIcon, userID]);
 
   return currentPost ? <MainPage currentPost={currentPost} update={update}/> : (
-    <ReadyUpView>
-      <ReadyUpContainer>
+    <div className={styles.readyUpView}>
+      <div className={styles.readyUpContainer}>
           <TitleText>
               {roomName ?? "Unnamed Room"}
           </TitleText>
-          <ReadyUpList>
+          <ul className={styles.readyUpList}>
               {
                   readyStates.map(readyState => renderReadyState(readyState))
               }  
-          </ReadyUpList>
-      </ReadyUpContainer>
-      <ReadyUpContainer style={{gridArea: 'icons'}}>
+          </ul>
+      </div>
+      <div className={styles.readyUpContainer} style={{gridArea: 'icons'}}>
         <IconPicker allIcons={icons.sfw}/>
-      </ReadyUpContainer>
+      </div>
+      <div className={styles.readyUpContainer} style={{gridArea: 'blacklist'}}>
+        <TitleText>Blacklist</TitleText>
+        <form className={styles.blacklistForm} onSubmit={(event) => {
+          event.preventDefault();
+          addBlacklistTag(blacklistInput);
+          setBlacklistInput('');
+        }}>
+          <Input
+            className={styles.blacklistInput}
+            type="text"
+            placeholder="Add a tag to blacklist"
+            value={blacklistInput}
+            onChange={(event) => setBlacklistInput(event.target.value)}
+          />
+          <Button className={styles.blacklistAddButton} type="submit" variant="outline">
+            Add
+          </Button>
+        </form>
+        <ul className={styles.blacklistList}>
+          {
+            blacklist.length === 0 && <p className={styles.blacklistEmptyText}>No tags blacklisted</p>
+          }
+          {
+            blacklist.map((tag) => (
+              <li className={styles.blacklistTag} key={tag}>
+                <span>{tag}</span>
+                <Button
+                  className={styles.blacklistRemoveButton}
+                  onClick={() => removeBlacklistTag(tag)}
+                  aria-label={`Remove ${tag} from blacklist`}
+                  size="icon"
+                  variant="ghost"
+                >
+                  x
+                </Button>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+      <div className={styles.readyUpContainer} style={{gridArea: 'preferlist'}}>
+        <TitleText>Preferlist</TitleText>
+        <form className={styles.blacklistForm} onSubmit={(event) => {
+          event.preventDefault();
+          addPreferlistTag(preferlistInput, preferlistFrequency);
+          setPreferlistInput('');
+        }}>
+          <Input
+            className={styles.blacklistInput}
+            type="text"
+            placeholder="Add a tag to prefer"
+            value={preferlistInput}
+            onChange={(event) => setPreferlistInput(event.target.value)}
+          />
+          <Select
+            value={preferlistFrequency}
+            onChange={(event) => setPreferlistFrequency(event.target.value as PreferlistFrequencyType)}
+            aria-label="Preferlist tag frequency"
+          >
+            <option value="most">most of the time</option>
+            <option value="all">all the time</option>
+          </Select>
+          <Button className={styles.blacklistAddButton} type="submit" variant="outline">
+            Add
+          </Button>
+        </form>
+        <ul className={styles.blacklistList}>
+          {
+            preferlist.length === 0 && <p className={styles.blacklistEmptyText}>No tags preferred</p>
+          }
+          {
+            preferlist.map((entry) => (
+              <li className={styles.blacklistTag} key={entry.tag}>
+                <span>{entry.tag}</span>
+                <div className={styles.preferlistFrequencyControl}>
+                  <span className={styles.preferlistFrequencyLabel}>frequency?</span>
+                  <Select
+                    value={entry.frequency}
+                    onChange={(event) => updatePreferlistFrequency(entry.tag, event.target.value as PreferlistFrequencyType)}
+                  >
+                    <option value="most">most of the time</option>
+                    <option value="all">all the time</option>
+                  </Select>
+                </div>
+                <Button
+                  className={styles.blacklistRemoveButton}
+                  onClick={() => removePreferlistTag(entry.tag)}
+                  aria-label={`Remove ${entry.tag} from preferlist`}
+                  size="icon"
+                  variant="ghost"
+                >
+                  x
+                </Button>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
       {
-        <StartGameContainer style={{gridArea:'start-game'}}>
+        <div className={styles.startGameContainer} style={{gridArea:'start-game'}}>
           {
-            roomID && userID && <RoomUpdateButton marginRight={owner && userID === owner.id} color={Theme.cTagSpecies} onClick={leaveRoom}>Leave Room</RoomUpdateButton>
+            roomID && userID && (
+              <RoomUpdateButton marginRight={owner && userID === owner.id} color="var(--c-tag-species)" onClick={leaveRoom}>
+                Leave Room
+              </RoomUpdateButton>
+            )
           }
           {
-            owner && userID === owner.id && <RoomUpdateButton color={Theme.cPrimaryText} onClick={startGame}>Start Game</RoomUpdateButton>
+            owner && userID === owner.id && (
+              <RoomUpdateButton color="var(--c-tag-general)" onClick={startGame}>
+                Start Game
+              </RoomUpdateButton>
+            )
           }
-      </StartGameContainer>
+      </div>
       }
-    </ReadyUpView> 
+    </div> 
     );
 }
-
-const ReadyStatus = styled.p`
-  /* font-size: 0.75rem; */
-  transition: color .2s;
-  &.ready {
-    color: ${p => p.theme.cTagCharacter};
-  }
-
-  &.not-ready {
-    color: ${p => p.theme.cTagSpecies};
-  }
-`
-
-const ReadyUpButton = styled.button`
-  width: 60px;
-  height: 25px;
-  font-size: 0.5rem;
-
-  @media (min-width: 260px) {
-    font-size: 0.75rem;
-    width: 90px;
-    height: 35px;
-  }
-  @media (min-width: 350px) {
-    font-size: 1rem;
-    width: 120px;
-    height: 40px;
-  }
-
-
-  &.ready-up {
-    color: ${p => p.theme.cTagCharacter};
-    background-color: ${p => p.theme.cTagCharacter};
-    border:2px solid ${p => p.theme.cTagCharacter};
-    background-color: transparent;
-    
-    &:hover {
-      background-color: ${p => p.theme.cTagCharacter};
-    }
-  }
-
-  &.ready-down {
-    color: ${p => p.theme.cTagSpecies};
-    background-color: ${p => p.theme.cTagSpecies};
-    border:2px solid ${p => p.theme.cTagSpecies};
-    background-color: transparent;
-
-    &:hover {
-      background-color: ${p => p.theme.cTagSpecies};
-    }
-  }
-`
 
 type RoomUpdateButtonProps = {
   color: string,
   marginRight?: boolean,
-}
+} & React.ComponentProps<typeof Button>;
 
-export const RoomUpdateButton = styled.button<RoomUpdateButtonProps>`
-  width: 100px;
-  height: 28px;
-  border:2px solid ${p => p.color};
-  background-color: transparent;
-  
-  font-weight: bold;
-  color: ${p => p.color};
-  border-radius: 10%;
-  font-weight: bold;
-  font-size: 0.75rem;
-  
-  margin-right: ${p => p.marginRight ? '8px' : '0'};
-
-  @media (min-width: 400px) {
-    width: 110px;
-    height: 35px; 
-    font-size: 0.9rem;
-    margin-right: ${p => p.marginRight ? '16px' : '0'};
-  }
-  @media (min-width: 440px) {
-    width: 120px;
-    height: 40px; 
-    font-size: 1rem;
-    margin-right: ${p => p.marginRight ? '24px' : '0'};
-  }
-  
-  transition: background-color .2s, transform .2s, color .2s, border .2s;
-
-  &:hover {
-    background-color: ${p => p.color};
-    color: ${p => p.theme.cLobbyBackground};
-    transform: scale(125%);
-  }
-`
-
-const StartGameContainer = styled.div`
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: flex-start;
-  margin-top: 4px;
-  margin-bottom: 16px;
-`
-
-const ReadyUpList = styled.ul`
-
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: left;
-
-    li {
-        display: grid;
-        grid-template-columns: 1fr 2fr 1fr;
-        grid-template-areas: 'icon username ready-up-button';
-        column-gap: 1rem;
-        border-radius: 4px;
-        width: calc(100% - 4rem);
-        padding: 0 8px 8px 0;
-
-        font-size: 1em;
-        font-weight: bold;
-
-        div {
-          transition: border 0.2s;
-
-          display: flex;
-          flex-direction: row;
-          justify-content: center;
-          align-items: center;
-
-          
-          &.icon-unchosen {
-            border-radius: 50%;
-            border: 2px dashed ${p => p.theme.cPrimaryText};
-            background-color: transparent;
-            
-            color: ${p => p.theme.cPrimaryText};
-            
-            text-shadow: none;
-            
-            width: 30px;
-            height: 30px;
-  
-            @media (min-width: 450px) {
-              width: 40px;
-              height: 40px;
-            }
-          }
-
-          &.icon-chosen {
-            border-radius: 50%;
-            border: 2px solid ${p => p.theme.cPrimaryText};
-
-            width: 30px;
-            height: 30px;
-  
-            @media (min-width: 450px) {
-              width: 40px;
-              height: 40px;
-            }
-
-            img {
-              width: 30px;
-              height: 30px;
-              border-radius: 50%;
-
-              @media (min-width: 450px) {
-                width: 40px;
-                height: 40px;
-              }
-            }
-          }
-        }
-    }
-`;
-
-const ReadyUpContainer = styled.div`
-    margin: 10px;
-    padding: 16px;
-    max-width: 98vw;
-    text-align: center;
-    border-radius: 5px;
-    box-shadow: 0 0 5px #000;
-    text-shadow: 0 0 2px black, 0 0 6px black;
-    z-index: 2;
-`
-
-const ReadyUpView = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-
-  button {
-    transition: background-color .2s, transform .2s, color .2s, border .2s;
-    border-radius: 10%;
-    font-weight: bold;
-  }
-
-  button:hover {
-    transform: scale(125%);
-    color:  ${p => p.theme.cLobbyBackground};
-  }
-`
+export const RoomUpdateButton: React.FC<RoomUpdateButtonProps> = ({
+  color,
+  marginRight,
+  className,
+  ...props
+}) => (
+  <Button
+    {...props}
+    className={cn(styles.roomUpdateButton, marginRight ? styles.hasMargin : '', className)}
+    style={{ ['--room-update-color' as string]: color }}
+    variant="outline"
+  />
+);
 
 export default ReadyUp;

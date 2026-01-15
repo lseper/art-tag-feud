@@ -1,10 +1,11 @@
 import { UserContext } from '../contexts/UserContext';
 import { useContext, useState, useEffect, useCallback } from 'react';
-import styled from 'styled-components';
 import type { GetSelectedIconsEventDataType, GetSelectedIconsEventDataToClientType, SetUserIconEventDataType, SetUserIconEventDataToClientType } from '../types';
 import { EventType } from '../types';
-import { icons, buildUIIconImg } from '../util/UIUtil';
+import { buildUIIconImg } from '../util/UIUtil';
 import type {IconData} from '../util/UIUtil';
+import styles from '@/styles/components/icon-picker.module.css';
+import { Button } from '@/components/ui/button';
 
 type Props = {
   className?: string;
@@ -68,10 +69,10 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
   }, [getSelectedIcons])
 
   return (
-        <IconList>
+        <ul className={styles.iconList}>
           {
-            icons.nsfw.map((gameIcon) => {
-                let buttonClass;
+            allIcons.map((gameIcon, index) => {
+                let buttonClass: 'selected' | 'disabled' | 'selectable';
                 if(icon === gameIcon.file) {
                     buttonClass = 'selected';
                 } else {
@@ -81,173 +82,20 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
                         buttonClass = 'selectable';
                     }
                 }
-                return <li className={buttonClass}>
-                  <CharacterName>{gameIcon.character}</CharacterName>
-                  <button onClick={() => selectIcon(gameIcon.file)}>{buildUIIconImg(false, 'profile_icons/', gameIcon.file)}</button>
-                  <IconArtist href={gameIcon.source}>
+                const stateClass = styles[buttonClass];
+                return <li key={`icon-${index}`} className={`${styles.item} ${stateClass}`.trim()}>
+                  <p className={styles.characterName}>{gameIcon.character}</p>
+                  <Button className={styles.iconButton} variant="ghost" size="icon" onClick={() => selectIcon(gameIcon.file)}>
+                    {buildUIIconImg(false, 'profile_icons/', gameIcon.file)}
+                  </Button>
+                  <a className={styles.iconArtist} href={gameIcon.source}>
                     <span style={{color: '#b4c7d9'}}>art by </span>
                     {gameIcon.artist}
-                    </IconArtist>
+                    </a>
                   </li>;
             })
           }
-        </IconList>
+        </ul>
   );
 }
-
-// TODO: artist credit
-const IconArtist = styled.a`
-  opacity: 0;
-  transition: opacity .2s;
-  text-decoration: none;
-  &:hover {
-    opacity: 1
-  }
-
-  &:focus {
-    opacity: 0.5;
-  }
-`
-
-const CharacterName = styled.p`
-  font-size: 1rem;
-  color: #b4c7d9;
-  z-index: 4;
-`
-
-const IconList = styled.ul`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  margin-top: 32;
-
-  @media (min-width: 450px) {
-    grid-template-columns: 1fr 1fr;
-  }
-  @media (min-width: 450px) {
-    grid-template-columns: 1fr 1fr 1fr;
-  }
-  @media (min-width: 1000px) {
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-  }
-
-  li {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-
-    margin: 8px;
-
-    transition: filter .2s, transform .2s;
-    &.disabled {
-        filter: brightness(40%);
-    }
-
-    &.selected {
-        filter: brightness(115%);
-        transform: scale(1.25);
-        z-index: 3;
-    }
-
-    &.selectable {
-        filter: brightness(75%);
-        vertical-align: middle;
-        border-radius: 50%;
-    }
-
-    &.selectable:hover {
-        transform: scale(1.5);
-        filter: brightness(115%); 
-        z-index: 99
-    }
-
-    &.selectable:focus {
-        transform: scale(1.25);
-        filter: brightness(115%);
-    }
-
-    a {
-      opacity: 0;
-      transition: opacity .2s;
-    }
-
-    &:hover {
-      a {
-        opacity: 1;
-      }
-    }
-
-    button {
-        background-color: transparent;
-        border: none;
-        box-shadow: 0;
-        text-shadow: 0;
-      img {
-        width: 40px;
-        height: 40px;
-        border: 5px solid ${p => p.theme.cBodyLight};
-        border-radius: 50%;
-
-        @media (min-width: 440px) {
-          width: 50px;
-          height: 50px;
-        }
-
-        @media (min-width: 800px) {
-          width: 60px;
-          height: 60px;
-        }
-
-        @media (min-width: 900px) {
-          width: 70px;
-          height: 70px;
-        }
-
-        @media (min-width: 1000px) {
-          width: 80px;
-          height: 80px;
-        }
-      }
-    }
-
-    p {
-      font-size: 0.5rem;
-      max-width: 105%;
-
-      @media (min-width: 350px) {
-        font-size: 0.75rem;
-      }
-
-      @media (min-width: 500px) {
-        font-size: 1rem;
-      }
-    }
-
-    a {
-      opacity: 0;
-      transition: opacity .2s;
-      font-size: 0.5rem;
-      max-width: 105%;
-
-      &:hover {
-        opacity: 1
-      }
-
-      &:focus {
-        opacity: 0.5;
-      }
-
-      @media (min-width: 350px) {
-        font-size: 0.75rem;
-      }
-
-      @media (min-width: 500px) {
-        font-size: 1rem;
-      }
-    }
-  }
-`
-
 export default IconPicker;

@@ -3,10 +3,11 @@ import Tag from './Tag';
 
 interface Props {
     tags: PostTagType[],
-    guessedTags: PostTagType[]
+    guessedTags: PostTagType[],
+    autoRevealedTagNames?: Set<string>
 }
 
-const TagList : React.FC<Props> = ({tags, guessedTags} : Props) => {
+const TagList : React.FC<Props> = ({tags, guessedTags, autoRevealedTagNames} : Props) => {
     
     return (
         <>
@@ -15,7 +16,7 @@ const TagList : React.FC<Props> = ({tags, guessedTags} : Props) => {
                     tags.map((tag, i) => {
                         if(guessedTags.includes(tag)) {
                             // TODO: lazy tag reveal delay time - should be better
-                            return <Tag tag={tag}/>
+                            return <Tag tag={tag} showAutoBadge={autoRevealedTagNames?.has(tag.name)} />
                         } else {
                             return <Tag />
                         }

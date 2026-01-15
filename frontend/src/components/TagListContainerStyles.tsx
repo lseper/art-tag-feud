@@ -1,105 +1,29 @@
-import styled from 'styled-components';
+import type * as React from 'react';
+import { cn } from '@/lib/utils';
+import styles from '@/styles/components/tag-list-container.module.css';
 
-export const TagListLabel = styled.h2`
-  margin: 10px 0px 10px 0px;
-`;
+export const TagListLabel = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLHeadingElement>) => (
+  <h2 className={cn(styles.tagListLabel, className)} {...props} />
+);
 
-export const TagsInputContainer = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 2fr; 
-  grid-template-rows: 1fr; 
-  gap: 30px 10px;
+export const TagsInputContainer = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn(styles.tagsInputContainer, className)} {...props} />
+);
 
-  @media (max-width: 768px) {
-    opacity: 0.65;
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1fr;
-    grid-template-areas: 
-        "."
-        ".";
-    :focus {
-      opacity: 0.85;
-    }
-  }
+export const TagsInput = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn(styles.tagsInput, className)} {...props} />
+);
 
-`;
+export const TagsGrid = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn(styles.tagsGrid, className)} {...props} />
+);
 
-export const TagsInput = styled.div`
-  flex: 0 1 auto;
-  padding: 0px 5px 5px 0px;
-  font-size: 20px;
-  border-radius: 10px;
-
-  @media (max-width: 768px) {
-    opacity: 0.35;
-  }
-
-  :focus {
-    outline: none;
-  }
-
-  input {
-    padding: 2px 2px 2px 5px;
-    border-radius: 8px;
-    height: ${p => p.theme.inputHeight};
-    font-family: Verdana, sans-serif;
-    font-size: .75em;
-    font-weight: bold;
-  }
-
-  input:focus {
-    outline: none;
-  }
-`;
-
-export const TagsGrid = styled.div`
-  display: grid; 
-  grid-template-columns: 1fr 1fr 1fr; 
-  grid-template-rows: 1fr; 
-  gap: 0px 20px; 
-  grid-template-areas: 
-      ". .";
-
-  padding-top: 5px;
-
-  min-width: 90%;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto;
-    grid-template-areas: 
-        "."
-        "."
-        ".";
-  }
-`;
-
-export const MobileTagsGrid = styled.div`
-  display: grid; 
-  grid-template-columns: 1fr 1fr; 
-
-  font-size: 0.15em;
-  grid-template-areas: 
-      "." ".";
-
-  padding-top: 5px;
-
-  min-width: 90%;
-`;
-
-export const TagsList = styled.div`
-  display: block;
-  background-color: #1F3C67;
-
-  flex: 1 1 auto;
-
-  border-radius: 10px;
-
-  font-size: 0.85em;
-
-  padding: ${p => p.theme.pTagList};
-
-  @media (max-width: 768px) {
-    opacity: 0.35;
-  }
-`;
+export const TagsList = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn(styles.tagsList, className)} {...props} />
+);

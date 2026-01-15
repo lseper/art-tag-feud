@@ -15,7 +15,7 @@ function checkAlias(tag_name: string) : string {
     }
 }
 // custom hook, returns an object that has the CurrentPost, and an update callback function that we define
-export default function useTagListGuesser(startingTags : PostTagType[]) : [
+export default function useTagListGuesser(startingTags : PostTagType[], forcedGuessedTagNames: string[] = []) : [
     PostTagType[], (guess: string) => boolean, () => void
 ] {
     // want component re-rendering when this changes
@@ -25,14 +25,30 @@ export default function useTagListGuesser(startingTags : PostTagType[]) : [
 
     // TODO: uncomment once reveal all tags functionality is added
     function revealAllTags() {
-        setGuessedTags([...guessedTags, ...hiddenTags]);
+        setGuessedTags((prevGuessedTags) => {
+            if (hiddenTags.length === 0) {
+                return prevGuessedTags;
+            }
+            const existingNames = new Set(prevGuessedTags.map(tag => tag.name));
+            let didAdd = false;
+            const nextGuessedTags = [...prevGuessedTags];
+            hiddenTags.forEach((tag) => {
+                if (!existingNames.has(tag.name)) {
+                    existingNames.add(tag.name);
+                    nextGuessedTags.push(tag);
+                    didAdd = true;
+                }
+            });
+            return didAdd ? nextGuessedTags : prevGuessedTags;
+        });
     }
 
     // reset on new post
     useEffect(() => {
+        const forcedGuessedSet = new Set(forcedGuessedTagNames);
         setHiddenTags(startingTags);
-        setGuessedTags([]);
-    }, [startingTags])
+        setGuessedTags(startingTags.filter(tag => forcedGuessedSet.has(tag.name)));
+    }, [forcedGuessedTagNames, startingTags])
 
     const handleGuess = useCallback((guess: string) : {isCorrect: boolean, tag?: PostTagType} => {
         let tagIndex = hiddenTags.findIndex((tag : PostTagType) => tag.name === guess);
