@@ -10,8 +10,10 @@ import { playwright } from '@vitest/browser-playwright';
 const dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
+const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
+
 export default defineConfig({
-  base: process.env.GITHUB_PAGES ? '/art-tag-feud/' : '/',
+  base: process.env.GITHUB_PAGES ? `/${repoName ?? 'art-tag-feud'}/` : '/',
   plugins: [react()],
   resolve: {
     alias: {

@@ -10,9 +10,9 @@ const root = createRoot(
 );
 
 root.render(
-  <BrowserRouter>
+  <BrowserRouter basename={import.meta.env.BASE_URL}>
     <React.StrictMode>
-        <App />
+      <App />
     </React.StrictMode>
   </BrowserRouter>
 );
