@@ -42,6 +42,14 @@
   gap: 30px 10px;
 }
 
+@media (max-width: 770px) {
+  .tagsInputContainer {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    gap: 12px 0;
+  }
+}
+
 @media (max-width: 600px) {
   .tagsInputContainer {
     gap: 20px 8px;
