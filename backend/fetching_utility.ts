@@ -17,8 +17,9 @@ const POSTS_BASE = 'posts.json';
 // currently not used
 //const TAGS_BASE = 'tags.json';
 // copied the tags here from the ones on furbot, as well as filtering out animated media files 
-// const DEFAULT_BLACKLIST = ['gore', 'scat', 'feral', 'cub', 'loli', 'young', 'forced', 'animated', 'diaper', 'flash'];
-const DEFAULT_BLACKLIST = ['animated', 'flash'];
+const DEFAULT_BLACKLIST_LOCAL = ['animated', 'flash'];
+const DEFAULT_BLACKLIST_PROD = ['gore', 'scat', 'feral', 'cub', 'loli', 'young', 'forced', 'animated', 'diaper', 'flash'];
+const DEFAULT_BLACKLIST = process.env.NODE_ENV === 'production' ? DEFAULT_BLACKLIST_PROD : DEFAULT_BLACKLIST_LOCAL;
 const META_MODIFIERS = ['score:>=25', 'gentags:>=10', 'rating:explicit', 'order:random'];
 
 const ARTIST_TAG_SCORE = 150;
