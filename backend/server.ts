@@ -1,4 +1,5 @@
 // server
+import 'dotenv/config';
 import { WebSocketServer, WebSocket, } from "ws";
 import { 
     EventType, 
@@ -20,6 +21,8 @@ import type {
     ServerRoomType, 
     UserType, 
     ClientRoomType, 
+    PostType,
+    PostTagType,
     UserReadyStateType, 
     JoinRoomEventDataToClientType, 
     SetUsernameEventDataToClientType, 
@@ -35,6 +38,15 @@ import type {
 } from "./types";
 import { getPosts } from "./fetching_utility";
 import {v4} from 'uuid';
+import { supabase } from "./supabase/client";
+
+type ActiveGameState = {
+    gameId: string;
+    roundId: string;
+    roundIndex: number;
+    nextPostOrder: number;
+    currentRoundPostId?: string;
+};
 
 
 // start up the server
@@ -48,6 +60,7 @@ let numUsers = 0;
 const rooms: Map<string, ServerRoomType> = new Map<string, ServerRoomType>();
 const users: Map<string, UserType> = new Map<string, UserType>();
 const userSockets: Map<string, WebSocket> = new Map<string, WebSocket>();
+const activeGames: Map<string, ActiveGameState> = new Map<string, ActiveGameState>();
 
 // TODO setup heartbeat polling to close broken connections
 // https://www.npmjs.com/package/ws#how-to-detect-and-close-broken-connections
@@ -75,14 +88,23 @@ const purgeUserOnDisconnect = (userSocket: WebSocket) => {
     roomReadyStates.delete(userID);
     roomToUpdate.members = roomToUpdate.members.filter(member => member.id !== userID);
     rooms.set(roomToUpdateID, roomToUpdate);
+    void removeRoomMember(roomToUpdateID, userID);
+    let shouldDeleteRoom = false;
     if(roomToUpdate.owner.id === userID) {
         if(roomToUpdate.members.length === 0) {
             rooms.delete(roomToUpdateID);
+            shouldDeleteRoom = true;
         } else {
             roomToUpdate.owner = roomToUpdate.members[0];
             rooms.set(roomToUpdateID, roomToUpdate);
         }
     }
+    if(shouldDeleteRoom) {
+        void deleteRoom(roomToUpdateID);
+        return;
+    }
+    void upsertRoom(roomToUpdate);
+    void setRoomReadyStates(roomToUpdate);
 }
 
 /**
@@ -167,7 +189,7 @@ const convertServerRoomsToClientRooms = () => {
     return roomsToSend;
 }
 
-const leaveRoom = (server: WebSocketServer, userID: string, roomID: string) => {
+const leaveRoom = async (server: WebSocketServer, userID: string, roomID: string) => {
     const userToLeave = users.get(userID);
     if(!userToLeave) {
         return;
@@ -187,9 +209,11 @@ const leaveRoom = (server: WebSocketServer, userID: string, roomID: string) => {
     roomReadyStates.delete(userID);
     roomToUpdate.members = roomToUpdate.members.filter(member => member.id !== userID);
     rooms.set(roomID, roomToUpdate);
+    let shouldDeleteRoom = false;
     if(roomToUpdate.owner.id === userID) {
         if(roomToUpdate.members.length === 0) {
             rooms.delete(roomID);
+            shouldDeleteRoom = true;
             const newRooms = convertServerRoomsToClientRooms();
             const data : AllRoomsEventDataToClientType = {type: EventType.enum.ALL_ROOMS, rooms: newRooms};
             broadcast(server, data); 
@@ -199,9 +223,16 @@ const leaveRoom = (server: WebSocketServer, userID: string, roomID: string) => {
         }
     }
 
+    if(shouldDeleteRoom) {
+        await deleteRoom(roomID);
+        return;
+    }
+
     const roomToClient = convertServerRoomToClientRoom(roomToUpdate)
     const data : LeaveRoomEventDataToClientType = {type: EventType.enum.LEAVE_ROOM, room: roomToClient};
     broadcastToRoom(roomToUpdate, data);
+    await upsertRoom(roomToUpdate);
+    await setRoomReadyStates(roomToUpdate);
 }
 
 const resetRoom = (room: ServerRoomType): void => {
@@ -217,6 +248,287 @@ const normalizeBlacklistTag = (tag: string): string => {
 }
 const normalizePreferlistTag = (tag: string): string => {
     return normalizeBlacklistTag(tag);
+}
+
+/**
+ * Supabase helpers
+ */
+const logSupabaseError = (context: string, error: unknown) => {
+    if(error) {
+        console.error(`Supabase error (${context}):`, error);
+    }
+}
+
+const upsertPlayer = async (user: UserType) => {
+    if(!supabase) return;
+    const { error } = await supabase
+        .from('players')
+        .upsert({
+            id: user.id,
+            username: user.username,
+            last_seen_at: new Date().toISOString(),
+        }, { onConflict: 'id' });
+    logSupabaseError('upsert player', error);
+}
+
+const upsertRoom = async (room: ServerRoomType) => {
+    if(!supabase) return;
+    const { error } = await supabase
+        .from('rooms')
+        .upsert({
+            id: room.id,
+            name: room.name,
+            owner_player_id: room.owner.id,
+            posts_per_round: room.postsPerRound,
+            rounds_per_game: room.roundsPerGame,
+            cur_round: room.curRound,
+            posts_viewed_this_round: room.postsViewedThisRound,
+            game_started: room.gameStarted,
+            updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' });
+    logSupabaseError('upsert room', error);
+}
+
+const upsertRoomMember = async (roomID: string, user: UserType) => {
+    if(!supabase) return;
+    const { error } = await supabase
+        .from('room_members')
+        .upsert({
+            room_id: roomID,
+            player_id: user.id,
+            score: user.score,
+            icon: user.icon ?? null,
+            left_at: null,
+        }, { onConflict: 'room_id,player_id' });
+    logSupabaseError('upsert room member', error);
+}
+
+const removeRoomMember = async (roomID: string, userID: string) => {
+    if(!supabase) return;
+    const { error } = await supabase
+        .from('room_members')
+        .delete()
+        .eq('room_id', roomID)
+        .eq('player_id', userID);
+    logSupabaseError('remove room member', error);
+}
+
+const setRoomReadyStates = async (room: ServerRoomType) => {
+    if(!supabase) return;
+    const payload = [...room.allUsersReady.entries()].map(([playerID, ready]) => ({
+        room_id: room.id,
+        player_id: playerID,
+        ready,
+        updated_at: new Date().toISOString(),
+    }));
+    if(payload.length === 0) return;
+    const { error } = await supabase
+        .from('room_ready_state')
+        .upsert(payload, { onConflict: 'room_id,player_id' });
+    logSupabaseError('upsert room ready state', error);
+}
+
+const updateBlacklist = async (roomID: string, tag: string, action: 'add' | 'remove') => {
+    if(!supabase) return;
+    if(action === 'add') {
+        const { error } = await supabase
+            .from('room_blacklist')
+            .upsert({ room_id: roomID, tag }, { onConflict: 'room_id,tag' });
+        logSupabaseError('upsert room blacklist', error);
+    } else {
+        const { error } = await supabase
+            .from('room_blacklist')
+            .delete()
+            .eq('room_id', roomID)
+            .eq('tag', tag);
+        logSupabaseError('remove room blacklist', error);
+    }
+}
+
+const updatePreferlist = async (roomID: string, tag: string, action: 'add' | 'remove' | 'set_frequency', frequency?: string) => {
+    if(!supabase) return;
+    if(action === 'add') {
+        const { error } = await supabase
+            .from('room_preferlist')
+            .upsert({ room_id: roomID, tag, frequency: frequency ?? 'most' }, { onConflict: 'room_id,tag' });
+        logSupabaseError('upsert room preferlist', error);
+    } else if(action === 'set_frequency') {
+        const { error } = await supabase
+            .from('room_preferlist')
+            .update({ frequency })
+            .eq('room_id', roomID)
+            .eq('tag', tag);
+        logSupabaseError('update room preferlist frequency', error);
+    } else {
+        const { error } = await supabase
+            .from('room_preferlist')
+            .delete()
+            .eq('room_id', roomID)
+            .eq('tag', tag);
+        logSupabaseError('remove room preferlist', error);
+    }
+}
+
+const deleteRoom = async (roomID: string) => {
+    if(!supabase) return;
+    const { error } = await supabase
+        .from('rooms')
+        .delete()
+        .eq('id', roomID);
+    logSupabaseError('delete room', error);
+}
+
+const ensureActiveGame = async (room: ServerRoomType, createdByPlayerID?: string) => {
+    if(activeGames.has(room.id)) {
+        return activeGames.get(room.id)!;
+    }
+    if(!supabase) return null;
+    const { data: gameData, error: gameError } = await supabase
+        .from('games')
+        .insert({
+            room_id: room.id,
+            created_by_player_id: createdByPlayerID ?? null,
+            posts_per_round: room.postsPerRound,
+            rounds_per_game: room.roundsPerGame,
+        })
+        .select('id')
+        .single();
+    logSupabaseError('create game', gameError);
+    if(!gameData?.id) return null;
+
+    const { data: roundData, error: roundError } = await supabase
+        .from('rounds')
+        .insert({
+            game_id: gameData.id,
+            round_index: room.curRound,
+        })
+        .select('id')
+        .single();
+    logSupabaseError('create round', roundError);
+    if(!roundData?.id) return null;
+
+    const state: ActiveGameState = {
+        gameId: gameData.id,
+        roundId: roundData.id,
+        roundIndex: room.curRound,
+        nextPostOrder: 0,
+    };
+    activeGames.set(room.id, state);
+    return state;
+}
+
+const startNextRound = async (roomID: string, gameId: string, roundIndex: number) => {
+    if(!supabase) return null;
+    const { data: roundData, error } = await supabase
+        .from('rounds')
+        .insert({
+            game_id: gameId,
+            round_index: roundIndex,
+        })
+        .select('id')
+        .single();
+    logSupabaseError('create next round', error);
+    if(!roundData?.id) return null;
+    const state: ActiveGameState = {
+        gameId,
+        roundId: roundData.id,
+        roundIndex,
+        nextPostOrder: 0,
+    };
+    activeGames.set(roomID, state);
+    return state;
+}
+
+const recordPostAndTags = async (post: PostType) => {
+    if(!supabase) return;
+    const { error: postError } = await supabase
+        .from('posts')
+        .upsert({
+            id: post.id,
+            url: post.url,
+        }, { onConflict: 'id' });
+    logSupabaseError('upsert post', postError);
+
+    const tags = Array.isArray(post.tags) ? post.tags : [];
+    if(tags.length === 0) return;
+    const tagRows = tags.map((tag: PostTagType) => ({
+        post_id: post.id,
+        tag: tag.name,
+        tag_type: tag.type,
+        score: tag.score,
+    }));
+    const { error: tagsError } = await supabase
+        .from('post_tags')
+        .upsert(tagRows, { onConflict: 'post_id,tag,tag_type' });
+    logSupabaseError('upsert post tags', tagsError);
+}
+
+const recordRoundPost = async (roomID: string, roundId: string, postId: number, postOrder: number) => {
+    if(!supabase) return null;
+    const { data, error } = await supabase
+        .from('round_posts')
+        .insert({
+            round_id: roundId,
+            post_id: postId,
+            post_order: postOrder,
+        })
+        .select('id')
+        .single();
+    logSupabaseError('insert round post', error);
+    if(!data?.id) return null;
+    const active = activeGames.get(roomID);
+    if(active) {
+        active.currentRoundPostId = data.id;
+        active.nextPostOrder += 1;
+        activeGames.set(roomID, active);
+    }
+    return data.id;
+}
+
+const recordGuess = async (roomID: string, userID: string, tag: PostTagType) => {
+    if(!supabase) return;
+    const active = activeGames.get(roomID);
+    if(!active?.currentRoundPostId) return;
+    const { error } = await supabase
+        .from('guesses')
+        .insert({
+            round_post_id: active.currentRoundPostId,
+            player_id: userID,
+            guessed_tag: tag.name,
+            tag_type: tag.type,
+            score: tag.score,
+        });
+    logSupabaseError('insert guess', error);
+}
+
+const recordLeaderboardSnapshot = async (room: ServerRoomType) => {
+    if(!supabase) return;
+    const active = activeGames.get(room.id);
+    if(!active) return;
+    const snapshot = room.members.reduce((acc, member) => {
+        acc[member.id] = member.score;
+        return acc;
+    }, {} as Record<string, number>);
+    const { error } = await supabase
+        .from('leaderboard_snapshots')
+        .insert({
+            game_id: active.gameId,
+            round_id: active.roundId,
+            snapshot,
+        });
+    logSupabaseError('insert leaderboard snapshot', error);
+}
+
+const endGame = async (roomID: string) => {
+    if(!supabase) return;
+    const active = activeGames.get(roomID);
+    if(!active) return;
+    const { error } = await supabase
+        .from('games')
+        .update({ ended_at: new Date().toISOString() })
+        .eq('id', active.gameId);
+    logSupabaseError('end game', error);
+    activeGames.delete(roomID);
 }
 
 server.on("connection", response => {
@@ -253,6 +565,8 @@ server.on("connection", response => {
                         data.tag.score = 0;
                     }
                     userToUpdateScore.score += data.tag.score;
+                    await upsertRoomMember(room.id, userToUpdateScore);
+                    await recordGuess(room.id, userToUpdateScore.id, data.tag);
                     const guessTagData = {type: EventType.enum.GUESS_TAG, tag: data.tag, user: userToUpdateScore};
                     broadcastToRoom(room, guessTagData);
                 }
@@ -268,6 +582,7 @@ server.on("connection", response => {
                 const user = users.get(userID);
                 if(user) {
                     user.username = data.username;
+                    await upsertPlayer(user);
                     const userToChangeResponseData: SetUsernameEventDataToClientType = {type: EventType.enum.SET_USERNAME, user};
                     reply(response, userToChangeResponseData);
                 }
@@ -286,10 +601,12 @@ server.on("connection", response => {
                     if(user.icon) {
                         const pastIcon = user.icon;
                         user.icon = data.icon;
+                        await upsertRoomMember(room.id, user);
                         const responseData: SetUserIconEventDataToClientType = {type:EventType.enum.SET_ICON, userID, icon: user.icon, pastIcon};
                         broadcastToRoom(room, responseData);
                     } else {
                         user.icon = data.icon;
+                        await upsertRoomMember(room.id, user);
                         const responseData: SetUserIconEventDataToClientType = {type:EventType.enum.SET_ICON, userID, icon: user.icon};
                         broadcastToRoom(room, responseData);
                     }
@@ -349,6 +666,7 @@ server.on("connection", response => {
                     room.roundsPerGame = data.roundsPerGame;
                     room.name = data.roomName;
                     resetRoom(room);
+                    await upsertRoom(room);
                     if(user && userSocket) {
                         const roomToClient = {
                             roomID: room.id,
@@ -383,6 +701,10 @@ server.on("connection", response => {
                             owner: user
                         };
                         rooms.set(newRoomID, newRoom);
+                        await upsertPlayer(user);
+                        await upsertRoom(newRoom);
+                        await upsertRoomMember(newRoomID, user);
+                        await setRoomReadyStates(newRoom);
                         const readyStates: UserReadyStateType[] = getReadyStates(newRoom);
                         const roomToClient = {
                             roomID: newRoom.id,
@@ -419,6 +741,9 @@ server.on("connection", response => {
                     room.allUsersReady.set(user.id, false);
                     // set user's roomID to room
                     user.roomID = roomID;
+                    await upsertPlayer(user);
+                    await upsertRoomMember(roomID, user);
+                    await setRoomReadyStates(room);
                     const roomToClient = {
                         roomID: room.id,
                         roomName: room.name,
@@ -438,7 +763,8 @@ server.on("connection", response => {
                     break;
                 }
                 const {userID, roomID} = result.data;
-                leaveRoom(server, userID, roomID);
+                await leaveRoom(server, userID, roomID);
+                await removeRoomMember(roomID, userID);
                 break;
             }
             case EventType.enum.REQUEST_POST: {
@@ -452,6 +778,7 @@ server.on("connection", response => {
                 if(roomToSendPost) {
                     // ready up the user, if they already aren't readied up
                     roomToSendPost.allUsersReady.set(data.userID, true);
+                    await setRoomReadyStates(roomToSendPost);
 
                     if(roomToSendPost.postQueue.length === 0){
                         roomToSendPost.postQueue = await getPosts(roomToSendPost.blacklist, roomToSendPost.preferlist);
@@ -460,12 +787,19 @@ server.on("connection", response => {
                     if(roomIsReadyForNewPost(roomToSendPost)) {
                         // they've completed the round, show the leaderboard
                         if(roomToSendPost.postsViewedThisRound >= roomToSendPost.postsPerRound) {
+                            await recordLeaderboardSnapshot(roomToSendPost);
                             roomToSendPost.curRound += 1;
                             roomToSendPost.postsViewedThisRound = 0;
                             if(roomToSendPost.curRound >= roomToSendPost.roundsPerGame) {
+                                await endGame(roomToSendPost.id);
                                 broadcastToRoom<EndGameEventDataToClientType>(roomToSendPost, {type: EventType.enum.END_GAME});
                                 break;
                             }
+                            const activeGame = await ensureActiveGame(roomToSendPost);
+                            if(activeGame) {
+                                await startNextRound(roomToSendPost.id, activeGame.gameId, roomToSendPost.curRound);
+                            }
+                            await upsertRoom(roomToSendPost);
                             broadcastToRoom<ShowLeaderboardEventDataToClientType>(roomToSendPost, {type: EventType.enum.SHOW_LEADERBOARD});
                             break;
                         }
@@ -474,6 +808,12 @@ server.on("connection", response => {
                             console.error('No posts available to send.');
                             broadcastToRoom<RequestPostEventDataToClientType>(roomToSendPost, {type: EventType.enum.REQUEST_POST});
                             break;
+                        }
+                        await ensureActiveGame(roomToSendPost, data.userID);
+                        await recordPostAndTags(postToSend);
+                        const activeGame = activeGames.get(roomToSendPost.id);
+                        if(activeGame) {
+                            await recordRoundPost(roomToSendPost.id, activeGame.roundId, postToSend.id, activeGame.nextPostOrder);
                         }
                         const preferlistAllTimeTags = new Set(roomToSendPost.preferlist.filter(entry => entry.frequency === 'all').map(entry => entry.tag));
                         const tags = Array.isArray(postToSend.tags) ? postToSend.tags : [];
@@ -486,12 +826,14 @@ server.on("connection", response => {
                         };
                         broadcastToRoom<RequestPostEventDataToClientType>(roomToSendPost, {type: EventType.enum.REQUEST_POST, post: postToSendWithPreferlist});
                         roomToSendPost.postsViewedThisRound += 1;
+                        await upsertRoom(roomToSendPost);
                         // reset ready map to all false
                         const newReadyMap = new Map<string, boolean>();
                         roomToSendPost.allUsersReady.forEach((v, k) => {
                             newReadyMap.set(k, false);
                         })
                         roomToSendPost.allUsersReady = newReadyMap;
+                        await setRoomReadyStates(roomToSendPost);
                     } else {
                         broadcastToRoom<RequestPostEventDataToClientType>(roomToSendPost, {type: EventType.enum.REQUEST_POST});
                     }
@@ -520,6 +862,7 @@ server.on("connection", response => {
                             preferlist: room.preferlist
                         };
                         room.allUsersReady.set(data.userID, data.ready);
+                        await setRoomReadyStates(room);
                         broadcastToRoom<ReadyUpEventDataToClientType>(room, {type: EventType.enum.READY_UP, roomID: room.id, room: updatedRoom})
                     } else {
                         console.error(`user ${data.userID} is not in the room`);
@@ -537,6 +880,7 @@ server.on("connection", response => {
                 const data = result.data;
                 const room = rooms.get(data.roomID);
                 if(room) {
+                    await ensureActiveGame(room, room.owner.id);
                     broadcastToRoom(room, {type: EventType.enum.START_GAME});
                 } else {
                     console.error(`room ${data.roomID} does not exist, so a game cannot be started in it`);
@@ -568,6 +912,7 @@ server.on("connection", response => {
                     room.blacklist = room.blacklist.filter(tag => tag !== normalizedTag);
                 }
                 rooms.set(room.id, room);
+                await updateBlacklist(room.id, normalizedTag, data.action);
                 const responseData: UpdateBlacklistEventDataToClientType = {
                     type: EventType.enum.UPDATE_BLACKLIST,
                     roomID: room.id,
@@ -607,6 +952,10 @@ server.on("connection", response => {
                     room.preferlist = room.preferlist.filter(entry => entry.tag !== normalizedTag);
                 }
                 rooms.set(room.id, room);
+                await updatePreferlist(room.id, normalizedTag, data.action, data.frequency);
+                if(data.action === 'add') {
+                    await updateBlacklist(room.id, normalizedTag, 'remove');
+                }
                 const responseData: UpdatePreferlistEventDataToClientType = {
                     type: EventType.enum.UPDATE_PREFERLIST,
                     roomID: room.id,
