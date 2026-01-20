@@ -13,10 +13,22 @@
         "rootDir": "./",
         "typeRoots": [
             "node_modules/@types"
-        ]
+        ],
+        "skipLibCheck": true
     },
+    "include": [
+        "src/**/*",
+        "supabase/**/*.ts",
+        "data/**/*.json"
+    ],
     "exclude": [
         "dist",
-        "node_modules"
+        "node_modules",
+        "server.ts",
+        "fetching_utility.ts",
+        "fetching_utility_backend.ts",
+        "MetaData.ts",
+        "types.ts",
+        "util/**"
     ]
 }
