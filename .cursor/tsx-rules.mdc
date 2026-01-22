@@ -1,0 +1,295 @@
+---
+globs: *.tsx
+alwaysApply: true
+---
+
+````cursorrules
+# TSX Writing Guide (Step 1)
+
+This guide supports Step 1 of the ui-core workflow when you're planning TSX structure BEFORE writing any code.
+
+## 🎨 THE CANVAS PRINCIPLE: JSX Must Be Clean
+
+**JSX is your painting canvas. It must be clean, legible, and directly mappable to CSS.**
+
+This is Step 1 of the ui-core workflow - get this right and everything else follows.
+
+### The Core Rules
+
+1. **Every element has a className** (except rare `<h1>`, `<p>`)
+2. **Use `cn()` for all conditional classes** (never ternaries)
+3. **No inline styles for visual state** (use className toggles)
+4. **No CSS imports** (all CSS in workshop.css or dedicated files)
+5. **Extract complex logic before return** (JSX reads like HTML)
+
+### Quick Before/After
+
+**❌ WRONG - Logic pollutes canvas:**
+
+```tsx
+export default function Sidebar({ items, isOpen }) {
+  return (
+    <aside className={isOpen ? 'sidebar sidebar-open' : 'sidebar'}>
+      <div>
+        <h2>Menu</h2>
+      </div>
+      <nav>
+        <ul>
+          {items.map((item) => (
+            <li key={item.id}>
+              <a href={item.url} style={{ color: item.active ? 'blue' : 'gray' }}>
+                {item.name}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </aside>
+  );
+}
+```
+
+**✅ RIGHT - Clean canvas:**
+
+```tsx
+import cn from 'clsx';
+
+export default function Sidebar({ items, isOpen }) {
+  return (
+    <aside className={cn('sidebar', { open: isOpen })}>
+      <div className="sidebar-header">
+        <h2 className="sidebar-title">Menu</h2>
+      </div>
+      <nav className="sidebar-nav">
+        <ul className="sidebar-nav-list">
+          {items.map((item) => (
+            <li key={item.id} className="sidebar-nav-item">
+              <a href={item.url} className={cn('sidebar-nav-link', { active: item.active })}>
+                {item.name}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </aside>
+  );
+}
+```
+
+## ✅ While Planning Structure (Step 1 Checklist)
+
+Use this checklist for EVERY component you create:
+
+### 1. Import Check
+- [ ] Imported `cn` from 'clsx' at top of file
+- [ ] NO CSS imports (never `import './Component.css'`)
+
+### 2. ClassName Check
+- [ ] EVERY element has a className (even wrappers)
+- [ ] ClassNames follow `component-descriptor-variant` format
+- [ ] NO naked divs, spans, or containers
+
+### 3. Conditional Logic Check
+- [ ] Using `cn()` for ALL conditional classes
+- [ ] NO ternaries for classNames
+- [ ] NO inline styles for visual state
+
+### 4. Complexity Check
+- [ ] Complex logic extracted before return
+- [ ] JSX reads like HTML, not JavaScript
+- [ ] No nested ternaries in className logic
+
+### 5. Collision Check (CRITICAL)
+- [ ] Will check EVERY className with Cmd+F in Step 2
+- [ ] ClassNames are component-specific (not generic)
+
+## 📦 Using cn (clsx) - Essential Patterns
+
+**Import once, use everywhere:**
+
+```tsx
+import cn from 'clsx';
+```
+
+### Pattern 1: Boolean States (Most Common)
+
+```tsx
+<div className={cn('card', { active: isActive, disabled: isDisabled })}>
+```
+
+### Pattern 2: Dynamic Variants
+
+```tsx
+<button className={cn('button', size && `button-${size}`, { loading })}>
+```
+
+### Pattern 3: Multiple Conditions
+
+```tsx
+<div className={cn('task-card', {
+  expanded: isExpanded,
+  completed: task.completed,
+  'priority-high': task.priority === 'high'
+})}>
+```
+
+### When to Extract (Rare)
+
+```tsx
+// ONLY if logic is truly complex
+const cardClass = useMemo(() => {
+  return calculateComplexClass(props);
+}, [props]);
+
+<div className={cn('card', cardClass)}>
+```
+
+### Common Mistakes
+
+- ❌ `className={isOpen ? 'modal open' : 'modal'}` → Use cn
+- ❌ `className={'card ' + (active ? 'active' : '')}` → Use cn
+- ❌ `className={cn(active && 'active')}` → Include base class
+
+## 🏷️ Every Element Needs a ClassName
+
+**MANDATORY:** Every element MUST have a className. NO exceptions except truly common semantic tags.
+
+**The Rule:**
+- Wrappers: Need classNames
+- Containers: Need classNames
+- Semantic tags (`<nav>`, `<aside>`, `<section>`): Need classNames
+- Even single-child divs: Need classNames
+
+**Rare Exceptions:**
+- Bare `<h1>`, `<h2>`, `<p>` - but prefer adding classNames anyway
+- When in doubt: ADD THE CLASSNAME
+
+**Quick Check:**
+
+```tsx
+// ❌ WRONG
+<div>
+  <div>
+    <span>{text}</span>
+  </div>
+</div>
+
+// ✅ RIGHT
+<div className="card">
+  <div className="card-body">
+    <span className="card-text">{text}</span>
+  </div>
+</div>
+```
+
+## 🚫 No Inline Styles for Visual State
+
+**NEVER use inline styles for state-based changes.** Use className toggles with cn.
+
+**Common Violations:**
+
+```tsx
+// ❌ WRONG - Inline styles
+<div style={{ display: isOpen ? 'block' : 'none' }}>
+<div style={{ opacity: isLoading ? 0.5 : 1 }}>
+<div style={{ transform: `translateX(${offset}px)` }}>
+
+// ✅ RIGHT - ClassName toggles
+<div className={cn('panel', { open: isOpen })}>
+<div className={cn('content', { loading: isLoading })}>
+<div className={cn('slider', `offset-${offset}`)}>
+```
+
+**Exception:** Truly dynamic values from data (like progress bars)
+
+```tsx
+<div style={{ '--progress': `${percent}%` } as React.CSSProperties}>
+```
+
+## 🧹 Clean JSX Guidelines
+
+### Extract Complex Logic
+
+```tsx
+// ❌ BAD - Complex logic in JSX
+<div className={isOpen && !isLoading ? 'modal open' : isLoading ? 'loading' : 'modal'}>
+
+// ✅ GOOD - Use cn
+<div className={cn('modal', { open: isOpen && !isLoading, loading: isLoading })}>
+```
+
+### No CSS Imports
+
+```tsx
+// ❌ WRONG
+import './Component.css';
+import styles from './Component.module.css';
+
+// ✅ RIGHT
+// No CSS imports - CSS in workshop.css or dedicated file
+```
+
+### Global CSS Pattern
+
+```tsx
+// Component.tsx
+import cn from 'clsx';
+
+export default function Button({ variant, disabled, children }) {
+  return (
+    <button
+      className={cn('button', variant && `button-${variant}`, { disabled })}
+      disabled={disabled}
+    >
+      <span className="button-content">{children}</span>
+    </button>
+  );
+}
+// CSS is in workshop.css with block comments (see patterns-examples.mdc)
+```
+
+## ⚠️ Collision Prevention (Step 2 Reminder)
+
+**Remember:** You use GLOBAL CSS. ClassNames MUST be globally unique.
+
+**After Step 1, you MUST do Step 2:** Check EVERY className with Cmd+F
+
+### Naming Strategy
+
+```tsx
+// ❌ BAD - Generic, will collide
+<div className="container">
+<div className="header">
+<button className="button">
+
+// ✅ GOOD - Component-specific
+<div className="sidebar-container">
+<div className="sidebar-header">
+<button className="sidebar-toggle-button">
+```
+
+**See collision-management.mdc for full collision prevention workflow.**
+
+## 🚨 Common Mistakes to Avoid
+
+**Instant Red Flags:**
+
+- Ternary operators for classNames → Use cn
+- Inline styles for state → Use className toggles
+- Missing classNames on elements → Add them
+- CSS imports in components → Remove them
+- Generic classNames (`container`, `button`) → Make specific
+- Complex logic in JSX → Extract before return
+
+**If you see any of these, STOP and fix immediately.**
+
+## Remember
+
+**Goal:** Clean JSX that maps 1:1 to CSS selectors. Every element visible, every className intentional.
+
+- Canvas must be clean
+- Every element gets a className
+- Use cn for all conditionals
+- No inline styles for visual state
+- Collision check comes next (Step 2)
+````

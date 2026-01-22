@@ -1,0 +1,302 @@
+---
+globs: *.css
+alwaysApply: true
+---
+
+````cursorrules
+# CSS Writing Guide (Step 3)
+
+This guide supports Step 3 of the ui-core workflow when you're actively writing CSS in `workshop.css`.
+
+## 🥇 THE GOLDEN RULE: DOM Order Mapping
+
+**This is the MOST IMPORTANT rule. Violating this makes the codebase unmaintainable.**
+
+Selectors MUST appear in EXACT DOM order - NO REORDERING, NO GROUPING, NO EXCEPTIONS.
+
+### The Rule in Action
+
+**Step 1:** Walk through JSX top-to-bottom, left-to-right
+**Step 2:** Write CSS selectors in that EXACT same order
+**Step 3:** Verify every element has a selector or `/* .element */` placeholder
+
+### Quick Example
+
+**JSX Order:** `sidebar` → `sidebar-header` → `sidebar-title` → `sidebar-nav` → `sidebar-nav-list`
+
+**CSS Order: MUST BE IDENTICAL**
+
+```css
+.sidebar {}
+.sidebar-header {}
+.sidebar-title {}
+.sidebar-nav {}
+.sidebar-nav-list {}
+```
+
+**❌ WRONG - Out of order:**
+
+```css
+.sidebar {}
+.sidebar-nav {}      /* ❌ Skipped header */
+.sidebar-header {}   /* ❌ Out of order */
+```
+
+**✅ RIGHT - Exact DOM order maintained:**
+
+```css
+.sidebar {}
+.sidebar-header {}
+.sidebar-title {}
+.sidebar-nav {}
+.sidebar-nav-list {}
+/* .sidebar-footer */  /* Placeholder for unstyled element */
+```
+
+### Why This Matters
+
+- Enables instant lookup (find any selector in < 3 seconds)
+- Prevents selector confusion and duplication
+- Makes maintenance possible at scale
+- Humans can scan CSS and immediately understand structure
+
+## ✅ While Writing CSS (Step 3 Checklist)
+
+Use this checklist for EVERY selector you write:
+
+### 1. Selector Order Check
+- [ ] Is this selector in EXACT DOM order from JSX?
+- [ ] Did I skip any elements? (add `/* .element */` placeholders)
+- [ ] Are all parent selectors defined before children?
+
+### 2. Naming Check
+- [ ] Format: `component-descriptor-variant` (dash-separated)
+- [ ] First word = component name
+- [ ] Max 4 words, prefer 3
+- [ ] No camelCase, no underscores
+
+### 3. Selector Type Check
+- [ ] Using `.class {}` not `div {}` or `p {}`
+- [ ] Only exception: `:root` for variables
+
+### 4. Nesting Check
+- [ ] Max 2 levels deep
+- [ ] Only nesting for: (a) modifiers `&.active` or (b) state cascades `&.open .child`
+- [ ] NOT nesting for organization
+- [ ] NEVER multiple selectors on one line - always use nesting
+
+### 5. Property Check
+- [ ] Using CSS variables (no hardcoded pixels or colors)
+- [ ] Properties in logical order (Layout → Typography → Box → Visual → Animation)
+
+### 6. State Management Check
+- [ ] State modifiers use `&.state` format
+- [ ] Container-based state cascades properly
+
+## 📝 Class Naming Rules
+
+**Format:** `component-descriptor-variant` (dash-separated only)
+
+**Examples:**
+
+```css
+/* ✅ GOOD */
+.sidebar-header {}
+.sidebar-nav-list {}
+.task-card-header {}
+.user-profile-actions {}
+
+/* ❌ BAD */
+.sidebarHeader {}        /* camelCase */
+.sidebar_header {}       /* underscores */
+.nav-list {}             /* missing component prefix */
+.s-n-l {}                /* abbreviated */
+```
+
+## 🪹 Nesting Rules
+
+**Max depth: 2 levels (STRICTLY ENFORCED for NEW code)**
+
+**ONLY nest for:**
+1. Modifier states: `.button { &.primary {} }`
+2. State cascades: `.sidebar { &.closed .link {} }`
+
+**❌ NEVER nest for organization:**
+
+```css
+.card {
+  .card-header {      /* ❌ Wrong - flatten this */
+    .card-title {}
+  }
+}
+```
+
+**✅ Correct approach:**
+
+```css
+.card {}
+.card-header {}
+.card-title {}
+
+.card {
+  &.featured {        /* ✅ Modifier */
+    border: 2px solid var(--color-primary);
+  }
+}
+```
+
+**Rare Exception:** 3+ levels ONLY for complex pseudo-selectors (e.g., `:checked` + sibling combinator)
+- Must add comment explaining why 2 levels won't work
+- ALWAYS use proper nesting - NEVER multiple selectors on one line
+- EXISTING code with deep nesting: leave as-is unless asked to refactor
+
+## 📋 Property Ordering
+
+Write properties in this order for scannable code:
+
+**1. Display & Layout**
+`display`, `position`, `flex`, `grid`, `align-items`, `justify-content`
+
+**2. Typography**
+`font-family`, `font-size`, `font-weight`, `line-height`, `color`, `text-align`
+
+**3. Box Model**
+`width`, `height`, `margin`, `padding`
+
+**4. Visual**
+`background`, `border`, `border-radius`, `box-shadow`, `opacity`
+
+**5. Transform & Animation**
+`transform`, `transition`, `animation`
+
+**6. Other**
+`cursor`, `pointer-events`, `overflow`, `z-index`
+
+**Quick Template:**
+
+```css
+.element {
+  /* Display & Layout */
+  display: flex;
+  align-items: center;
+
+  /* Typography */
+  font-size: var(--font-size);
+  color: var(--font-color);
+
+  /* Box Model */
+  padding: var(--padding);
+  margin: var(--margin);
+
+  /* Visual */
+  background: var(--background);
+  border: var(--border);
+  border-radius: var(--border-radius);
+
+  /* Animation */
+  transition: all var(--run) var(--fadein);
+
+  /* Other */
+  cursor: pointer;
+}
+```
+
+## 🔄 State Management Patterns
+
+### Modifier Pattern
+
+```css
+.button {
+  /* base styles */
+
+  &.primary { background: var(--color-blue-500); }
+  &.secondary { background: var(--color-neutral-700); }
+  &.disabled { opacity: 0.5; pointer-events: none; }
+}
+```
+
+### Container State Cascade
+
+```css
+.sidebar {
+  transform: translateX(0);
+  transition: transform 0.3s;
+
+  &.closed {
+    transform: translateX(-280px);
+  }
+
+  &.closed .sidebar-link {
+    opacity: 0;
+  }
+}
+```
+
+### Pseudo-Selector States (Rare 3-level exception)
+
+```css
+.checkbox-input {
+  /* Justified 3-level nesting for :checked pseudo-selector */
+  &:checked {
+    + .checkbox-label {
+      .checkbox-custom {
+        background: var(--color-primary);
+      }
+    }
+  }
+
+  &:focus {
+    + .checkbox-label {
+      .checkbox-custom {
+        box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1);
+      }
+    }
+  }
+}
+```
+
+## 🎚️ Z-Index Discipline
+
+**Strict Range: -1, 0, 1 ONLY**
+
+- Default: 0 (omit property)
+- Background elements: -1 (`var(--z-index-down)`)
+- Interactive overlays: 1 (`var(--z-index-up)`)
+
+**Prefer DOM reordering over z-index whenever possible.**
+
+**Example:**
+
+```css
+/* ✅ GOOD - No z-index needed, DOM order is correct */
+.modal-content {}  /* Appears last in DOM, renders on top */
+.modal-backdrop {} /* Appears first in DOM, renders behind */
+
+/* ❌ BAD - Fixing DOM order with z-index */
+.modal-backdrop { z-index: var(--z-index-down); }
+```
+
+## 🚨 Common Mistakes to Avoid
+
+**Instant Red Flags:**
+
+- Writing `.parent .child {}` on one line → Use nesting instead
+- Skipping elements in DOM order → Add `/* .element */` placeholders
+- Element selectors `div {}` → Use `.class {}` instead
+- Deep nesting for organization → Flatten and use descriptive names
+- Hardcoded values (`16px`, `#ffffff`) → Use `var(--variable)` or `calc()`
+- Reordering CSS to "group related" → Keep strict DOM order
+- Z-index outside -1, 0, 1 → Use DOM ordering or allowed values
+
+**If you see any of these in your code, STOP and fix immediately.**
+
+## Remember
+
+**Goal:** Given any DOM element, find its CSS selector in under 3 seconds by scanning in DOM order.
+
+- DOM order is non-negotiable
+- Every element gets a selector (or placeholder comment)
+- Use CSS variables for all values
+- Keep nesting flat (max 2 levels)
+- Modifiers use `&` syntax
+````

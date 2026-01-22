@@ -5,7 +5,7 @@ import { EventType } from '../types';
 import {
     useNavigate,
 } from 'react-router-dom';
-import { Container, TitleText, TitleContainer } from '../components/StyledElements';
+import { TitleText, TitleContainer } from '../components/StyledElements';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -17,6 +17,19 @@ export const Lobby: React.FC = () => {
     const [usernameInput, setUsernameInput] = useState<string>('');
     const [rooms, setRooms] = useState<ClientRoomType[]>([]);
     const navigate = useNavigate();
+    const navItems = [
+        'Gallery',
+        'Feed',
+        'Collections',
+        'Sets',
+        'Tags',
+        'Updates',
+        'Discuss',
+        'Forums',
+        'Guides',
+        'Help',
+        'More'
+    ];
 
     useEffect(() => {
         const onJoinRoom = (data: JoinRoomEventDataToClientType) => {
@@ -124,60 +137,90 @@ export const Lobby: React.FC = () => {
 
     const renderSignUp = () => {
         if(!username) {
-            return <Container>
-                <TitleContainer className={styles.blurredImage} style={{gridArea: 'e6-join', paddingBottom: 12}}>
-                    <TitleText>
-                        Art Feud
-                    </TitleText>
-                    <div className={styles.infoBar}>
-                        <a href="https://github.com/lseper/art-tag-feud">contribute</a>
-                    </div>
-                    <label form="roomIDForm">
-                            Log in wtih a username
-                    </label>
-                    <form id="roomIDForm" style={{paddingTop: 8}}onSubmit={(e) => {
-                    e.preventDefault();
-                    createUsername(usernameInput);
-                    document.body.style.backgroundImage = 'none';
-                }}>
-                    <Input
-                    className={styles.input}
-                    type="text" 
-                    placeholder="Enter a username to start playing!"
-                    size={30}
-                    value={usernameInput} 
-                    onChange={(e) => setUsernameInput(e.target.value)}/>
-                    </form>
-                    <form id="roomIDForm" style={{paddingTop: 4, marginBottom: 4}}onSubmit={(e) => {
-                    e.preventDefault();
-                    createUsername(usernameInput);
-                }}>
-            </form>
-            <Button type="submit" form="roomIDForm" style={{marginRight: 8}}>
-              Start
-            </Button>
-            </TitleContainer>
-        </Container>
-        } else {
             return (
-                <div className={styles.lobbyContainer}>
-                    <Card className={`${styles.card} ${styles.cardCentered}`}>
+                <main className={styles.homeLayout}>
+                    <section className={styles.panelStack}>
+                        <TitleContainer className={`${styles.panel} ${styles.searchPanel} ${styles.blurredImage}`} style={{gridArea: 'e6-join'}}>
+                            <TitleText className={styles.heroTitle}>
+                                Art Feud
+                            </TitleText>
+                            <p className={styles.heroSubtitle}>
+                                Log in with a username to start playing.
+                            </p>
+                            <form
+                                className={styles.searchForm}
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    createUsername(usernameInput);
+                                    document.body.style.backgroundImage = 'none';
+                                }}
+                            >
+                                <Input
+                                    className={`${styles.input} ${styles.searchInput}`}
+                                    type="text"
+                                    placeholder="Enter a username to start playing!"
+                                    size={30}
+                                    value={usernameInput}
+                                    onChange={(e) => setUsernameInput(e.target.value)}
+                                />
+                                <Button type="submit" className={styles.searchButton}>
+                                    Start
+                                </Button>
+                            </form>
+                            <div className={styles.quickButtons}>
+                                <Button type="button" className={styles.secondaryButton} variant="secondary">
+                                    Quick Play
+                                </Button>
+                                <Button type="button" className={styles.secondaryButton} variant="secondary">
+                                    How to Play
+                                </Button>
+                            </div>
+                        </TitleContainer>
+                        <Card className={`${styles.panel} ${styles.newsPanel}`}>
+                            <p className={styles.panelTitle}>
+                                News
+                            </p>
+                            <p>
+                                Welcome to Art Feud! Invite friends, create a room, and race to tag your favorite art.
+                            </p>
+                            <a className={styles.panelLink} href="https://github.com/lseper/art-tag-feud">
+                                Learn more about the project
+                            </a>
+                        </Card>
+                        <Card className={`${styles.panel} ${styles.footerPanel}`}>
+                            <div className={styles.footerRow}>
+                                <span>Mascot by community artists</span>
+                                <Button type="button" className={styles.secondaryButton} variant="secondary">
+                                    Swap Mascot
+                                </Button>
+                            </div>
+                            <div className={styles.footerLinks}>
+                                <a href="https://github.com/lseper/art-tag-feud">Contribute</a>
+                                <span>•</span>
+                                <a href="https://github.com/lseper/art-tag-feud/issues">Issues</a>
+                                <span>•</span>
+                                <a href="https://github.com/lseper/art-tag-feud#readme">About</a>
+                            </div>
+                        </Card>
+                    </section>
+                </main>
+            );
+        }
+        return (
+            <main className={styles.homeLayout}>
+                <section className={styles.panelStack}>
+                    <Card className={`${styles.panel} ${styles.heroPanel}`}>
                         <h1 className={styles.cardTitle}>
                             Art Feud
                         </h1>
                         <h2 className={styles.cardSubtitle}>
-                            Create a Room!
+                            Create a Room
                         </h2>
                         <Button className={styles.createRoomButton} onClick={createRoom}>
                             Create Room
                         </Button>
                     </Card>
-                    <Card className={`${styles.card} ${styles.cardInline}`}>
-                        <a className={styles.creditLink} href={'https://github.com/lseper/art-tag-feud'}>
-                            contribute
-                        </a>
-                    </Card>
-                    <Card className={`${styles.card} ${styles.cardCentered}`}>
+                    <Card className={`${styles.panel} ${styles.cardCentered}`}>
                         <h1 className={styles.cardTitle}>
                             Joinable Rooms
                         </h1>
@@ -190,10 +233,48 @@ export const Lobby: React.FC = () => {
                             }
                         </ul>
                     </Card>
-                </div>
-            )
-        }
+                    <Card className={`${styles.panel} ${styles.footerPanel}`}>
+                        <div className={styles.footerRow}>
+                            <span>Need help?</span>
+                            <a className={styles.panelLink} href="https://github.com/lseper/art-tag-feud">
+                                Read the guide
+                            </a>
+                        </div>
+                        <div className={styles.footerLinks}>
+                            <a href="https://github.com/lseper/art-tag-feud">Contribute</a>
+                            <span>•</span>
+                            <a href="https://github.com/lseper/art-tag-feud/issues">Report a bug</a>
+                            <span>•</span>
+                            <a href="https://github.com/lseper/art-tag-feud#readme">About</a>
+                        </div>
+                    </Card>
+                </section>
+            </main>
+        );
     }
 
-    return renderSignUp();
+    return (
+        <div className={styles.page}>
+            <header className={styles.topBar}>
+                <div className={styles.logoArea}>
+                    <div className={styles.logoMark} aria-hidden />
+                    <span className={styles.logoText}>Art Feud</span>
+                </div>
+                <nav className={styles.topNav}>
+                    {navItems.map(item => (
+                        <button key={item} type="button" className={styles.topNavItem}>
+                            {item}
+                        </button>
+                    ))}
+                </nav>
+                <div className={styles.topActions}>
+                    <span className={styles.usernamePill}>{username ?? 'Guest'}</span>
+                    <button type="button" className={styles.menuButton}>
+                        Menu
+                    </button>
+                </div>
+            </header>
+            {renderSignUp()}
+        </div>
+    );
 }
