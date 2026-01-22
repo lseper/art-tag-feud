@@ -14,6 +14,7 @@ import {
     StartGameEventData,
     UpdateBlacklistEventData,
     UpdatePreferlistEventData,
+    UpdateRoomSettingsEventData,
 } from '../../domain/contracts';
 import type {
     AllRoomsEventDataToClientType,
@@ -28,10 +29,11 @@ import type {
     ShowLeaderboardEventDataToClientType,
     UpdateBlacklistEventDataToClientType,
     UpdatePreferlistEventDataToClientType,
+    UpdateRoomSettingsEventDataToClientType,
 } from '../../domain/contracts';
 import { broadcast, broadcastToRoom, reply } from './wsBroadcast';
 import { getOrCreateUser, setUserIcon, setUsername } from '../../services/userService';
-import { getAllRooms, getRoom, getSelectedIcons, createOrUpdateRoom, joinRoom, leaveRoom, updateRoomReadyState, updateRoomBlacklist, updateRoomPreferlist } from '../../services/roomService';
+import { getAllRooms, getRoom, getSelectedIcons, createOrUpdateRoom, joinRoom, leaveRoom, updateRoomReadyState, updateRoomBlacklist, updateRoomPreferlist, updateRoomSettings } from '../../services/roomService';
 import { handleGuessTag } from '../../services/guessService';
 import { handleRequestPost } from '../../services/postService';
 import { ensureActiveGame } from '../../services/gameService';
@@ -111,7 +113,15 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
             }
             const data = result.data;
             const userID = getOrCreateUser(response, data.userID);
-            const createResult = await createOrUpdateRoom(userID, data.roomName, data.postsPerRound, data.roundsPerGame, data.roomID);
+            const createResult = await createOrUpdateRoom(
+                userID,
+                data.roomName,
+                data.postsPerRound,
+                data.roundsPerGame,
+                data.roomID,
+                data.gameMode,
+                data.rating,
+            );
             if (createResult) {
                 const roomToClient = createResult.roomToClient;
                 broadcast<JoinRoomEventDataToClientType>(server, { type: EventType.enum.JOIN_ROOM, user: createResult.user, room: roomToClient });
@@ -195,6 +205,10 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
                 const updatedRoom = {
                     roomID: readyResult.room.id,
                     roomName: readyResult.room.name,
+                    postsPerRound: readyResult.room.postsPerRound,
+                    roundsPerGame: readyResult.room.roundsPerGame,
+                    gameMode: readyResult.room.gameMode,
+                    rating: readyResult.room.rating,
                     readyStates: readyResult.roomToClient.readyStates,
                     owner: readyResult.user,
                     blacklist: readyResult.room.blacklist,
@@ -261,6 +275,39 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
                 };
                 broadcastToRoom(updateResult.room, blacklistResponse);
             }
+            break;
+        }
+        case EventType.enum.UPDATE_ROOM_SETTINGS: {
+            const result = UpdateRoomSettingsEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const room = getRoom(data.roomID);
+            if (!room || room.owner.id !== data.userID) {
+                break;
+            }
+            const updateResult = await updateRoomSettings(
+                data.roomID,
+                data.roomName,
+                data.postsPerRound,
+                data.roundsPerGame,
+                data.gameMode,
+                data.rating,
+            );
+            if (!updateResult) {
+                break;
+            }
+            const responseData: UpdateRoomSettingsEventDataToClientType = {
+                type: EventType.enum.UPDATE_ROOM_SETTINGS,
+                roomID: updateResult.room.id,
+                roomName: updateResult.room.name,
+                postsPerRound: updateResult.room.postsPerRound,
+                roundsPerGame: updateResult.room.roundsPerGame,
+                gameMode: updateResult.room.gameMode,
+                rating: updateResult.room.rating,
+            };
+            broadcastToRoom(updateResult.room, responseData);
             break;
         }
         default:

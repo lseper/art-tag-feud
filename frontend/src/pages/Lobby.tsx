@@ -33,7 +33,15 @@ export const Lobby: React.FC = () => {
 
     useEffect(() => {
         const onJoinRoom = (data: JoinRoomEventDataToClientType) => {
-          setRooms([data.room, ...rooms]);
+          setRooms((prevRooms) => {
+            const existingIndex = prevRooms.findIndex(room => room.roomID === data.room.roomID);
+            if (existingIndex === -1) {
+              return [data.room, ...prevRooms];
+            }
+            const nextRooms = [...prevRooms];
+            nextRooms[existingIndex] = data.room;
+            return nextRooms;
+          });
           // if the update was for this room that we are in, then update the owner
           if(userID === data.user.id) {
               setRoomID(data.room.roomID);
@@ -68,7 +76,7 @@ export const Lobby: React.FC = () => {
         return () => {
             unsubscribers.forEach(unsubscribe => unsubscribe());
         }
-    }, [connectionManager, navigate, roomID, rooms, setBlacklist, setOwner, setPreferlist, setReadyStates, setRoomID, setRoomName, setUserID, setUsername, userID]);
+    }, [connectionManager, navigate, roomID, setBlacklist, setOwner, setPreferlist, setReadyStates, setRoomID, setRoomName, setUserID, setUsername, userID]);
 
     
     const createUsername = useCallback((username: string) => {
@@ -78,7 +86,7 @@ export const Lobby: React.FC = () => {
 
     const createRoom = useCallback(() => {
         if(userID) {
-            navigate("/create");
+            navigate("/play");
         }
     }, [navigate, userID]);
 
@@ -111,7 +119,7 @@ export const Lobby: React.FC = () => {
     const renderRoom = useCallback((room: ClientRoomType) => {
         const {roomName, readyStates} = room;
         return (
-            <li key={roomID} style={{paddingTop: 4}}>
+            <li key={room.roomID} style={{paddingTop: 4}}>
                 <div className={styles.roomName}>
                     <p>
                         {roomName}
@@ -220,6 +228,17 @@ export const Lobby: React.FC = () => {
                             Create Room
                         </Button>
                     </Card>
+                    <Card className={`${styles.panel} ${styles.privateJoinPanel}`}>
+                        <label className={styles.privateJoinLabel} htmlFor="private-room-code">
+                            Enter Room Code
+                        </label>
+                        <Input
+                            id="private-room-code"
+                            className={`${styles.input} ${styles.privateJoinInput}`}
+                            type="text"
+                            placeholder="Enter a private room code"
+                        />
+                    </Card>
                     <Card className={`${styles.panel} ${styles.cardCentered}`}>
                         <h1 className={styles.cardTitle}>
                             Joinable Rooms
@@ -232,21 +251,6 @@ export const Lobby: React.FC = () => {
                                 rooms.map(room => renderRoom(room))
                             }
                         </ul>
-                    </Card>
-                    <Card className={`${styles.panel} ${styles.footerPanel}`}>
-                        <div className={styles.footerRow}>
-                            <span>Need help?</span>
-                            <a className={styles.panelLink} href="https://github.com/lseper/art-tag-feud">
-                                Read the guide
-                            </a>
-                        </div>
-                        <div className={styles.footerLinks}>
-                            <a href="https://github.com/lseper/art-tag-feud">Contribute</a>
-                            <span>•</span>
-                            <a href="https://github.com/lseper/art-tag-feud/issues">Report a bug</a>
-                            <span>•</span>
-                            <a href="https://github.com/lseper/art-tag-feud#readme">About</a>
-                        </div>
                     </Card>
                 </section>
             </main>

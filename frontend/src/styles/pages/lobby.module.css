@@ -219,6 +219,31 @@
   align-items: center;
 }
 
+.privateJoinPanel {
+  align-items: center;
+  gap: 12px;
+}
+
+.privateJoinLabel {
+  color: #cbd9ea;
+  font-size: 1.05rem;
+  padding-right: 8px;
+}
+
+.privateJoinInput {
+  width: min(360px, 100%);
+  background: #f4f1e5;
+  color: #162232;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  padding: 8px 12px;
+  height: 44px;
+}
+
+.privateJoinInput::placeholder {
+  color: #516174;
+}
+
 .cardTitle {
   color: #e5eef8;
   font-size: 2.3em;

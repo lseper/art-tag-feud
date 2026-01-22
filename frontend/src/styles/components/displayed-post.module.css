@@ -1,34 +1,40 @@
 .container {
   flex: 1 1 auto;
   align-self: auto;
-  background-color: var(--card);
-  padding: 25px;
-  margin: 20px 75px 0 75px;
-  border-radius: 20px;
+  background-color: var(--section-lighten-5);
+  padding: 10px;
+  margin: 0;
+  border-radius: 8px;
+  border: 1px solid var(--table-border);
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .container img {
-  margin-bottom: 20px;
+  margin: 0;
+  max-width: 100%;
+  height: auto;
 }
 
 @media (max-width: 600px) {
   .container {
-    margin: 20px 40px 0 40px;
-    padding: 20px;
+    margin: 0;
+    padding: 8px;
   }
 }
 
 @media (max-width: 490px) {
   .container {
-    margin: 15px 20px 0 20px;
-    padding: 15px;
+    margin: 0;
+    padding: 6px;
   }
 }
 
 @media (max-width: 430px) {
   .container {
-    margin: 10px 10px 0 10px;
-    padding: 10px;
+    margin: 0;
+    padding: 4px;
   }
 }
 

@@ -17,6 +17,10 @@ const convertServerRoomToClientRoom = (serverRoom: ServerRoomType, users: Map<st
     return {
         roomID: serverRoom.id,
         roomName: serverRoom.name,
+        postsPerRound: serverRoom.postsPerRound,
+        roundsPerGame: serverRoom.roundsPerGame,
+        gameMode: serverRoom.gameMode,
+        rating: serverRoom.rating,
         readyStates,
         owner: serverRoom.owner,
         blacklist: serverRoom.blacklist,

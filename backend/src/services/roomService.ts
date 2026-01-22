@@ -1,6 +1,8 @@
 import { v4 } from 'uuid';
 import type {
     ClientRoomType,
+    GameModeType,
+    RoomRatingType,
     ServerRoomType,
     UpdateBlacklistEventDataType,
     UpdatePreferlistEventDataType,
@@ -39,7 +41,18 @@ const getSelectedIcons = (roomID: string) => {
     return selectedIcons;
 };
 
-const createOrUpdateRoom = async (userID: string, roomName: string, postsPerRound: number, roundsPerGame: number, roomID?: string) => {
+const DEFAULT_GAME_MODE: GameModeType = 'Blitz';
+const DEFAULT_RATING: RoomRatingType = 'Explicit';
+
+const createOrUpdateRoom = async (
+    userID: string,
+    roomName: string,
+    postsPerRound: number,
+    roundsPerGame: number,
+    roomID?: string,
+    gameMode?: GameModeType,
+    rating?: RoomRatingType,
+) => {
     const user = users.get(userID);
     if (!user) return null;
 
@@ -49,6 +62,8 @@ const createOrUpdateRoom = async (userID: string, roomName: string, postsPerRoun
         room.postsPerRound = postsPerRound;
         room.roundsPerGame = roundsPerGame;
         room.name = roomName;
+        room.gameMode = gameMode ?? room.gameMode ?? DEFAULT_GAME_MODE;
+        room.rating = rating ?? room.rating ?? DEFAULT_RATING;
         resetRoom(room);
         await upsertRoom(room);
         const roomToClient = convertServerRoomToClientRoom(room, users);
@@ -68,6 +83,8 @@ const createOrUpdateRoom = async (userID: string, roomName: string, postsPerRoun
         name: roomName,
         postsPerRound,
         roundsPerGame,
+        gameMode: gameMode ?? DEFAULT_GAME_MODE,
+        rating: rating ?? DEFAULT_RATING,
         members: [user],
         blacklist: [],
         preferlist: [],
@@ -208,6 +225,32 @@ const updateRoomPreferlist = async (roomID: string, tag: string, action: UpdateP
     return { room, normalizedTag, removedFromBlacklist: action === 'add' };
 };
 
+const updateRoomSettings = async (
+    roomID: string,
+    roomName: string,
+    postsPerRound: number,
+    roundsPerGame: number,
+    gameMode: GameModeType,
+    rating: RoomRatingType,
+) => {
+    const room = rooms.get(roomID);
+    if (!room) return null;
+
+    const shouldReset = room.postsPerRound !== postsPerRound || room.roundsPerGame !== roundsPerGame;
+    room.name = roomName;
+    room.postsPerRound = postsPerRound;
+    room.roundsPerGame = roundsPerGame;
+    room.gameMode = gameMode;
+    room.rating = rating;
+    if (shouldReset) {
+        resetRoom(room);
+    }
+    rooms.set(room.id, room);
+    await upsertRoom(room);
+    const roomToClient = convertServerRoomToClientRoom(room, users);
+    return { room, roomToClient };
+};
+
 export {
     getAllRooms,
     getRoom,
@@ -218,4 +261,5 @@ export {
     updateRoomReadyState,
     updateRoomBlacklist,
     updateRoomPreferlist,
+    updateRoomSettings,
 };

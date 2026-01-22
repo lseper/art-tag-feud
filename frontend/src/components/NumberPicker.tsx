@@ -13,21 +13,28 @@ type Props = {
     singleSelect: boolean
     selected: number[],
     setSelected: (newSelected: number[]) => void,
+    disabled?: boolean,
 }
 
-const NumberPicker : React.FC<Props> = ({options, color, backgroundColor, singleSelect, selected, setSelected, title} : Props) => {
+const NumberPicker : React.FC<Props> = ({options, color, backgroundColor, singleSelect, selected, setSelected, title, disabled} : Props) => {
 
     const select = useCallback((value: number) => {
+        if (disabled) {
+            return;
+        }
         if(singleSelect) {
             setSelected([value]);
         } else {
             setSelected([...selected, value]);
         }
-    }, [selected, setSelected, singleSelect]);
+    }, [disabled, selected, setSelected, singleSelect]);
 
     const unselect = useCallback((value: number) => {
+        if (disabled) {
+            return;
+        }
         setSelected(selected.filter(item => item !== value));
-    }, [selected, setSelected]);
+    }, [disabled, selected, setSelected]);
 
     return <div className={styles.wrapper}>
         <Title>
@@ -48,6 +55,7 @@ const NumberPicker : React.FC<Props> = ({options, color, backgroundColor, single
                         }}
                         variant="outline"
                         size="icon"
+                        disabled={disabled}
                       >
                         {option}
                       </Button>
@@ -64,6 +72,7 @@ const NumberPicker : React.FC<Props> = ({options, color, backgroundColor, single
                     }}
                     variant="outline"
                     size="icon"
+                    disabled={disabled}
                   >
                     {option}
                   </Button>

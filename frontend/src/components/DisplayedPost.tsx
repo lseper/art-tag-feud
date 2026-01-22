@@ -5,20 +5,23 @@ interface Props {
     post?: PostType;
     className?: string;
     isMobile?: boolean;
+    onImageLoad?: (width: number, height: number) => void;
 }
 
 const DisplayedPostElement : React.FC<Props> = (props : Props) => {
-    const { post, className } = props;
+    const { post, className, onImageLoad } = props;
     console.log(post?.url)
     if (post) {
         return ( 
-            <div>
-                <div className={className}>
-                    <img
-                        src={post?.url ?? ''}
-                        alt=''
-                    />
-                </div>
+            <div className={className}>
+                <img
+                    src={post?.url ?? ''}
+                    alt=''
+                    onLoad={(event) => {
+                        const img = event.currentTarget;
+                        onImageLoad?.(img.naturalWidth, img.naturalHeight);
+                    }}
+                />
             </div>
         );
     } else {

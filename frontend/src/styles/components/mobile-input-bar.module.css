@@ -20,6 +20,11 @@
   width: 100%;
 }
 
+.progressBar {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
 .input {
   flex: 1;
   height: 44px;
