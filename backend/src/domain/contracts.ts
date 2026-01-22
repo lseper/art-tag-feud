@@ -17,7 +17,8 @@ export const EventType = z.enum(['DEFAULT',
     'REQUEST_POST',
     'SHOW_LEADERBOARD',
     'UPDATE_BLACKLIST',
-    'UPDATE_PREFERLIST']);
+    'UPDATE_PREFERLIST',
+    'UPDATE_ROOM_SETTINGS']);
 
 /**
  * Server-Only Types
@@ -38,6 +39,9 @@ export const Post = z.object({
 
 export const PreferlistFrequency = z.enum(['most', 'all']);
 
+export const GameMode = z.enum(['Blitz', 'Roulette', 'Imposter']);
+export const RoomRating = z.enum(['Safe', 'Questionable', 'Explicit']);
+
 export const PreferlistTag = z.object({
     tag: z.string(),
     frequency: PreferlistFrequency,
@@ -56,6 +60,8 @@ export const ServerRoom = z.object({
     name: z.string(),
     postsPerRound: z.number(),
     roundsPerGame: z.number(),
+    gameMode: GameMode,
+    rating: RoomRating,
     owner: User,
     members: z.array(User),
     blacklist: z.array(z.string()),
@@ -73,6 +79,8 @@ export const CreateRoomEventData = z.object({
     roomName: z.string(),
     postsPerRound: z.number(),
     roundsPerGame: z.number(),
+    gameMode: z.optional(GameMode),
+    rating: z.optional(RoomRating),
     type: z.literal(EventType.enum.CREATE_ROOM)
 });
 export const JoinRoomEventData = z.object({
@@ -137,6 +145,16 @@ export const UpdatePreferlistEventData = z.object({
     frequency: z.optional(PreferlistFrequency),
     type: z.literal(EventType.enum.UPDATE_PREFERLIST)
 })
+export const UpdateRoomSettingsEventData = z.object({
+    roomID: z.string(),
+    userID: z.string(),
+    roomName: z.string(),
+    postsPerRound: z.number(),
+    roundsPerGame: z.number(),
+    gameMode: GameMode,
+    rating: RoomRating,
+    type: z.literal(EventType.enum.UPDATE_ROOM_SETTINGS)
+})
 
 /**
  * Client Types
@@ -150,6 +168,10 @@ export const UserReadyState = z.object({
 export const ClientRoom = z.object({
     roomID: z.string(),
     roomName: z.string(),
+    postsPerRound: z.number(),
+    roundsPerGame: z.number(),
+    gameMode: GameMode,
+    rating: RoomRating,
     owner: User,
     readyStates: z.array(UserReadyState),
     blacklist: z.array(z.string()),
@@ -234,6 +256,15 @@ export const UpdatePreferlistEventDataToClient = z.object({
     preferlist: z.array(PreferlistTag),
     type: z.literal(EventType.enum.UPDATE_PREFERLIST)
 })
+export const UpdateRoomSettingsEventDataToClient = z.object({
+    roomID: z.string(),
+    roomName: z.string(),
+    postsPerRound: z.number(),
+    roundsPerGame: z.number(),
+    gameMode: GameMode,
+    rating: RoomRating,
+    type: z.literal(EventType.enum.UPDATE_ROOM_SETTINGS)
+})
 
 /**
  * Server-Only Object Types
@@ -256,6 +287,7 @@ export type ReadyUpEventDataType = z.infer<typeof ReadyUpEventData>
 export type AllRoomsEventDataType = z.infer<typeof AllRoomsEventData>
 export type UpdateBlacklistEventDataType = z.infer<typeof UpdateBlacklistEventData>
 export type UpdatePreferlistEventDataType = z.infer<typeof UpdatePreferlistEventData>
+export type UpdateRoomSettingsEventDataType = z.infer<typeof UpdateRoomSettingsEventData>
 
 /**
  * Client-Only Types
@@ -275,6 +307,7 @@ export type EndGameEventDataToClientType = z.infer<typeof EndGameEventDataToClie
 export type ShowLeaderboardEventDataToClientType = z.infer<typeof ShowLeaderboardEventDataToClient>
 export type UpdateBlacklistEventDataToClientType = z.infer<typeof UpdateBlacklistEventDataToClient>
 export type UpdatePreferlistEventDataToClientType = z.infer<typeof UpdatePreferlistEventDataToClient>
+export type UpdateRoomSettingsEventDataToClientType = z.infer<typeof UpdateRoomSettingsEventDataToClient>
 
 export type ClientRoomType = z.infer<typeof ClientRoom>;
 
@@ -286,6 +319,8 @@ export type PostTagType = z.infer<typeof PostTag>;
 export type PostType = z.infer<typeof Post>;
 export type PreferlistTagType = z.infer<typeof PreferlistTag>;
 export type PreferlistFrequencyType = z.infer<typeof PreferlistFrequency>;
+export type GameModeType = z.infer<typeof GameMode>;
+export type RoomRatingType = z.infer<typeof RoomRating>;
 export type UserType = z.infer<typeof User>;
 export type EventTypeType = z.infer<typeof EventType>;
 export type UserReadyStateType = z.infer<typeof UserReadyState>;

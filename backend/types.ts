@@ -150,6 +150,8 @@ export const UserReadyState = z.object({
 export const ClientRoom = z.object({
     roomID: z.string(),
     roomName: z.string(),
+    postsPerRound: z.number(),
+    roundsPerGame: z.number(),
     owner: User,
     readyStates: z.array(UserReadyState),
     blacklist: z.array(z.string()),

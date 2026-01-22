@@ -5,12 +5,14 @@ import TagList from './TagList';
 import useTagListGuesser from '../useTagListGuesser';
 import { ProgressBar, MobileProgressBar } from './ProgressBar';
 import InRoundLeaderboard from './InRoundLeaderboard';
-import { TagListLabel, TagsGrid, TagsInput, TagsInputContainer, TagsList } from './TagListContainerStyles';
+import { TagListLabel, TagsInput, TagsInputContainer, TagsList } from './TagListContainerStyles';
 import { UserContext } from '../contexts/UserContext';
 import MobileTagsOverlay from './MobileTagsOverlay';
 import MobileInputBar from './MobileInputBar';
+import MobileLandscapeTags from './MobileLandscapeTags';
 import { breakpointValues } from '../styles/theme/breakpoints';
 import styles from '@/styles/components/tag-list-container-wrapper.module.css';
+import layoutStyles from '@/styles/components/tag-list-container.module.css';
 import { Input } from '@/components/ui/input';
 
 const STARTING_TIME = 30;
@@ -20,10 +22,12 @@ const INCORRECT_GUESS_PENALTY = 0.25;
 interface Props {
     tags: PostTagType[];
     nextRoundButton?: React.ReactNode
+    postOrientation?: 'portrait' | 'landscape' | 'unknown';
+    children?: React.ReactNode;
 };
 
 const TagListContainerElement: React.FC<Props> = (props: Props) => {
-    const { tags, nextRoundButton } = props;
+    const { tags, nextRoundButton, postOrientation = 'unknown', children } = props;
     const [guess, setGuess] = useState('');
     const {userID, roomID, readyStates, setReadyStates, connectionManager, preferlist} = useContext(UserContext);
     const allTimePreferTagNames = useMemo(() => {
@@ -50,6 +54,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
 
     const [time, setTime] = useState(STARTING_TIME);
     const hasRevealedAllTagsRef = useRef(false);
+    const isPortraitPost = postOrientation === 'portrait';
 
     const isMobileViewport = useMemo(() => {
         return window.innerWidth < breakpointValues.mobile;
@@ -117,18 +122,6 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
         }
     }, [allUsersFinished, myReadyState?.ready, readyForNextRound, revealAllTags, time]);
 
-    const generalTagLists = useMemo(() => {
-        const tagList1 = generalTags.slice(0, Math.ceil(generalTags.length / 3));
-        const tagList2 = generalTags.slice(Math.ceil(generalTags.length / 3), Math.ceil(generalTags.length / 3) * 2);
-        const tagList3 = generalTags.slice(Math.ceil(generalTags.length / 3) * 2);
-        const tagLists = [
-            tagList1,
-            tagList2,
-            tagList3,
-        ];
-        return tagLists;
-    }, [generalTags]);
-
     const handleGuessSubmit = useCallback((e: FormEvent) => {
         e.preventDefault();
         const guessedCorrect = guessTag(guess);
@@ -138,105 +131,163 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
         setGuess("");
     }, [guess, guessTag, time]);
 
-    // Mobile layout - overlay UI on top of displayed post
+    // Mobile layout
     if (isMobileViewport) {
+        const showLandscapeTags = postOrientation === 'landscape';
         return (
             <>
-                <MobileTagsOverlay 
-                    guessedTags={guessedTags} 
-                    totalTags={tags.length} 
-                />
+                {children}
+                {!showLandscapeTags && (
+                    <MobileTagsOverlay 
+                        guessedTags={guessedTags} 
+                    />
+                )}
+                {showLandscapeTags && (
+                    <MobileLandscapeTags guessedTags={guessedTags} />
+                )}
                 <InRoundLeaderboard isMobile />
-                <MobileProgressBar 
-                    percentComplete={time / STARTING_TIME * 100} 
-                    totalTime={STARTING_TIME}
-                />
                 <MobileInputBar 
                     guess={guess}
                     setGuess={setGuess}
                     onSubmit={handleGuessSubmit}
                     nextRoundButton={nextRoundButton}
+                    progressBar={(
+                        <MobileProgressBar 
+                            percentComplete={time / STARTING_TIME * 100} 
+                            totalTime={STARTING_TIME}
+                        />
+                    )}
                 />
             </>
         );
     }
 
+    const portraitColumns = useMemo(() => {
+        if (!isPortraitPost) {
+            return null;
+        }
+        const totalTags = tags.length;
+        const leftTargetCount = totalTags > 50 ? Math.ceil(totalTags / 2) : Math.min(25, totalTags);
+        let remainingLeft = leftTargetCount;
+        const splitType = (typeTags: PostTagType[]) => {
+            const leftCount = Math.min(remainingLeft, typeTags.length);
+            const leftTags = typeTags.slice(0, leftCount);
+            const rightTags = typeTags.slice(leftCount);
+            remainingLeft -= leftCount;
+            return { leftTags, rightTags };
+        };
+        const { leftTags: leftGeneral, rightTags: rightGeneral } = splitType(generalTags);
+        const { leftTags: leftSpecies, rightTags: rightSpecies } = splitType(speciesTags);
+        const { leftTags: leftCharacter, rightTags: rightCharacter } = splitType(characterTags);
+        const { leftTags: leftArtist, rightTags: rightArtist } = splitType(artistTags);
+        return {
+            left: {
+                general: leftGeneral,
+                species: leftSpecies,
+                character: leftCharacter,
+                artist: leftArtist,
+            },
+            right: {
+                general: rightGeneral,
+                species: rightSpecies,
+                character: rightCharacter,
+                artist: rightArtist,
+            },
+        };
+    }, [artistTags, characterTags, generalTags, isPortraitPost, speciesTags, tags.length]);
+
+    const renderTagSection = (
+        label: string,
+        sectionTags: PostTagType[],
+        guessedSectionTags: PostTagType[]
+    ) => {
+        if (sectionTags.length === 0) {
+            return null;
+        }
+        return (
+            <div className={layoutStyles.tagSection}>
+                <TagListLabel className={layoutStyles.tagSectionLabel}>{label}</TagListLabel>
+                <TagsList className={layoutStyles.tagSectionList}>
+                    <TagList 
+                        tags={sectionTags} 
+                        guessedTags={guessedSectionTags} 
+                        autoRevealedTagNames={allTimePreferTagSet}
+                    />
+                </TagsList>
+            </div>
+        );
+    };
+
+    const leftColumnTags = portraitColumns?.left ?? {
+        general: generalTags,
+        species: speciesTags,
+        character: characterTags,
+        artist: artistTags,
+    };
+    const rightColumnTags = portraitColumns?.right ?? {
+        general: [],
+        species: [],
+        character: [],
+        artist: [],
+    };
+    const hasRightColumn = isPortraitPost && (
+        rightColumnTags.general.length > 0 ||
+        rightColumnTags.species.length > 0 ||
+        rightColumnTags.character.length > 0 ||
+        rightColumnTags.artist.length > 0
+    );
+    const layoutClassName = hasRightColumn ? layoutStyles.columnsThree : layoutStyles.columnsTwo;
+
     // Desktop layout
     return (
-        <div className={styles.tagListAndInput}>
-            <h1>Guess a tag!</h1>
-            <TagsInputContainer>
-                <TagsInput>
-                    <form onSubmit={handleGuessSubmit}>
-                        <Input type="text" value={guess} onChange={(e) => setGuess(e.target.value)} />
-                    </form>
-                </TagsInput>
-                <ProgressBar percentComplete={time / STARTING_TIME * 100} totalTime={STARTING_TIME}/>
-            </TagsInputContainer>
-            <InRoundLeaderboard />
-            { nextRoundButton }
-            {/* Grid definition */}
-            <TagListLabel>Tags</TagListLabel>
-            <TagsGrid>
-                {/* 1/3 side of grid */}
-                <TagsList>
-                    {/* Big large general tag block, takes up 1/3 of right side of screen */}
-                    <TagList 
-                        tags={generalTagLists[0]} 
-                        guessedTags={guessedGeneralTags} 
-                        autoRevealedTagNames={allTimePreferTagSet}
-                    />
-                </TagsList>
-                <TagsList>
-                    {/* 1 / 3 of grid */}
-                    <TagList 
-                        tags={generalTagLists[1]} 
-                        guessedTags={guessedGeneralTags}
-                        autoRevealedTagNames={allTimePreferTagSet}
-                    />
-                </TagsList>
-                <TagsList>
-                    {/* 1 / 3 of grid */}
-                    <TagList 
-                        tags={generalTagLists[2]} 
-                        guessedTags={guessedGeneralTags} 
-                        autoRevealedTagNames={allTimePreferTagSet}
-                    />
-                </TagsList>
-            </TagsGrid>
-            <TagsGrid>
-                <div>
-                    <TagListLabel>Species Tags</TagListLabel>
-                    <TagsList>
-                        <TagList 
-                            tags={speciesTags} 
-                            guessedTags={guessedSpeciesTags}
-                            autoRevealedTagNames={allTimePreferTagSet}
-                        />
-                    </TagsList>
+        <div className={`${layoutStyles.columnsLayout} ${layoutClassName}`.trim()}>
+            <div className={layoutStyles.leftColumn}>
+                <div className={layoutStyles.sidebar}>
+                    <h1 className={layoutStyles.sidebarTitle}>Guess</h1>
+                    <TagsInputContainer className={layoutStyles.sidebarInputContainer}>
+                        <TagsInput className={layoutStyles.sidebarInput}>
+                            <form onSubmit={handleGuessSubmit}>
+                                <Input
+                                    type="text"
+                                    placeholder="Guess"
+                                    value={guess}
+                                    onChange={(e) => setGuess(e.target.value)}
+                                />
+                            </form>
+                        </TagsInput>
+                    </TagsInputContainer>
+                    {nextRoundButton && <div className={layoutStyles.nextRoundArea}>{nextRoundButton}</div>}
+                    <div className={layoutStyles.tagSections}>
+                        {renderTagSection('Artists', leftColumnTags.artist, guessedArtistTags)}
+                        {renderTagSection('Characters', leftColumnTags.character, guessedCharacterTags)}
+                        {renderTagSection('Species', leftColumnTags.species, guessedSpeciesTags)}
+                        {renderTagSection('General', leftColumnTags.general, guessedGeneralTags)}
+                    </div>
                 </div>
-                <div>
-                    <TagListLabel>Character Tags</TagListLabel>
-                    <TagsList>
-                        <TagList 
-                            tags={characterTags} 
-                            guessedTags={guessedCharacterTags}
-                            autoRevealedTagNames={allTimePreferTagSet}
-                        />
-                    </TagsList>
+            </div>
+            <div className={layoutStyles.middleColumn}>
+                <div className={layoutStyles.roundBanner}>
+                    <InRoundLeaderboard className={layoutStyles.roundLeaderboard} />
+                    <div className={layoutStyles.roundProgress}>
+                        <ProgressBar percentComplete={time / STARTING_TIME * 100} totalTime={STARTING_TIME}/>
+                    </div>
                 </div>
-                <div>
-                    <TagListLabel>Artist Tags</TagListLabel>
-                    {/* Rest of the tags, stacked on top of one another. Takes up the other 1/2 side of right screen */}
-                    <TagsList>
-                        <TagList 
-                            tags={artistTags} 
-                            guessedTags={guessedArtistTags}
-                            autoRevealedTagNames={allTimePreferTagSet}
-                        />
-                    </TagsList>
+                <div className={layoutStyles.postSlot}>
+                    {children}
                 </div>
-            </TagsGrid>
+            </div>
+            {hasRightColumn && (
+                <div className={layoutStyles.rightColumn}>
+                    <div className={layoutStyles.rightSidebar}>
+                        <div className={layoutStyles.tagSections}>
+                            {renderTagSection('Artists', rightColumnTags.artist, guessedArtistTags)}
+                            {renderTagSection('Characters', rightColumnTags.character, guessedCharacterTags)}
+                            {renderTagSection('Species', rightColumnTags.species, guessedSpeciesTags)}
+                            {renderTagSection('General', rightColumnTags.general, guessedGeneralTags)}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

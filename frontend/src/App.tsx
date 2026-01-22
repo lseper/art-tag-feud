@@ -1,12 +1,11 @@
-import ReadyUp from './pages/ReadyUp';
 import { UserContext } from './contexts/UserContext';
 import type { PreferlistTagType, UserType, UserReadyStateType } from './types';
 import { useState } from 'react';
 import { ConnectionManager } from './util/ConnectionManager';
 import { Routes, Route } from 'react-router-dom';
 import { Lobby } from './pages/Lobby';
-import Create from './pages/Create';
 import Finish from './pages/Finish';
+import GameSetup from './pages/GameSetup';
 
 const connectionManager = ConnectionManager.getInstance();
 
@@ -61,8 +60,8 @@ function App(): JSX.Element {
     <UserContext.Provider value={value}>
       <Routes>
         <Route path="/" element={<Lobby />} />
-        <Route path="/play" element={<ReadyUp />} />
-        <Route path="/create" element={<Create />} />
+        <Route path="/play" element={<GameSetup />} />
+        <Route path="/create" element={<GameSetup />} />
         <Route path="/finish" element={<Finish />} />
       </Routes>
     </UserContext.Provider>

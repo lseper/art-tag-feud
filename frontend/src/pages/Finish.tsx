@@ -1,6 +1,5 @@
 import { UserContext } from '../contexts/UserContext';
 import { useContext, useMemo, useEffect, useCallback } from 'react';
-import { RoomUpdateButton } from './ReadyUp';
 import type {LeaveRoomEventDataType, LeaveRoomEventDataToClientType } from '../types';
 import { EventType } from '../types';
 import LeaderBoard from '../components/Leaderboard';
@@ -78,12 +77,12 @@ export const Finish : React.FC<Props> = ({className}: Props) => {
     </span>
     <LeaderBoard />
     <div className={styles.buttonContainer}>
-        <RoomUpdateButton color="var(--c-tag-species)" onClick={() => leaveRoom()}>
+        {/* <RoomUpdateButton color="var(--c-tag-species)" onClick={() => leaveRoom()}>
             Leave Room
         </RoomUpdateButton>
         <RoomUpdateButton color="var(--c-tag-character)" onClick={() => playAgain()}>
             Play Again
-        </RoomUpdateButton>
+        </RoomUpdateButton> */}
     </div>
   </div>;
 }

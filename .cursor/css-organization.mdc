@@ -1,0 +1,218 @@
+---
+globs: *.css, *.tsx
+alwaysApply: true
+---
+
+````cursorrules
+# CSS File Organization
+
+## 🚨 CRITICAL: This Project Uses GLOBAL CSS
+
+**NOT CSS modules. NOT scoped CSS. GLOBAL CSS.**
+
+All classNames are global and must be globally unique. See **collision-management.mdc** for preventing collisions.
+
+## Two-Tier Progression System
+
+This project uses a **two-tier progression system** for CSS organization:
+
+### Tier 1: Rapid Prototyping (NEW components start here)
+
+**Location:** `styles/workshop.css`
+**When:** Creating NEW components or prototyping
+**Format:** Surrounded by dramatic block comments
+**Rule:** ALL new CSS MUST start in `workshop.css`
+
+```css
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                           COMPONENT: Task Card                            *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+.task-card {
+  display: flex;
+  flex-direction: column;
+  padding: var(--padding);
+  border: var(--border);
+  border-radius: var(--border-radius);
+}
+
+.task-card-header {
+  display: flex;
+  align-items: center;
+  padding: var(--padding);
+}
+
+.task-card-title {
+  font-size: var(--font-size);
+  font-weight: 600;
+}
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                               END Task Card                               *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+```
+
+**The block comments are MANDATORY.** They make it easy to:
+- Find component CSS in large files
+- See where components begin and end
+- Copy/move CSS sections when graduating
+
+### Tier 2: Dedicated CSS File (Graduated components)
+
+**Location:** `styles/feature-name.css` (e.g., `vine.css`, `dashboard.css`)
+**When:** Component is substantial and ready for its own file
+**Decision:** ONLY humans decide when to graduate from workshop.css
+**Rule:** LLMs NEVER move CSS from workshop.css to dedicated files
+
+Examples of dedicated files:
+- `styles/vine.css` - Vine feature styles
+- `styles/dashboard.css` - Dashboard feature styles
+- `styles/runs.css` - Runs feature styles
+- `styles/common.css` - Shared component styles (human-created only)
+
+## CRITICAL RULES FOR LLMs
+
+### ✅ ALWAYS DO
+
+- When creating NEW components: Add CSS to `workshop.css` with dramatic block comments
+- Honor existing CSS location (if it's in `dashboard.css`, keep it there)
+- Check for className collisions before creating new classes
+- Remove unused CSS classes from stylesheets
+
+### ❌ NEVER DO
+
+- Move CSS from `workshop.css` to a dedicated file
+- Move CSS from one dedicated file to another
+- Decide when a component should "graduate" from workshop
+- Create NEW component CSS in dedicated files
+- Create NEW dedicated CSS files
+- Reorganize CSS between tiers without human approval
+- Create CSS in `workshop.css` WITHOUT dramatic block comments
+
+## File Organization Structure
+
+```
+components/
+├── Button.tsx                 # Simple TSX file
+├── NewFeature.tsx             # CSS is in workshop.css (Tier 1)
+├── Card.tsx                   # CSS may be in workshop or dedicated file (Tier 1/2)
+└── vine/                      # Only create folders when component needs multiple files
+    ├── VineFlow.tsx
+    ├── VineNode.tsx
+    └── VineEdge.tsx
+
+styles/
+├── app.css                    # Main import file - imports all others
+├── variables.css              # Global CSS variables
+├── globals.css                # Global resets/base styles
+├── animations.css             # Shared animations
+├── workshop.css               # ⭐ Tier 1: ALL NEW CSS starts here
+├── vine.css                   # Tier 2: Graduated feature styles
+├── dashboard.css              # Tier 2: Graduated feature styles
+├── runs.css                   # Tier 2: Graduated feature styles
+└── common.css                 # Tier 2: Shared component styles (human-created only)
+```
+
+### File Organization Rules
+
+- **Components:** Keep as simple `.tsx` files until they need to expand into multiple related files
+- **NEW component CSS:** Always in `workshop.css` with block comments
+- **Graduated component CSS:** In dedicated `/styles/*.css` file (humans decide when to graduate)
+- **Component folders:** Only create when a component needs multiple related files (not for single component + CSS)
+- `app.css` imports all stylesheets from `/styles` directory
+- **NEVER** move CSS between tiers without human approval
+- Use descriptive, globally-unique classNames to avoid collisions
+
+## CSS Imports
+
+### In Components: NO CSS Imports
+
+**❌ WRONG:**
+
+```tsx
+import './Component.css';  // NEVER DO THIS
+import styles from './Component.module.css';  // NOT CSS MODULES
+```
+
+**✅ RIGHT:**
+
+```tsx
+// No CSS imports in components
+// CSS is in workshop.css or dedicated file
+// All CSS imported via app.css
+```
+
+### In app.css: Import All Stylesheets
+
+```css
+/* styles/app.css */
+@import './variables.css';
+@import './globals.css';
+@import './animations.css';
+@import './workshop.css';
+@import './common.css';
+@import './button.css';
+@import './dropdown.css';
+@import './sidebar.css';
+@import './dashboard.css';
+@import './runs.css';
+@import './vine.css';
+/* ... other dedicated CSS files */
+```
+
+## Anti-Patterns to Avoid
+
+### ❌ Moving CSS between tiers without human approval
+
+```css
+/* ❌ DON'T: Move from workshop.css to dedicated file */
+/* ❌ DON'T: Decide when a component should "graduate" */
+```
+
+**Only humans decide when CSS moves between tiers. LLMs NEVER reorganize CSS.**
+
+### ❌ Creating NEW component CSS outside workshop.css
+
+```
+/* ❌ WRONG: Creating new CSS in dedicated file */
+styles/
+├── new-feature.css  /* Should be in workshop.css first */
+
+/* ❌ WRONG: Creating component folder with CSS file for new component */
+components/
+├── NewThing/
+│   ├── NewThing.tsx
+│   └── NewThing.css  /* CSS should be in workshop.css */
+```
+
+### ✅ CORRECT: All NEW CSS starts in workshop.css
+
+```css
+/* styles/workshop.css */
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                            COMPONENT: New Thing                           *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+.new-thing {
+  display: flex;
+  padding: var(--padding);
+}
+
+.new-thing-header {
+  font-weight: 600;
+}
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                               END New Thing                               *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+```
+
+## Remember
+
+- **NEW components:** CSS goes in `workshop.css` with dramatic block comments
+- **EXISTING components:** Keep CSS where it is (don't move it)
+- **Humans decide:** When to graduate CSS from workshop to dedicated files
+- **No CSS modules:** This project uses global CSS
+- **No component imports:** CSS imported only via app.css
+````

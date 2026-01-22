@@ -8,6 +8,7 @@ interface Props {
   onSubmit: (e: FormEvent) => void;
   className?: string;
   nextRoundButton?: ReactNode;
+  progressBar?: ReactNode;
 }
 
 /**
@@ -19,17 +20,19 @@ const MobileInputBar: React.FC<Props> = ({
   onSubmit,
   className,
   nextRoundButton,
+  progressBar,
 }) => {
   return (
     <div className={`${styles.container} ${className ?? ''}`.trim()}>
       {nextRoundButton && <div className={styles.nextRoundOverlay}>{nextRoundButton}</div>}
+      {progressBar && <div className={styles.progressBar}>{progressBar}</div>}
       <form className={styles.form} onSubmit={onSubmit}>
         <Input
           className={styles.input}
           type="text"
           value={guess}
           onChange={(e) => setGuess(e.target.value)}
-          placeholder="Enter your guess..."
+          placeholder="Guess"
           autoComplete="off"
           autoCapitalize="off"
         />
