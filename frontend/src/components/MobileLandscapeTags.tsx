@@ -1,22 +1,22 @@
-import type { PostTagType } from '../types';
+import type { GuessedTagEntryType } from '../types';
 import Tag from './Tag';
 import styles from '@/styles/components/mobile-landscape-tags.module.css';
 
 interface Props {
-  guessedTags: PostTagType[];
+  guessedTags: GuessedTagEntryType[];
   className?: string;
 }
 
-const buildColumns = (guessedTags: PostTagType[]) => {
-  const columns: PostTagType[][] = [[], [], []];
-  guessedTags.forEach((tag, index) => {
+const buildColumns = (guessedTags: GuessedTagEntryType[]) => {
+  const columns: GuessedTagEntryType[][] = [[], [], []];
+  guessedTags.forEach((entry, index) => {
     if (index < 24) {
       const columnIndex = Math.floor(index / 8);
-      columns[columnIndex].push(tag);
+      columns[columnIndex].push(entry);
       return;
     }
     const columnIndex = (index - 24) % 3;
-    columns[columnIndex].push(tag);
+    columns[columnIndex].push(entry);
   });
   return columns;
 };
@@ -31,8 +31,8 @@ const MobileLandscapeTags: React.FC<Props> = ({ guessedTags, className }) => {
       <div className={styles.columns}>
         {columns.map((column, columnIndex) => (
           <ul className={styles.column} key={`column-${columnIndex}`}>
-            {column.map((tag, tagIndex) => (
-              <Tag tag={tag} key={`${tag.name}-${tagIndex}`} />
+            {column.map((entry, tagIndex) => (
+              <Tag tag={entry.tag} guessedBy={entry.user} key={`${entry.tag.name}-${tagIndex}`} />
             ))}
           </ul>
         ))}

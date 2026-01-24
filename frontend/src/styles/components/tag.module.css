@@ -36,6 +36,28 @@
   color: var(--c-tag-character);
 }
 
+.guesserBadge {
+  font-size: 0.6rem;
+  padding: 0 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--c-tag-character);
+  color: var(--c-tag-character);
+}
+
+.guesserBadgeIcon {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  object-fit: cover;
+}
+
+.guesserBadgeName {
+  line-height: 1;
+}
+
 .score {
   color: var(--c-tag-character);
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useContext, useCallback, useRef, type FormEvent } from 'react';
-import type { ReadyUpEventDataType, ReadyUpEventDataToClientType, RequestPostEventDataToClientType, PostTagType } from '../types';
+import type { BotActionSequenceType, GameModeType, GuessedTagEntryType, ReadyUpEventDataType, ReadyUpEventDataToClientType, RequestPostEventDataToClientType, PostTagType } from '../types';
 import { EventType } from '../types';
 import TagList from './TagList';
 import useTagListGuesser from '../useTagListGuesser';
@@ -7,6 +7,7 @@ import { ProgressBar, MobileProgressBar } from './ProgressBar';
 import InRoundLeaderboard from './InRoundLeaderboard';
 import { TagListLabel, TagsInput, TagsInputContainer, TagsList } from './TagListContainerStyles';
 import { UserContext } from '../contexts/UserContext';
+import useBotSequencePlayer from '../hooks/useBotSequencePlayer';
 import MobileTagsOverlay from './MobileTagsOverlay';
 import MobileInputBar from './MobileInputBar';
 import MobileLandscapeTags from './MobileLandscapeTags';
@@ -24,17 +25,46 @@ interface Props {
     nextRoundButton?: React.ReactNode
     postOrientation?: 'portrait' | 'landscape' | 'unknown';
     children?: React.ReactNode;
+    gameMode?: GameModeType;
+    botActionSequence?: BotActionSequenceType | null;
+    roundGuesses?: GuessedTagEntryType[];
 };
 
 const TagListContainerElement: React.FC<Props> = (props: Props) => {
-    const { tags, nextRoundButton, postOrientation = 'unknown', children } = props;
+    const { tags, nextRoundButton, postOrientation = 'unknown', children, gameMode = 'Blitz', botActionSequence = null, roundGuesses = [] } = props;
     const [guess, setGuess] = useState('');
     const {userID, roomID, readyStates, setReadyStates, connectionManager, preferlist} = useContext(UserContext);
     const allTimePreferTagNames = useMemo(() => {
         return (preferlist ?? []).filter(entry => entry.frequency === 'all').map(entry => entry.tag);
     }, [preferlist]);
     const allTimePreferTagSet = useMemo(() => new Set(allTimePreferTagNames), [allTimePreferTagNames]);
-    const [guessedTags, guessTag, revealAllTags] = useTagListGuesser(tags, allTimePreferTagNames);
+    const [guessedTags, guessTag, revealAllTags, applyLocalGuess] = useTagListGuesser(tags, allTimePreferTagNames, roundGuesses);
+
+    useBotSequencePlayer(botActionSequence, readyStates, setReadyStates, applyLocalGuess);
+
+    const mergeBotScores = useCallback((incoming: UserReadyStateType[]) => {
+        const botScoreMap = new Map(
+            readyStates
+                .filter(state => state.user.isBot)
+                .map(state => [state.user.id, state.user.score]),
+        );
+        return incoming.map(state => {
+            if (!state.user.isBot) {
+                return state;
+            }
+            const cachedScore = botScoreMap.get(state.user.id);
+            if (cachedScore == null) {
+                return state;
+            }
+            return {
+                ...state,
+                user: {
+                    ...state.user,
+                    score: cachedScore,
+                },
+            };
+        });
+    }, [readyStates]);
 
     const [generalTags, artistTags, characterTags, speciesTags] = useMemo(() => {
         const generalTags = tags.filter(tag => tag.type === 'general');
@@ -45,10 +75,10 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
     }, [tags]);
 
     const [guessedGeneralTags, guessedArtistTags, guessedCharacterTags, guessedSpeciesTags] = useMemo(() => {
-        const guessedGeneralTags = guessedTags.filter(tag => tag.type === 'general');
-        const guessedArtistTags = guessedTags.filter(tag => tag.type === 'artist');
-        const guessedCharacterTags = guessedTags.filter(tag => tag.type === 'character');
-        const guessedSpeciesTags = guessedTags.filter(tag => tag.type === 'species');
+        const guessedGeneralTags = guessedTags.filter(entry => entry.tag.type === 'general');
+        const guessedArtistTags = guessedTags.filter(entry => entry.tag.type === 'artist');
+        const guessedCharacterTags = guessedTags.filter(entry => entry.tag.type === 'character');
+        const guessedSpeciesTags = guessedTags.filter(entry => entry.tag.type === 'species');
         return [guessedGeneralTags, guessedArtistTags, guessedCharacterTags, guessedSpeciesTags];
     }, [guessedTags])
 
@@ -64,7 +94,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
         const onTimerEnd = (data: ReadyUpEventDataToClientType) => {
             const readyStates = data.room.readyStates;
             // populate new ready states
-            setReadyStates(readyStates);
+            setReadyStates(mergeBotScores(readyStates));
         }
 
         const onNewRoundStart = (_data: RequestPostEventDataToClientType) => {
@@ -80,7 +110,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
         return () => {
             unsubscribers.forEach(unsubscribe => unsubscribe());
         }
-    }, [connectionManager, setReadyStates]);
+    }, [connectionManager, mergeBotScores, setReadyStates]);
 
     useEffect(() => {
         hasRevealedAllTagsRef.current = false;
@@ -199,7 +229,7 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
     const renderTagSection = (
         label: string,
         sectionTags: PostTagType[],
-        guessedSectionTags: PostTagType[]
+        guessedSectionTags: GuessedTagEntryType[]
     ) => {
         if (sectionTags.length === 0) {
             return null;

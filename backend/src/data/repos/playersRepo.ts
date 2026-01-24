@@ -9,6 +9,8 @@ const upsertPlayer = async (user: UserType) => {
         .upsert({
             id: user.id,
             username: user.username,
+            is_bot: user.isBot ?? false,
+            bot_profile_id: user.botProfileId ?? null,
             last_seen_at: new Date().toISOString(),
         }, { onConflict: 'id' });
     logSupabaseError('upsert player', error);

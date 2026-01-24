@@ -19,6 +19,8 @@ import type {
   UpdatePreferlistEventDataType,
   UserReadyStateType,
   CreateRoomEventDataType,
+  JoinRoomEventDataType,
+  BotDifficultyType,
 } from '../types';
 import { EventType } from '../types';
 import MainPage from './MainPage';
@@ -27,6 +29,7 @@ import { icons, buildUIIconImg } from '../util/UIUtil';
 import usePostFetcher from '../usePostFetcher';
 import {
   useNavigate,
+  useSearchParams,
 } from 'react-router-dom';
 import NumberPicker from '../components/NumberPicker';
 import { Input } from '@/components/ui/input';
@@ -38,7 +41,14 @@ import lobbyStyles from '@/styles/pages/lobby.module.css';
 
 const POSTS_PER_ROUND_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const ROUNDS_PER_GAME_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const BOT_COUNT_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 const GAME_MODE_OPTIONS = ['Blitz', 'Roulette', 'Imposter'] as const;
+const BOT_DIFFICULTY_OPTIONS: { value: BotDifficultyType; label: string }[] = [
+  { value: 'Saint', label: 'Saint (Easy)' },
+  { value: 'Sinner', label: 'Sinner (Medium)' },
+  { value: 'Succubus', label: 'Succubus (Hard)' },
+];
+const BOT_DIFFICULTY_VALUES = new Set(BOT_DIFFICULTY_OPTIONS.map(option => option.value));
 type GameModeOption = GameModeType;
 type GameModeSettings = {
   postsPerRound: number[];
@@ -48,8 +58,11 @@ type RoomSettingsUpdate = {
   roomName?: string;
   postsPerRound?: number;
   roundsPerGame?: number;
+  botCount?: number;
+  botDifficulties?: BotDifficultyType[];
   gameMode?: GameModeOption;
   rating?: RoomRatingType;
+  isPrivate?: boolean;
 };
 const RATING_OPTIONS = ['Safe', 'Questionable', 'Explicit'] as const;
 const RATING_STYLE_MAP = {
@@ -73,6 +86,8 @@ const navItems = [
   'More',
 ];
 
+const PENDING_ROOM_CODE_KEY = 'artFeudPendingRoomCode';
+
 const createRoomCode = () => {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let result = '';
@@ -90,33 +105,42 @@ export const GameSetup: React.FC = () => {
     readyStates,
     owner,
     roomName,
+    roomCode,
+    isPrivate,
     blacklist,
     preferlist,
     setRoomID,
     setRoomName,
+    setRoomCode,
+    setIsPrivate,
     setOwner,
     setReadyStates,
     setBlacklist,
     setPreferlist,
+    setScore,
     leaveRoomCleanup,
     connectionManager,
   } = useContext(UserContext);
 
-  const { currentPost, update } = usePostFetcher(connectionManager, roomID);
+  const { currentPost, botActionSequence, roundGuesses, update } = usePostFetcher(connectionManager, roomID);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [roomNameInput, setRoomNameInput] = useState(() => (username ? `${username}'s Room` : ''));
   const [postsPerRound, setPostsPerRound] = useState<number[]>([3]);
   const [roundsPerGame, setRoundsPerGame] = useState<number[]>([3]);
+  const [botCount, setBotCount] = useState<number[]>([0]);
+  const [botDifficulties, setBotDifficulties] = useState<BotDifficultyType[]>([]);
   const [blacklistInput, setBlacklistInput] = useState('');
   const [preferlistInput, setPreferlistInput] = useState('');
   const [preferlistFrequency, setPreferlistFrequency] = useState<PreferlistFrequencyType>('most');
   const [gameMode, setGameMode] = useState<GameModeOption>('Blitz');
   const [rating, setRating] = useState<RoomRatingType>('Explicit');
-  const [isPrivate, setIsPrivate] = useState(true);
   const [isGameModeExpanded, setIsGameModeExpanded] = useState(true);
   const [fallbackRoomCode] = useState(() => createRoomCode());
   const hasAutoCreatedRoom = useRef(false);
   const hasEditedRoomName = useRef(false);
+  const hasDeepLinkedJoin = useRef(false);
+  const pendingBotDifficultiesRef = useRef<BotDifficultyType[] | null>(null);
   const gameModeSettingsCache = useRef<Record<GameModeOption, GameModeSettings>>(
     GAME_MODE_OPTIONS.reduce((acc, option) => {
       acc[option] = {
@@ -126,6 +150,33 @@ export const GameSetup: React.FC = () => {
       return acc;
     }, {} as Record<GameModeOption, GameModeSettings>),
   );
+
+  const mergeBotScores = useCallback((incoming: UserReadyStateType[]) => {
+    const botScoreMap = new Map(
+      readyStates
+        .filter(state => state.user.isBot)
+        .map(state => [state.user.id, state.user.score]),
+    );
+    return incoming.map(state => {
+      if (!state.user.isBot) {
+        return state;
+      }
+      const cachedScore = botScoreMap.get(state.user.id);
+      if (cachedScore == null) {
+        return state;
+      }
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          score: cachedScore,
+        },
+      };
+    });
+  }, [readyStates]);
+
+
+
 
   useEffect(() => {
     if (roomName && !hasEditedRoomName.current) {
@@ -141,29 +192,38 @@ export const GameSetup: React.FC = () => {
 
   useEffect(() => {
     const onNewUserJoin = (data: JoinRoomEventDataToClientType) => {
-      setReadyStates(data.room.readyStates);
+      setReadyStates(mergeBotScores(data.room.readyStates));
       setBlacklist(data.room.blacklist);
       setPreferlist(data.room.preferlist ?? []);
       setRoomName(data.room.roomName);
+      setRoomCode(data.room.roomCode);
+      setIsPrivate(data.room.isPrivate);
       setPostsPerRound([data.room.postsPerRound]);
       setRoundsPerGame([data.room.roundsPerGame]);
+      setBotCount([data.room.botCount ?? 0]);
+      applyIncomingBotDifficulties(data.room.botCount ?? 0, data.room.botDifficulties);
       setGameMode(data.room.gameMode);
       setRating(data.room.rating);
       if (userID === data.user.id) {
         setRoomID(data.room.roomID);
         setOwner(data.room.owner);
+        setScore(data.user.score);
         document.body.style.backgroundImage = 'none';
         navigate('/play');
       }
     };
 
     const onNewReadyStates = (data: ReadyUpEventDataToClientType) => {
-      setReadyStates(data.room.readyStates);
+      setReadyStates(mergeBotScores(data.room.readyStates));
       setBlacklist(data.room.blacklist);
       setPreferlist(data.room.preferlist ?? []);
       setRoomName(data.room.roomName);
+      setRoomCode(data.room.roomCode);
+      setIsPrivate(data.room.isPrivate);
       setPostsPerRound([data.room.postsPerRound]);
       setRoundsPerGame([data.room.roundsPerGame]);
+      setBotCount([data.room.botCount ?? 0]);
+      applyIncomingBotDifficulties(data.room.botCount ?? 0, data.room.botDifficulties);
       setGameMode(data.room.gameMode);
       setRating(data.room.rating);
     };
@@ -175,12 +235,16 @@ export const GameSetup: React.FC = () => {
       } else if (owner.id !== newOwner.id) {
         setOwner(newOwner);
       }
-      setReadyStates(data.room.readyStates);
+      setReadyStates(mergeBotScores(data.room.readyStates));
       setBlacklist(data.room.blacklist);
       setPreferlist(data.room.preferlist ?? []);
       setRoomName(data.room.roomName);
+      setRoomCode(data.room.roomCode);
+      setIsPrivate(data.room.isPrivate);
       setPostsPerRound([data.room.postsPerRound]);
       setRoundsPerGame([data.room.roundsPerGame]);
+      setBotCount([data.room.botCount ?? 0]);
+      applyIncomingBotDifficulties(data.room.botCount ?? 0, data.room.botDifficulties);
       setGameMode(data.room.gameMode);
       setRating(data.room.rating);
     };
@@ -202,8 +266,12 @@ export const GameSetup: React.FC = () => {
         return;
       }
       setRoomName(data.roomName);
+      setRoomCode(data.roomCode);
+      setIsPrivate(data.isPrivate);
       setPostsPerRound([data.postsPerRound]);
       setRoundsPerGame([data.roundsPerGame]);
+      setBotCount([data.botCount ?? 0]);
+      applyIncomingBotDifficulties(data.botCount ?? 0, data.botDifficulties);
       setGameMode(data.gameMode);
       setRating(data.rating);
       if (!hasEditedRoomName.current) {
@@ -227,7 +295,9 @@ export const GameSetup: React.FC = () => {
       unsubscribers.forEach(unsubscribe => unsubscribe());
     };
   }, [
+    applyIncomingBotDifficulties,
     connectionManager,
+    mergeBotScores,
     navigate,
     owner,
     roomID,
@@ -235,8 +305,11 @@ export const GameSetup: React.FC = () => {
     setOwner,
     setPreferlist,
     setReadyStates,
+    setRoomCode,
     setRoomID,
+    setIsPrivate,
     setRoomName,
+    setScore,
     userID,
   ]);
 
@@ -247,8 +320,11 @@ export const GameSetup: React.FC = () => {
       && postsPerRound[0] <= 10
       && roundsPerGame.length > 0
       && roundsPerGame[0] > 0
-      && roundsPerGame[0] <= 10;
-  }, [roomNameInput, postsPerRound, roundsPerGame]);
+      && roundsPerGame[0] <= 10
+      && botCount.length > 0
+      && botCount[0] >= 0
+      && botCount[0] <= 9;
+  }, [botCount, roomNameInput, postsPerRound, roundsPerGame]);
 
   useEffect(() => {
     gameModeSettingsCache.current[gameMode] = {
@@ -263,7 +339,10 @@ export const GameSetup: React.FC = () => {
     }
   }, [inputsAreValid, isGameModeExpanded]);
 
-  const roomCode = useMemo(() => {
+  const displayRoomCode = useMemo(() => {
+    if (roomCode) {
+      return roomCode;
+    }
     if (!roomID) {
       return fallbackRoomCode;
     }
@@ -272,13 +351,40 @@ export const GameSetup: React.FC = () => {
       return cleaned.slice(0, 12);
     }
     return `${cleaned}${fallbackRoomCode}`.slice(0, 12);
-  }, [fallbackRoomCode, roomID]);
+  }, [fallbackRoomCode, roomCode, roomID]);
+
+  const roomCodeParam = searchParams.get('room');
+
+  useEffect(() => {
+    if (!roomCodeParam || roomID) {
+      return;
+    }
+    if (!userID || !username) {
+      window.sessionStorage.setItem(PENDING_ROOM_CODE_KEY, roomCodeParam);
+      navigate('/');
+      return;
+    }
+    if (hasDeepLinkedJoin.current) {
+      return;
+    }
+    hasDeepLinkedJoin.current = true;
+    const data: JoinRoomEventDataType = {
+      type: EventType.enum.JOIN_ROOM,
+      roomCode: roomCodeParam,
+      userID,
+    };
+    connectionManager.send(data);
+  }, [connectionManager, navigate, roomCodeParam, roomID, userID, username]);
 
   const canStartGame = useMemo(
-    () => readyStates.every(readyState => readyState.ready && readyState.icon),
+    () => readyStates.every(readyState => (
+      readyState.user.isBot ? readyState.ready : (readyState.ready && readyState.icon)
+    )),
     [readyStates],
   );
   const isHost = userID != null && owner?.id === userID;
+
+
 
   const normalizeBlacklistTag = useCallback((tag: string) => {
     return tag.trim().toLowerCase().replace(/\s+/g, '_');
@@ -384,6 +490,44 @@ export const GameSetup: React.FC = () => {
     }
   }, [connectionManager, userID, roomID]);
 
+  function normalizeBotDifficulties(count: number, difficulties: BotDifficultyType[]) {
+    return Array.from({ length: count }, (_value, index) => {
+      const entry = difficulties[index];
+      return BOT_DIFFICULTY_VALUES.has(entry) ? entry : 'Sinner';
+    });
+  }
+
+  function botDifficultiesMatch(left: BotDifficultyType[], right: BotDifficultyType[]) {
+    if (left.length !== right.length) {
+      return false;
+    }
+    return left.every((value, index) => value === right[index]);
+  }
+
+  function applyIncomingBotDifficulties(incomingCount: number, incoming?: BotDifficultyType[]) {
+    const normalizedIncoming = normalizeBotDifficulties(incomingCount, incoming ?? []);
+    const pending = pendingBotDifficultiesRef.current;
+    if (isHost && pending && !botDifficultiesMatch(pending, normalizedIncoming)) {
+      setBotDifficulties(pending);
+      return;
+    }
+    pendingBotDifficultiesRef.current = null;
+    setBotDifficulties(normalizedIncoming);
+  }
+
+
+  const displayedBotDifficulties = useMemo(
+    () => normalizeBotDifficulties(botCount[0] ?? 0, botDifficulties),
+    [botCount, botDifficulties, normalizeBotDifficulties],
+  );
+
+  useEffect(() => {
+    const normalized = normalizeBotDifficulties(botCount[0] ?? 0, botDifficulties);
+    if (normalized.length !== botDifficulties.length || normalized.some((value, index) => value !== botDifficulties[index])) {
+      setBotDifficulties(normalized);
+    }
+  }, [botCount, botDifficulties, normalizeBotDifficulties]);
+
   const createGame = useCallback(() => {
     if (inputsAreValid && userID) {
       const data: CreateRoomEventDataType = {
@@ -392,20 +536,36 @@ export const GameSetup: React.FC = () => {
         userID,
         postsPerRound: postsPerRound[0],
         roundsPerGame: roundsPerGame[0],
+        botCount: botCount[0],
+        botDifficulties: normalizeBotDifficulties(botCount[0], botDifficulties),
         roomName: roomNameInput,
         gameMode,
         rating,
+        isPrivate,
       };
       connectionManager.send(data);
     }
-  }, [connectionManager, gameMode, inputsAreValid, postsPerRound, rating, roomID, roomNameInput, roundsPerGame, userID]);
+  }, [
+    botCount,
+    botDifficulties,
+    connectionManager,
+    gameMode,
+    inputsAreValid,
+    normalizeBotDifficulties,
+    postsPerRound,
+    rating,
+    roomID,
+    roomNameInput,
+    roundsPerGame,
+    userID,
+  ]);
 
   useEffect(() => {
-    if (!roomID && userID && inputsAreValid && !hasAutoCreatedRoom.current) {
+    if (!roomID && !roomCodeParam && userID && inputsAreValid && !hasAutoCreatedRoom.current) {
       hasAutoCreatedRoom.current = true;
       createGame();
     }
-  }, [createGame, inputsAreValid, roomID, userID]);
+  }, [createGame, inputsAreValid, roomCodeParam, roomID, userID]);
 
   const startGame = useCallback(() => {
     if (roomID && userID && userID === owner?.id && canStartGame) {
@@ -438,9 +598,15 @@ export const GameSetup: React.FC = () => {
     const nextRoomName = overrides.roomName ?? roomNameInput;
     const nextPostsPerRound = overrides.postsPerRound ?? postsPerRound[0];
     const nextRoundsPerGame = overrides.roundsPerGame ?? roundsPerGame[0];
+    const nextBotCount = overrides.botCount ?? botCount[0];
+    const nextBotDifficulties = normalizeBotDifficulties(
+      nextBotCount,
+      overrides.botDifficulties ?? botDifficulties,
+    );
     const nextGameMode = overrides.gameMode ?? gameMode;
     const nextRating = overrides.rating ?? rating;
-    if (!nextRoomName || nextPostsPerRound == null || nextRoundsPerGame == null) {
+    const nextIsPrivate = overrides.isPrivate ?? isPrivate;
+    if (!nextRoomName || nextPostsPerRound == null || nextRoundsPerGame == null || nextBotCount == null) {
       return;
     }
     const data: UpdateRoomSettingsEventDataType = {
@@ -450,9 +616,13 @@ export const GameSetup: React.FC = () => {
       roomName: nextRoomName,
       postsPerRound: nextPostsPerRound,
       roundsPerGame: nextRoundsPerGame,
+      botCount: nextBotCount,
+      botDifficulties: nextBotDifficulties,
       gameMode: nextGameMode,
       rating: nextRating,
+      isPrivate: nextIsPrivate,
     };
+    pendingBotDifficultiesRef.current = nextBotDifficulties;
     connectionManager.send(data);
   }, [
     connectionManager,
@@ -463,8 +633,12 @@ export const GameSetup: React.FC = () => {
     roomNameInput,
     roundsPerGame,
     postsPerRound,
+    botCount,
+    botDifficulties,
+    isPrivate,
     userID,
   ]);
+
 
   const updatePostsPerRound = useCallback((nextPostsPerRound: number[]) => {
     setPostsPerRound(nextPostsPerRound);
@@ -479,6 +653,23 @@ export const GameSetup: React.FC = () => {
       sendRoomSettingsUpdate({ roundsPerGame: nextRoundsPerGame[0] });
     }
   }, [sendRoomSettingsUpdate]);
+
+  const updateBotCount = useCallback((nextBotCount: number[]) => {
+    setBotCount(nextBotCount);
+    if (nextBotCount[0] != null) {
+      const nextDifficulties = normalizeBotDifficulties(nextBotCount[0], botDifficulties);
+      setBotDifficulties(nextDifficulties);
+      sendRoomSettingsUpdate({ botCount: nextBotCount[0], botDifficulties: nextDifficulties });
+    }
+  }, [botDifficulties, normalizeBotDifficulties, sendRoomSettingsUpdate]);
+
+  const updateBotDifficulty = useCallback((index: number, nextDifficulty: BotDifficultyType) => {
+    const base = normalizeBotDifficulties(botCount[0] ?? 0, botDifficulties);
+    const next = [...base];
+    next[index] = nextDifficulty;
+    setBotDifficulties(next);
+    sendRoomSettingsUpdate({ botDifficulties: next });
+  }, [botCount, botDifficulties, normalizeBotDifficulties, sendRoomSettingsUpdate]);
 
   const saveGameSetup = useCallback(() => {
     if (inputsAreValid) {
@@ -558,7 +749,15 @@ export const GameSetup: React.FC = () => {
   }, [readyUp, renderLobbyUserIcon, userID]);
 
   if (currentPost) {
-    return <MainPage currentPost={currentPost} update={update} />;
+    return (
+      <MainPage
+        currentPost={currentPost}
+        update={update}
+        gameMode={gameMode}
+        botActionSequence={botActionSequence}
+        roundGuesses={roundGuesses}
+      />
+    );
   }
 
   return (
@@ -703,6 +902,51 @@ export const GameSetup: React.FC = () => {
 
             <section className={cn(styles.formSection, !isHost && styles.readOnlySection)} aria-disabled={!isHost}>
               <div className={styles.sectionInfo}>
+                <h2>Bot Settings</h2>
+                <p>Choose how many bots to add and how quickly they guess tags.</p>
+              </div>
+              <div className={styles.sectionContent}>
+                <div className={styles.pickerStack}>
+                  <NumberPicker
+                    title="Bot Count"
+                    options={BOT_COUNT_OPTIONS}
+                    selected={botCount}
+                    setSelected={updateBotCount}
+                    color="var(--c-tag-species)"
+                    backgroundColor="var(--background)"
+                    singleSelect
+                    disabled={!isHost}
+                  />
+                  {displayedBotDifficulties.length === 0 ? (
+                    <p className={styles.helperText}>Add bots to choose difficulty per bot.</p>
+                  ) : (
+                    <div className={styles.botDifficultyList}>
+                      {displayedBotDifficulties.map((difficulty, index) => (
+                        <div className={styles.fieldRow} key={`bot-difficulty-${index}`}>
+                          <label htmlFor={`bot-difficulty-${index}`}>Bot {index + 1} Difficulty</label>
+                          <Select
+                            id={`bot-difficulty-${index}`}
+                            className={styles.textInput}
+                            value={difficulty}
+                            onChange={(event) => updateBotDifficulty(index, event.target.value as BotDifficultyType)}
+                            disabled={!isHost}
+                          >
+                            {BOT_DIFFICULTY_OPTIONS.map(option => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <section className={cn(styles.formSection, !isHost && styles.readOnlySection)} aria-disabled={!isHost}>
+              <div className={styles.sectionInfo}>
                 <h2>Game Type</h2>
                 <p>Private rooms stay hidden until you share the code.</p>
               </div>
@@ -711,7 +955,12 @@ export const GameSetup: React.FC = () => {
                   <input
                     type="checkbox"
                     checked={isPrivate}
-                    onChange={(event) => setIsPrivate(event.target.checked)}
+                    onChange={(event) => {
+                      const nextValue = event.target.checked;
+                      setIsPrivate(nextValue);
+                      sendRoomSettingsUpdate({ isPrivate: nextValue });
+                    }}
+                    disabled={!isHost}
                   />
                   Private
                 </label>
@@ -721,18 +970,18 @@ export const GameSetup: React.FC = () => {
                       Room Code
                     </label>
                     <div className={styles.roomCodeRow}>
-                      <Input id="room-code" readOnly value={roomCode} className={styles.roomCodeInput} />
+                      <Input id="room-code" readOnly value={displayRoomCode} className={styles.roomCodeInput} />
                       <Button
                         type="button"
                         className={styles.copyButton}
-                        onClick={() => handleCopy(roomCode)}
+                        onClick={() => handleCopy(displayRoomCode)}
                       >
                         Copy Code
                       </Button>
                       <Button
                         type="button"
                         className={styles.copyButton}
-                        onClick={() => handleCopy(`${window.location.origin}/play?room=${roomCode}`)}
+                        onClick={() => handleCopy(`${window.location.origin}/play?room=${displayRoomCode}`)}
                       >
                         Copy Link
                       </Button>

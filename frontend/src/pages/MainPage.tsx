@@ -2,7 +2,7 @@ import { DisplayedPost } from '../components/DisplayedPost';
 import { TagListContainer } from '../components/TagListContainer';
 import { UserContext } from '../contexts/UserContext';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { PostTagType, PostType, ShowLeaderboardEventDataToClientType, EndGameEventDataToClientType, RequestPostEventDataToClientType } from '../types';
+import type { BotActionSequenceType, GameModeType, GuessedTagEntryType, PostTagType, PostType, ShowLeaderboardEventDataToClientType, EndGameEventDataToClientType, RequestPostEventDataToClientType } from '../types';
 import { EventType } from '../types';
 import LeaderBoard from '../components/Leaderboard';
 import { useNavigate } from 'react-router-dom';
@@ -15,9 +15,12 @@ const emptyTagList : PostTagType[] = [];
 type Props = {
   currentPost: PostType,
   update: () => void,
+  gameMode: GameModeType,
+  botActionSequence: BotActionSequenceType | null,
+  roundGuesses: GuessedTagEntryType[],
 }
 
-function MainPage({currentPost, update} : Props): JSX.Element {
+function MainPage({currentPost, update, gameMode, botActionSequence, roundGuesses} : Props): JSX.Element {
   /**
    * Server-driven user values
    */
@@ -126,6 +129,9 @@ function MainPage({currentPost, update} : Props): JSX.Element {
               tags={currentPost ? currentPost.tags : emptyTagList}
               nextRoundButton={nextRoundButton}
               postOrientation={postOrientation}
+              gameMode={gameMode}
+              botActionSequence={botActionSequence}
+              roundGuesses={roundGuesses}
             >
               <DisplayedPost post={currentPost} onImageLoad={handlePostImageLoad} />
             </TagListContainer>

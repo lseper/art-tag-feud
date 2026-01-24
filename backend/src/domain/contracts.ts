@@ -18,7 +18,9 @@ export const EventType = z.enum(['DEFAULT',
     'SHOW_LEADERBOARD',
     'UPDATE_BLACKLIST',
     'UPDATE_PREFERLIST',
-    'UPDATE_ROOM_SETTINGS']);
+    'UPDATE_ROOM_SETTINGS',
+    'REQUEST_BOT_FILL',
+    'SYNC_ROUND_STATE']);
 
 /**
  * Server-Only Types
@@ -41,6 +43,7 @@ export const PreferlistFrequency = z.enum(['most', 'all']);
 
 export const GameMode = z.enum(['Blitz', 'Roulette', 'Imposter']);
 export const RoomRating = z.enum(['Safe', 'Questionable', 'Explicit']);
+export const BotDifficulty = z.enum(['Saint', 'Sinner', 'Succubus']);
 
 export const PreferlistTag = z.object({
     tag: z.string(),
@@ -52,7 +55,14 @@ export const User = z.object({
     id: z.string(),
     score: z.number(),
     icon: z.optional(z.string()),
+    isBot: z.optional(z.boolean()),
+    botProfileId: z.optional(z.string()),
     roomID: z.optional(z.string())
+})
+
+export const GuessedTagEntry = z.object({
+    tag: PostTag,
+    user: z.optional(User),
 })
 
 export const ServerRoom = z.object({
@@ -60,8 +70,12 @@ export const ServerRoom = z.object({
     name: z.string(),
     postsPerRound: z.number(),
     roundsPerGame: z.number(),
+    botCount: z.number(),
+    botDifficulties: z.array(BotDifficulty),
     gameMode: GameMode,
     rating: RoomRating,
+    roomCode: z.string(),
+    isPrivate: z.boolean(),
     owner: User,
     members: z.array(User),
     blacklist: z.array(z.string()),
@@ -79,14 +93,20 @@ export const CreateRoomEventData = z.object({
     roomName: z.string(),
     postsPerRound: z.number(),
     roundsPerGame: z.number(),
+    botCount: z.optional(z.number()),
+    botDifficulties: z.optional(z.array(BotDifficulty)),
     gameMode: z.optional(GameMode),
     rating: z.optional(RoomRating),
+    isPrivate: z.optional(z.boolean()),
     type: z.literal(EventType.enum.CREATE_ROOM)
 });
 export const JoinRoomEventData = z.object({
     userID: z.optional(z.string()),
-    roomID: z.string(),
+    roomID: z.optional(z.string()),
+    roomCode: z.optional(z.string()),
     type: z.literal(EventType.enum.JOIN_ROOM)
+}).refine((data) => data.roomID || data.roomCode, {
+    message: 'roomID or roomCode is required',
 });
 export const LeaveRoomEventData = z.object({
     userID: z.string(),
@@ -151,10 +171,37 @@ export const UpdateRoomSettingsEventData = z.object({
     roomName: z.string(),
     postsPerRound: z.number(),
     roundsPerGame: z.number(),
+    botCount: z.number(),
+    botDifficulties: z.array(BotDifficulty),
     gameMode: GameMode,
     rating: RoomRating,
+    isPrivate: z.boolean(),
     type: z.literal(EventType.enum.UPDATE_ROOM_SETTINGS)
 })
+
+export const BotAction = z.object({
+    type: z.enum(['guess_tag', 'ready_up']),
+    delayMs: z.number(),
+    tag: z.optional(PostTag),
+});
+
+export const BotActionSequence = z.object({
+    roundPostId: z.string(),
+    botProfileId: z.optional(z.string()),
+    gameMode: GameMode,
+    bots: z.array(z.object({
+        botId: z.string(),
+        actions: z.array(BotAction),
+    })),
+});
+
+export const RequestBotFillEventData = z.object({
+    roomID: z.string(),
+    userID: z.string(),
+    botNames: z.array(z.string()),
+    botProfileName: z.optional(z.string()),
+    type: z.literal(EventType.enum.REQUEST_BOT_FILL)
+});
 
 /**
  * Client Types
@@ -170,8 +217,12 @@ export const ClientRoom = z.object({
     roomName: z.string(),
     postsPerRound: z.number(),
     roundsPerGame: z.number(),
+    botCount: z.number(),
+    botDifficulties: z.array(BotDifficulty),
     gameMode: GameMode,
     rating: RoomRating,
+    roomCode: z.string(),
+    isPrivate: z.boolean(),
     owner: User,
     readyStates: z.array(UserReadyState),
     blacklist: z.array(z.string()),
@@ -207,6 +258,12 @@ export const GuessTagEventDataToClient = z.object({
     type: z.literal(EventType.enum.GUESS_TAG)
 });
 
+export const SyncRoundStateEventDataToClient = z.object({
+    post: z.optional(Post),
+    guessedTags: z.array(GuessedTagEntry),
+    type: z.literal(EventType.enum.SYNC_ROUND_STATE)
+});
+
 export const SetUsernameEventDataToClient = z.object({
     user: User,
     type: z.literal(EventType.enum.SET_USERNAME)
@@ -226,6 +283,7 @@ export const GetSelectedIconsEventDataToClient = z.object({
 
 export const RequestPostEventDataToClient = z.object({
     post: z.optional(Post),
+    botActionSequence: z.optional(BotActionSequence),
     type: z.literal(EventType.enum.REQUEST_POST)
 })
 
@@ -261,8 +319,12 @@ export const UpdateRoomSettingsEventDataToClient = z.object({
     roomName: z.string(),
     postsPerRound: z.number(),
     roundsPerGame: z.number(),
+    botCount: z.number(),
+    botDifficulties: z.array(BotDifficulty),
     gameMode: GameMode,
     rating: RoomRating,
+    roomCode: z.string(),
+    isPrivate: z.boolean(),
     type: z.literal(EventType.enum.UPDATE_ROOM_SETTINGS)
 })
 
@@ -288,6 +350,9 @@ export type AllRoomsEventDataType = z.infer<typeof AllRoomsEventData>
 export type UpdateBlacklistEventDataType = z.infer<typeof UpdateBlacklistEventData>
 export type UpdatePreferlistEventDataType = z.infer<typeof UpdatePreferlistEventData>
 export type UpdateRoomSettingsEventDataType = z.infer<typeof UpdateRoomSettingsEventData>
+export type RequestBotFillEventDataType = z.infer<typeof RequestBotFillEventData>
+export type BotActionType = z.infer<typeof BotAction>
+export type BotActionSequenceType = z.infer<typeof BotActionSequence>
 
 /**
  * Client-Only Types
@@ -308,6 +373,7 @@ export type ShowLeaderboardEventDataToClientType = z.infer<typeof ShowLeaderboar
 export type UpdateBlacklistEventDataToClientType = z.infer<typeof UpdateBlacklistEventDataToClient>
 export type UpdatePreferlistEventDataToClientType = z.infer<typeof UpdatePreferlistEventDataToClient>
 export type UpdateRoomSettingsEventDataToClientType = z.infer<typeof UpdateRoomSettingsEventDataToClient>
+export type SyncRoundStateEventDataToClientType = z.infer<typeof SyncRoundStateEventDataToClient>
 
 export type ClientRoomType = z.infer<typeof ClientRoom>;
 
@@ -316,11 +382,13 @@ export type ClientRoomType = z.infer<typeof ClientRoom>;
  */
 export type TagTypeType = z.infer<typeof TagType>
 export type PostTagType = z.infer<typeof PostTag>;
+export type GuessedTagEntryType = z.infer<typeof GuessedTagEntry>;
 export type PostType = z.infer<typeof Post>;
 export type PreferlistTagType = z.infer<typeof PreferlistTag>;
 export type PreferlistFrequencyType = z.infer<typeof PreferlistFrequency>;
 export type GameModeType = z.infer<typeof GameMode>;
 export type RoomRatingType = z.infer<typeof RoomRating>;
+export type BotDifficultyType = z.infer<typeof BotDifficulty>;
 export type UserType = z.infer<typeof User>;
 export type EventTypeType = z.infer<typeof EventType>;
 export type UserReadyStateType = z.infer<typeof UserReadyState>;

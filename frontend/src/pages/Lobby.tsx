@@ -1,9 +1,10 @@
-import React, { useContext, useCallback, useState, useEffect} from 'react';
+import React, { useContext, useCallback, useState, useEffect } from 'react';
 import { UserContext } from '../contexts/UserContext';
 import type { ClientRoomType, SetUsernameEventDataToClientType, JoinRoomEventDataToClientType, AllRoomsEventDataToClientType, SetUsernameEventDataType, AllRoomsEventDataType, JoinRoomEventDataType } from '../types';
 import { EventType } from '../types';
 import {
     useNavigate,
+    useSearchParams,
 } from 'react-router-dom';
 import { TitleText, TitleContainer } from '../components/StyledElements';
 import { Button } from '@/components/ui/button';
@@ -12,11 +13,15 @@ import { Card } from '@/components/ui/card';
 import styles from '@/styles/pages/lobby.module.css';
 
 
+const PENDING_ROOM_CODE_KEY = 'artFeudPendingRoomCode';
+
 export const Lobby: React.FC = () => {
-    const {roomID, setRoomID, setRoomName, userID, setUserID, setUsername, setReadyStates, setOwner, setBlacklist, setPreferlist, username, connectionManager} = useContext(UserContext);
+    const { roomID, setRoomID, setRoomName, setRoomCode, setIsPrivate, setScore, userID, setUserID, setUsername, setReadyStates, setOwner, setBlacklist, setPreferlist, username, connectionManager } = useContext(UserContext);
     const [usernameInput, setUsernameInput] = useState<string>('');
+    const [roomCodeInput, setRoomCodeInput] = useState('');
     const [rooms, setRooms] = useState<ClientRoomType[]>([]);
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const navItems = [
         'Gallery',
         'Feed',
@@ -47,9 +52,12 @@ export const Lobby: React.FC = () => {
               setRoomID(data.room.roomID);
               setReadyStates(data.room.readyStates);
               setRoomName(data.room.roomName);
+              setRoomCode(data.room.roomCode);
+              setIsPrivate(data.room.isPrivate);
               setOwner(data.room.owner);
               setBlacklist(data.room.blacklist);
               setPreferlist(data.room.preferlist ?? []);
+              setScore(data.user.score);
               navigate("/play");
               document.body.style.backgroundImage = 'none';
             }
@@ -76,7 +84,7 @@ export const Lobby: React.FC = () => {
         return () => {
             unsubscribers.forEach(unsubscribe => unsubscribe());
         }
-    }, [connectionManager, navigate, roomID, setBlacklist, setOwner, setPreferlist, setReadyStates, setRoomID, setRoomName, setUserID, setUsername, userID]);
+    }, [connectionManager, navigate, roomID, setBlacklist, setIsPrivate, setOwner, setPreferlist, setReadyStates, setRoomCode, setRoomID, setRoomName, setScore, setUserID, setUsername, userID]);
 
     
     const createUsername = useCallback((username: string) => {
@@ -93,6 +101,13 @@ export const Lobby: React.FC = () => {
     const joinRoom = useCallback((roomID: string) => {
         if(userID) {
             const data: JoinRoomEventDataType = {type: EventType.enum.JOIN_ROOM, roomID, userID};
+            connectionManager.send(data);
+        }
+    }, [connectionManager, userID]);
+
+    const joinRoomByCode = useCallback((roomCode: string) => {
+        if(userID) {
+            const data: JoinRoomEventDataType = {type: EventType.enum.JOIN_ROOM, roomCode, userID};
             connectionManager.send(data);
         }
     }, [connectionManager, userID]);
@@ -115,6 +130,16 @@ export const Lobby: React.FC = () => {
             window.clearInterval(intervalId);
         };
     }, [getAllRooms]);
+
+    useEffect(() => {
+        const codeFromQuery = searchParams.get('room');
+        const pendingCode = codeFromQuery ?? window.sessionStorage.getItem(PENDING_ROOM_CODE_KEY);
+        if (!pendingCode || !username || !userID) {
+            return;
+        }
+        joinRoomByCode(pendingCode);
+        window.sessionStorage.removeItem(PENDING_ROOM_CODE_KEY);
+    }, [joinRoomByCode, searchParams, userID, username]);
 
     const renderRoom = useCallback((room: ClientRoomType) => {
         const {roomName, readyStates} = room;
@@ -229,15 +254,34 @@ export const Lobby: React.FC = () => {
                         </Button>
                     </Card>
                     <Card className={`${styles.panel} ${styles.privateJoinPanel}`}>
-                        <label className={styles.privateJoinLabel} htmlFor="private-room-code">
-                            Enter Room Code
-                        </label>
-                        <Input
-                            id="private-room-code"
-                            className={`${styles.input} ${styles.privateJoinInput}`}
-                            type="text"
-                            placeholder="Enter a private room code"
-                        />
+                        <form
+                            className={styles.privateJoinForm}
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                if (!roomCodeInput) {
+                                    return;
+                                }
+                                joinRoomByCode(roomCodeInput);
+                                setRoomCodeInput('');
+                            }}
+                        >
+                            <label className={styles.privateJoinLabel} htmlFor="private-room-code">
+                                Enter Room Code
+                            </label>
+                            <div className={styles.privateJoinRow}>
+                                <Input
+                                    id="private-room-code"
+                                    className={`${styles.input} ${styles.privateJoinInput}`}
+                                    type="text"
+                                    placeholder="Enter a private room code"
+                                    value={roomCodeInput}
+                                    onChange={(event) => setRoomCodeInput(event.target.value)}
+                                />
+                                <Button type="submit" className={styles.joinRoomButton}>
+                                    Join
+                                </Button>
+                            </div>
+                        </form>
                     </Card>
                     <Card className={`${styles.panel} ${styles.cardCentered}`}>
                         <h1 className={styles.cardTitle}>

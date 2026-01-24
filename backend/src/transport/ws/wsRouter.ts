@@ -15,6 +15,7 @@ import {
     UpdateBlacklistEventData,
     UpdatePreferlistEventData,
     UpdateRoomSettingsEventData,
+    RequestBotFillEventData,
 } from '../../domain/contracts';
 import type {
     AllRoomsEventDataToClientType,
@@ -27,16 +28,20 @@ import type {
     SetUserIconEventDataToClientType,
     SetUsernameEventDataToClientType,
     ShowLeaderboardEventDataToClientType,
+    SyncRoundStateEventDataToClientType,
     UpdateBlacklistEventDataToClientType,
     UpdatePreferlistEventDataToClientType,
     UpdateRoomSettingsEventDataToClientType,
 } from '../../domain/contracts';
+import { convertServerRoomToClientRoom } from '../../domain/roomUtils';
+import { activeGames, users } from '../../state/store';
 import { broadcast, broadcastToRoom, reply } from './wsBroadcast';
 import { getOrCreateUser, setUserIcon, setUsername } from '../../services/userService';
 import { getAllRooms, getRoom, getSelectedIcons, createOrUpdateRoom, joinRoom, leaveRoom, updateRoomReadyState, updateRoomBlacklist, updateRoomPreferlist, updateRoomSettings } from '../../services/roomService';
 import { handleGuessTag } from '../../services/guessService';
 import { handleRequestPost } from '../../services/postService';
 import { ensureActiveGame } from '../../services/gameService';
+import { createBotsForRoom } from '../../services/botService';
 
 const handleMessage = async (server: WebSocketServer, response: WebSocket, data: RawData) => {
     const dataJSON = JSON.parse(data.toString());
@@ -121,6 +126,9 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
                 data.roomID,
                 data.gameMode,
                 data.rating,
+                data.isPrivate,
+                data.botCount,
+                data.botDifficulties,
             );
             if (createResult) {
                 const roomToClient = createResult.roomToClient;
@@ -138,11 +146,29 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
             if (!result.success) {
                 break;
             }
-            const roomID = result.data.roomID;
+            const { roomID, roomCode } = result.data;
             const userID = getOrCreateUser(response, result.data.userID);
-            const joinResult = await joinRoom(roomID, userID);
+            const joinResult = await joinRoom(roomID, roomCode, userID);
             if (joinResult) {
                 broadcastToRoom<JoinRoomEventDataToClientType>(joinResult.room, { type: EventType.enum.JOIN_ROOM, user: joinResult.user, room: joinResult.roomToClient });
+                const activeGame = activeGames.get(joinResult.room.id);
+                const currentPost = activeGame?.currentPost;
+                if (currentPost) {
+                    const guessedTags = [...(activeGame?.currentRoundGuesses?.entries() ?? [])].flatMap(([tagName, guesserId]) => {
+                        const tag = currentPost.tags.find(existing => existing.name === tagName);
+                        const user = users.get(guesserId);
+                        if (!tag || !user) {
+                            return [];
+                        }
+                        return [{ tag, user }];
+                    });
+                    const roundStateData: SyncRoundStateEventDataToClientType = {
+                        type: EventType.enum.SYNC_ROUND_STATE,
+                        post: currentPost,
+                        guessedTags,
+                    };
+                    reply(response, roundStateData);
+                }
             }
             break;
         }
@@ -188,7 +214,11 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
                 break;
             }
             if (requestResult.kind === 'send_post') {
-                broadcastToRoom<RequestPostEventDataToClientType>(room, { type: EventType.enum.REQUEST_POST, post: requestResult.post });
+                broadcastToRoom<RequestPostEventDataToClientType>(room, {
+                    type: EventType.enum.REQUEST_POST,
+                    post: requestResult.post,
+                    botActionSequence: requestResult.botActionSequence ?? undefined,
+                });
                 break;
             }
             broadcastToRoom<RequestPostEventDataToClientType>(room, { type: EventType.enum.REQUEST_POST });
@@ -202,19 +232,11 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
             const data = result.data;
             const readyResult = await updateRoomReadyState(data.roomID, data.userID, data.ready);
             if (readyResult) {
-                const updatedRoom = {
+                broadcastToRoom<ReadyUpEventDataToClientType>(readyResult.room, {
+                    type: EventType.enum.READY_UP,
                     roomID: readyResult.room.id,
-                    roomName: readyResult.room.name,
-                    postsPerRound: readyResult.room.postsPerRound,
-                    roundsPerGame: readyResult.room.roundsPerGame,
-                    gameMode: readyResult.room.gameMode,
-                    rating: readyResult.room.rating,
-                    readyStates: readyResult.roomToClient.readyStates,
-                    owner: readyResult.user,
-                    blacklist: readyResult.room.blacklist,
-                    preferlist: readyResult.room.preferlist,
-                };
-                broadcastToRoom<ReadyUpEventDataToClientType>(readyResult.room, { type: EventType.enum.READY_UP, roomID: readyResult.room.id, room: updatedRoom });
+                    room: readyResult.roomToClient,
+                });
             }
             break;
         }
@@ -292,8 +314,11 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
                 data.roomName,
                 data.postsPerRound,
                 data.roundsPerGame,
+                data.botCount,
+                data.botDifficulties,
                 data.gameMode,
                 data.rating,
+                data.isPrivate,
             );
             if (!updateResult) {
                 break;
@@ -304,10 +329,37 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
                 roomName: updateResult.room.name,
                 postsPerRound: updateResult.room.postsPerRound,
                 roundsPerGame: updateResult.room.roundsPerGame,
+                botCount: updateResult.room.botCount,
+                botDifficulties: updateResult.room.botDifficulties,
                 gameMode: updateResult.room.gameMode,
                 rating: updateResult.room.rating,
+                roomCode: updateResult.room.roomCode,
+                isPrivate: updateResult.room.isPrivate,
             };
             broadcastToRoom(updateResult.room, responseData);
+            break;
+        }
+        case EventType.enum.REQUEST_BOT_FILL: {
+            const result = RequestBotFillEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const room = getRoom(data.roomID);
+            if (!room || room.owner.id !== data.userID) {
+                break;
+            }
+            const profileNames = data.botProfileName
+                ? data.botNames.map(() => data.botProfileName)
+                : undefined;
+            const createdBots = await createBotsForRoom(room.id, data.botNames, profileNames);
+            if (createdBots.length === 0) {
+                break;
+            }
+            const roomToClient = convertServerRoomToClientRoom(room, users);
+            createdBots.forEach(bot => {
+                broadcastToRoom<JoinRoomEventDataToClientType>(room, { type: EventType.enum.JOIN_ROOM, user: bot, room: roomToClient });
+            });
             break;
         }
         default:

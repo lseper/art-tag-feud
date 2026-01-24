@@ -9,6 +9,7 @@ import { insertRoundPost } from '../data/repos/roundPostsRepo';
 import { insertGuess } from '../data/repos/guessesRepo';
 import { insertLeaderboardSnapshot } from '../data/repos/leaderboardRepo';
 import { ensureActiveGame, startNextRound, endGame } from './gameService';
+import { generateBotActionSequence } from './botSequenceService';
 
 const recordPostAndTags = async (post: PostType) => {
     await upsertPost(post);
@@ -51,6 +52,11 @@ const handleRequestPost = async (roomID: string, userID: string) => {
     roomToSendPost.allUsersReady.set(userID, true);
     await upsertRoomReadyStates(roomToSendPost);
 
+    if (!roomToSendPost.gameStarted) {
+        roomToSendPost.gameStarted = true;
+        await upsertRoom(roomToSendPost);
+    }
+
     if (roomToSendPost.postQueue.length === 0) {
         roomToSendPost.postQueue = await getPosts(roomToSendPost.blacklist, roomToSendPost.preferlist);
     }
@@ -72,6 +78,12 @@ const handleRequestPost = async (roomID: string, userID: string) => {
             await startNextRound(roomToSendPost.id, activeGame.gameId, roomToSendPost.curRound);
         }
         await upsertRoom(roomToSendPost);
+        const active = activeGames.get(roomToSendPost.id);
+        if (active) {
+            active.currentPost = undefined;
+            active.currentRoundGuesses = new Map();
+            activeGames.set(roomToSendPost.id, active);
+        }
         return { kind: 'show_leaderboard' } as const;
     }
 
@@ -84,8 +96,9 @@ const handleRequestPost = async (roomID: string, userID: string) => {
     await ensureActiveGame(roomToSendPost, userID);
     await recordPostAndTags(postToSend);
     const activeGame = activeGames.get(roomToSendPost.id);
+    let roundPostId: string | null = null;
     if (activeGame) {
-        await recordRoundPost(roomToSendPost.id, activeGame.roundId, postToSend.id, activeGame.nextPostOrder);
+        roundPostId = await recordRoundPost(roomToSendPost.id, activeGame.roundId, postToSend.id, activeGame.nextPostOrder);
     }
 
     const preferlistAllTimeTags = new Set(roomToSendPost.preferlist.filter(entry => entry.frequency === 'all').map(entry => entry.tag));
@@ -97,18 +110,27 @@ const handleRequestPost = async (roomID: string, userID: string) => {
         ...postToSend,
         tags,
     };
+    if (activeGame) {
+        activeGame.currentPost = postToSendWithPreferlist;
+        activeGame.currentRoundGuesses = new Map();
+        activeGames.set(roomToSendPost.id, activeGame);
+    }
 
     roomToSendPost.postsViewedThisRound += 1;
     await upsertRoom(roomToSendPost);
 
     const newReadyMap = new Map<string, boolean>();
-    roomToSendPost.allUsersReady.forEach((v, k) => {
-        newReadyMap.set(k, false);
+    roomToSendPost.allUsersReady.forEach((_v, k) => {
+        const member = roomToSendPost.members.find(user => user.id === k);
+        newReadyMap.set(k, member?.isBot ? true : false);
     });
     roomToSendPost.allUsersReady = newReadyMap;
     await upsertRoomReadyStates(roomToSendPost);
 
-    return { kind: 'send_post', post: postToSendWithPreferlist } as const;
+    const botActionSequence = roundPostId
+        ? await generateBotActionSequence(roomToSendPost, roundPostId, postToSendWithPreferlist.tags)
+        : null;
+    return { kind: 'send_post', post: postToSendWithPreferlist, botActionSequence } as const;
 };
 
 export { recordGuess, handleRequestPost };

@@ -20,10 +20,22 @@ const removeRoomMember = async (roomID: string, userID: string) => {
     if (!supabase) return;
     const { error } = await supabase
         .from('room_members')
-        .delete()
+        .update({ left_at: new Date().toISOString(), icon: null })
         .eq('room_id', roomID)
         .eq('player_id', userID);
     logSupabaseError('remove room member', error);
 };
 
-export { upsertRoomMember, removeRoomMember };
+const getRoomMember = async (roomID: string, userID: string) => {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+        .from('room_members')
+        .select('score,left_at')
+        .eq('room_id', roomID)
+        .eq('player_id', userID)
+        .maybeSingle();
+    logSupabaseError('get room member', error);
+    return data ?? null;
+};
+
+export { upsertRoomMember, removeRoomMember, getRoomMember };

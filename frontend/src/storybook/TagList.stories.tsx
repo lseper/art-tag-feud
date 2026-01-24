@@ -19,6 +19,7 @@ const sampleTags = [
   { name: 'artist_tag_2', type: TagType.Enum.artist, score: 30 },
   { name: 'character_tag_2', type: TagType.Enum.character, score: 80 },
 ];
+const sampleUser = { id: 'user-1', username: 'Rin', score: 0, icon: 'krystal.jpg' };
 
 export const AllHidden: Story = {
   args: {
@@ -31,8 +32,8 @@ export const PartiallyRevealed: Story = {
   args: {
     tags: sampleTags,
     guessedTags: [
-      { name: 'artist_tag_1', type: TagType.Enum.artist, score: 42 },
-      { name: 'character_tag_1', type: TagType.Enum.character, score: 100 },
+      { tag: sampleTags[0], user: sampleUser },
+      { tag: sampleTags[1], user: sampleUser },
     ],
   },
 };
@@ -40,7 +41,7 @@ export const PartiallyRevealed: Story = {
 export const AllRevealed: Story = {
   args: {
     tags: sampleTags,
-    guessedTags: sampleTags,
+    guessedTags: sampleTags.map(tag => ({ tag, user: sampleUser })),
   },
 };
 

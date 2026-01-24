@@ -19,6 +19,8 @@ const ensureActiveGame = async (room: ServerRoomType, createdByPlayerID?: string
         roundId,
         roundIndex: room.curRound,
         nextPostOrder: 0,
+        currentPost: undefined,
+        currentRoundGuesses: new Map(),
     };
     activeGames.set(room.id, state);
     return state;
@@ -32,6 +34,8 @@ const startNextRound = async (roomID: string, gameId: string, roundIndex: number
         roundId,
         roundIndex,
         nextPostOrder: 0,
+        currentPost: undefined,
+        currentRoundGuesses: new Map(),
     };
     activeGames.set(roomID, state);
     return state;

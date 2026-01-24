@@ -1,10 +1,12 @@
-import type { PostTagType, TagTypeType } from '../types';
+import type { PostTagType, TagTypeType, UserType } from '../types';
 import { Badge } from '@/components/ui/badge';
 import styles from '@/styles/components/tag.module.css';
+import { buildUIIconImg } from '../util/UIUtil';
 
 interface Props {
    tag?: PostTagType,
    showAutoBadge?: boolean,
+   guessedBy?: UserType,
 }
 
 const TAG_CLASS_BY_TYPE: Record<TagTypeType, string> = {
@@ -14,7 +16,7 @@ const TAG_CLASS_BY_TYPE: Record<TagTypeType, string> = {
   general: styles.tagGeneral,
 };
 
-const Tag : React.FC<Props> = ({tag, showAutoBadge } : Props) => {
+const Tag : React.FC<Props> = ({tag, showAutoBadge, guessedBy } : Props) => {
   if (!tag) {
     return <li className={`${styles.tag} ${styles.hidden}`}>???</li>;
   }
@@ -22,6 +24,12 @@ const Tag : React.FC<Props> = ({tag, showAutoBadge } : Props) => {
     <li className={`${styles.tag} ${TAG_CLASS_BY_TYPE[tag.type] ?? styles.tagGeneral}`}>
       <p className={styles.tagText}>
         {tag.name}
+        {guessedBy && (
+          <Badge variant="outline" className={styles.guesserBadge}>
+            {guessedBy.icon && buildUIIconImg(true, 'profile_icons/', guessedBy.icon, styles.guesserBadgeIcon)}
+            <span className={styles.guesserBadgeName}>{guessedBy.username}</span>
+          </Badge>
+        )}
         {showAutoBadge && (
           <Badge variant="outline" className={styles.autoBadge}>
             Auto

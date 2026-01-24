@@ -56,6 +56,8 @@ export const ServerRoom = z.object({
     name: z.string(),
     postsPerRound: z.number(),
     roundsPerGame: z.number(),
+    roomCode: z.string(),
+    isPrivate: z.boolean(),
     owner: User,
     members: z.array(User),
     blacklist: z.array(z.string()),
@@ -73,12 +75,16 @@ export const CreateRoomEventData = z.object({
     roomName: z.string(),
     postsPerRound: z.number(),
     roundsPerGame: z.number(),
+    isPrivate: z.optional(z.boolean()),
     type: z.literal(EventType.enum.CREATE_ROOM)
 });
 export const JoinRoomEventData = z.object({
     userID: z.optional(z.string()),
-    roomID: z.string(),
+    roomID: z.optional(z.string()),
+    roomCode: z.optional(z.string()),
     type: z.literal(EventType.enum.JOIN_ROOM)
+}).refine((data) => data.roomID || data.roomCode, {
+    message: 'roomID or roomCode is required',
 });
 export const LeaveRoomEventData = z.object({
     userID: z.string(),
@@ -152,6 +158,8 @@ export const ClientRoom = z.object({
     roomName: z.string(),
     postsPerRound: z.number(),
     roundsPerGame: z.number(),
+    roomCode: z.string(),
+    isPrivate: z.boolean(),
     owner: User,
     readyStates: z.array(UserReadyState),
     blacklist: z.array(z.string()),

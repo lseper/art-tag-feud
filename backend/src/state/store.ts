@@ -1,5 +1,5 @@
 import type { WebSocket } from 'ws';
-import type { ServerRoomType, UserType } from '../domain/contracts';
+import type { PostType, ServerRoomType, UserType } from '../domain/contracts';
 
 export type ActiveGameState = {
     gameId: string;
@@ -7,6 +7,8 @@ export type ActiveGameState = {
     roundIndex: number;
     nextPostOrder: number;
     currentRoundPostId?: string;
+    currentPost?: PostType;
+    currentRoundGuesses?: Map<string, string>;
 };
 
 let numUsers = 0;

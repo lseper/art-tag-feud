@@ -1,6 +1,6 @@
 import { UserContext } from './contexts/UserContext';
 import type { PreferlistTagType, UserType, UserReadyStateType } from './types';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ConnectionManager } from './util/ConnectionManager';
 import { Routes, Route } from 'react-router-dom';
 import { Lobby } from './pages/Lobby';
@@ -11,10 +11,15 @@ const connectionManager = ConnectionManager.getInstance();
 
 function App(): JSX.Element {
   const [username, setUsername] = useState<string | undefined>();
-  const [userID, setUserID] = useState<string | undefined>();
+  const [userID, setUserID] = useState<string | undefined>(() => {
+    const stored = window.localStorage.getItem('artFeudUserId');
+    return stored || undefined;
+  });
   const [score, setScore] = useState(0);
   const [roomID, setRoomID] = useState<string | undefined>();
   const [roomName, setRoomName] = useState<string | undefined>();
+  const [roomCode, setRoomCode] = useState<string | undefined>();
+  const [isPrivate, setIsPrivate] = useState(true);
   const [readyStates, setReadyStates] = useState<UserReadyStateType[]>([]);
   const [icon, setIcon] = useState<string | undefined>();
   const [owner, setOwner] = useState<UserType | undefined>();
@@ -27,9 +32,17 @@ function App(): JSX.Element {
     setReadyStates([]);
     setIcon(undefined);
     setOwner(undefined);
+    setRoomCode(undefined);
+    setIsPrivate(true);
     setBlacklist([]);
     setPreferlist([]);
   }
+
+  useEffect(() => {
+    if (userID) {
+      window.localStorage.setItem('artFeudUserId', userID);
+    }
+  }, [userID]);
 
   const value = {
     username, 
@@ -37,6 +50,8 @@ function App(): JSX.Element {
     score, 
     roomID, 
     roomName,
+    roomCode,
+    isPrivate,
     icon, 
     readyStates, 
     owner, 
@@ -47,6 +62,8 @@ function App(): JSX.Element {
     setScore, 
     setRoomID, 
     setRoomName,
+    setRoomCode,
+    setIsPrivate,
     setIcon, 
     setReadyStates, 
     setOwner, 

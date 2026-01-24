@@ -1,9 +1,9 @@
-import type { PostTagType } from '../types';
+import type { GuessedTagEntryType } from '../types';
 import Tag from './Tag';
 import styles from '@/styles/components/mobile-tags-overlay.module.css';
 
 interface Props {
-  guessedTags: PostTagType[];
+  guessedTags: GuessedTagEntryType[];
   className?: string;
 }
 
@@ -16,8 +16,8 @@ const MobileTagsOverlay: React.FC<Props> = ({ guessedTags, className }) => {
     <div className={`${styles.container} ${className ?? ''}`.trim()}>
       {guessedTags.length > 0 && (
         <ul className={styles.list}>
-          {guessedTags.map((tag, index) => (
-            <Tag tag={tag} key={`${tag.name}-${index}`} />
+          {guessedTags.map((entry, index) => (
+            <Tag tag={entry.tag} guessedBy={entry.user} key={`${entry.tag.name}-${index}`} />
           ))}
         </ul>
       )}

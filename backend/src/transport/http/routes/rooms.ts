@@ -13,7 +13,7 @@ const createRoomsRouter = () => {
 
     router.get('/:roomID', (req, res) => {
         const room = getRoom(req.params.roomID);
-        if (!room) {
+        if (!room || room.isPrivate) {
             res.status(404).json({ error: 'Room not found' });
             return;
         }

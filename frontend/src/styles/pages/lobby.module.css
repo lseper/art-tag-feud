@@ -224,6 +224,23 @@
   gap: 12px;
 }
 
+.privateJoinForm {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.privateJoinRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
 .privateJoinLabel {
   color: #cbd9ea;
   font-size: 1.05rem;

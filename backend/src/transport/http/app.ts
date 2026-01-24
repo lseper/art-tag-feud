@@ -1,5 +1,6 @@
 import express from 'express';
 import { createRoomsRouter } from './routes/rooms';
+import { createBotsRouter } from './routes/bots';
 
 const createHttpApp = () => {
     const app = express();
@@ -10,6 +11,7 @@ const createHttpApp = () => {
     });
 
     app.use('/rooms', createRoomsRouter());
+    app.use('/bots', createBotsRouter());
 
     return app;
 };

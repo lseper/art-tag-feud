@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useContext } from 'react';
-import type { GuessTagEventDataType, GuessTagEventDataToClientType, PostTagType, UserType } from './types';
+import type { GuessTagEventDataType, GuessTagEventDataToClientType, GuessedTagEntryType, PostTagType, UserType } from './types';
 import alias_data_untyped from './data/tag-aliases.json'
 import { UserContext } from './contexts/UserContext';
 import { EventType } from './types';
@@ -15,11 +15,11 @@ function checkAlias(tag_name: string) : string {
     }
 }
 // custom hook, returns an object that has the CurrentPost, and an update callback function that we define
-export default function useTagListGuesser(startingTags : PostTagType[], forcedGuessedTagNames: string[] = []) : [
-    PostTagType[], (guess: string) => boolean, () => void
+export default function useTagListGuesser(startingTags : PostTagType[], forcedGuessedTagNames: string[] = [], initialGuesses: GuessedTagEntryType[] = []) : [
+    GuessedTagEntryType[], (guess: string) => boolean, () => void, (tag: PostTagType, user: UserType) => boolean
 ] {
     // want component re-rendering when this changes
-    const [guessedTags, setGuessedTags] = useState<PostTagType[]>([]);
+    const [guessedTags, setGuessedTags] = useState<GuessedTagEntryType[]>([]);
     const [hiddenTags, setHiddenTags] = useState(startingTags);
     const {connectionManager, username, readyStates, setReadyStates, userID, roomID, score} = useContext(UserContext);
 
@@ -29,13 +29,13 @@ export default function useTagListGuesser(startingTags : PostTagType[], forcedGu
             if (hiddenTags.length === 0) {
                 return prevGuessedTags;
             }
-            const existingNames = new Set(prevGuessedTags.map(tag => tag.name));
+            const existingNames = new Set(prevGuessedTags.map(entry => entry.tag.name));
             let didAdd = false;
             const nextGuessedTags = [...prevGuessedTags];
             hiddenTags.forEach((tag) => {
                 if (!existingNames.has(tag.name)) {
                     existingNames.add(tag.name);
-                    nextGuessedTags.push(tag);
+                    nextGuessedTags.push({ tag });
                     didAdd = true;
                 }
             });
@@ -46,13 +46,25 @@ export default function useTagListGuesser(startingTags : PostTagType[], forcedGu
     // reset on new post
     useEffect(() => {
         const forcedGuessedSet = new Set(forcedGuessedTagNames);
+        const initialGuessMap = new Map(initialGuesses.map(entry => [entry.tag.name, entry]));
+        const nextGuessedTags: GuessedTagEntryType[] = [];
+        startingTags.forEach((tag) => {
+            const existingGuess = initialGuessMap.get(tag.name);
+            if (existingGuess) {
+                nextGuessedTags.push(existingGuess);
+                return;
+            }
+            if (forcedGuessedSet.has(tag.name)) {
+                nextGuessedTags.push({ tag });
+            }
+        });
         setHiddenTags(startingTags);
-        setGuessedTags(startingTags.filter(tag => forcedGuessedSet.has(tag.name)));
-    }, [forcedGuessedTagNames, startingTags])
+        setGuessedTags(nextGuessedTags);
+    }, [forcedGuessedTagNames, initialGuesses, startingTags])
 
     const handleGuess = useCallback((guess: string) : {isCorrect: boolean, tag?: PostTagType} => {
         let tagIndex = hiddenTags.findIndex((tag : PostTagType) => tag.name === guess);
-        if(guessedTags.some(tag => tag.name === guess)){
+        if(guessedTags.some(entry => entry.tag.name === guess)){
             return {isCorrect: false};
         }
         if(tagIndex < 0) {
@@ -70,6 +82,21 @@ export default function useTagListGuesser(startingTags : PostTagType[], forcedGu
         const guessedTag = hiddenTags[tagIndex];
         return {isCorrect: true, tag: guessedTag};
     }, [guessedTags, hiddenTags]);
+
+    const applyLocalGuess = useCallback((tag: PostTagType, user: UserType) => {
+        const { isCorrect } = handleGuess(tag.name);
+        if (!isCorrect) {
+            return false;
+        }
+        const newGuessedTags = [...guessedTags, { tag, user }];
+        setGuessedTags(newGuessedTags);
+        const userToUpdateScore = readyStates.find(readyState => readyState.user.id === user.id);
+        if (userToUpdateScore) {
+            userToUpdateScore.user.score += tag.score;
+            setReadyStates([...readyStates]);
+        }
+        return true;
+    }, [guessedTags, handleGuess, readyStates, setReadyStates]);
     
     // define what the update callback will be
     const guessTag = (guess: string) : boolean => {
@@ -88,8 +115,7 @@ export default function useTagListGuesser(startingTags : PostTagType[], forcedGu
         const onGuess = (data: GuessTagEventDataToClientType) => {
             const {isCorrect, tag} = handleGuess(data.tag.name);
             if(isCorrect && tag != null) {
-                // TODO: associate guessed tags with a user that guessed it
-                const newGuessedTags = [...guessedTags, tag];
+                const newGuessedTags = [...guessedTags, { tag, user: data.user }];
                 setGuessedTags(newGuessedTags);
                 // update user's score on client side
                 const userToUpdateScore = readyStates.find(readyState => readyState.user.id === data.user.id);
@@ -106,5 +132,5 @@ export default function useTagListGuesser(startingTags : PostTagType[], forcedGu
 
     }, [connectionManager, guessedTags, handleGuess, readyStates, setReadyStates])
 
-    return [ guessedTags, guessTag, revealAllTags ];
+    return [ guessedTags, guessTag, revealAllTags, applyLocalGuess ];
   }

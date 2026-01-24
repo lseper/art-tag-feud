@@ -11,11 +11,16 @@ const getOrCreateUser = (socket: WebSocket, userID?: string): string => {
         while (userSockets.get(newUserID)) {
             newUserID = v4();
         }
-        const createdUser: UserType = { username: `User_${userID}`, id: newUserID, score: 0 };
+        const createdUser: UserType = { username: `User_${userID}`, id: newUserID, score: 0, isBot: false };
         userSockets.set(newUserID, socket);
         users.set(newUserID, createdUser);
         return newUserID;
     }
+    if (!users.get(userID)) {
+        const createdUser: UserType = { username: `User_${userID}`, id: userID, score: 0 };
+        users.set(userID, createdUser);
+    }
+    userSockets.set(userID, socket);
     return userID;
 };
 
