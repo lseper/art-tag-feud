@@ -26,7 +26,10 @@ export const EventType = z.enum(['DEFAULT',
     'ROULETTE_VOTE_SKIP',
     'ROULETTE_SKIP_UPDATE',
     'ROULETTE_PLAYER_ELIMINATED',
-    'ROULETTE_ALL_TAGS_GUESSED']);
+    'ROULETTE_ALL_TAGS_GUESSED',
+    'PUZZLE_ROUND_START',
+    'PUZZLE_PLACE_PIECE',
+    'PUZZLE_ROUND_END']);
 
 /**
  * Server-Only Types
@@ -47,7 +50,7 @@ export const Post = z.object({
 
 export const PreferlistFrequency = z.enum(['most', 'all']);
 
-export const GameMode = z.enum(['Blitz', 'Roulette', 'Imposter']);
+export const GameMode = z.enum(['Blitz', 'Roulette', 'Imposter', 'Puzzle']);
 export const RoomRating = z.enum(['Safe', 'Questionable', 'Explicit']);
 export const BotDifficulty = z.enum(['Saint', 'Sinner', 'Succubus']);
 
@@ -93,6 +96,7 @@ export const ServerRoom = z.object({
     gameStarted: z.boolean(),
     startingLives: z.optional(z.number()),
     turnTimeMs: z.optional(z.number()),
+    puzzleTimerSeconds: z.optional(z.number()),
 })
 
 export const CreateRoomEventData = z.object({
@@ -108,6 +112,7 @@ export const CreateRoomEventData = z.object({
     isPrivate: z.optional(z.boolean()),
     startingLives: z.optional(z.number()),
     turnTimeMs: z.optional(z.number()),
+    puzzleTimerSeconds: z.optional(z.number()),
     type: z.literal(EventType.enum.CREATE_ROOM)
 });
 export const JoinRoomEventData = z.object({
@@ -188,6 +193,7 @@ export const UpdateRoomSettingsEventData = z.object({
     isPrivate: z.boolean(),
     startingLives: z.optional(z.number()),
     turnTimeMs: z.optional(z.number()),
+    puzzleTimerSeconds: z.optional(z.number()),
     type: z.literal(EventType.enum.UPDATE_ROOM_SETTINGS)
 })
 
@@ -241,6 +247,7 @@ export const ClientRoom = z.object({
     preferlist: z.array(PreferlistTag),
     startingLives: z.optional(z.number()),
     turnTimeMs: z.optional(z.number()),
+    puzzleTimerSeconds: z.optional(z.number()),
 })
 
 export const CreateRoomEventDataToClient = z.object({
@@ -341,8 +348,52 @@ export const UpdateRoomSettingsEventDataToClient = z.object({
     isPrivate: z.boolean(),
     startingLives: z.optional(z.number()),
     turnTimeMs: z.optional(z.number()),
+    puzzleTimerSeconds: z.optional(z.number()),
     type: z.literal(EventType.enum.UPDATE_ROOM_SETTINGS)
 })
+
+// Puzzle Schemas
+export const PuzzlePieceDefinition = z.object({
+    index: z.number(),
+    vertices: z.array(z.tuple([z.number(), z.number()])),
+    centroid: z.tuple([z.number(), z.number()]),
+});
+
+export const PuzzlePieceAssignment = z.object({
+    userId: z.string(),
+    pieceIndices: z.array(z.number()),
+});
+
+export const PuzzleRoundStartEventDataToClient = z.object({
+    type: z.literal(EventType.enum.PUZZLE_ROUND_START),
+    postUrl: z.string(),
+    postId: z.number(),
+    pieces: z.array(PuzzlePieceDefinition),
+    assignments: z.array(PuzzlePieceAssignment),
+    timerDurationMs: z.number(),
+    roundNumber: z.number(),
+    totalRounds: z.number(),
+});
+
+export const PuzzlePlacePieceEventData = z.object({
+    type: z.literal(EventType.enum.PUZZLE_PLACE_PIECE),
+    roomID: z.string(),
+    userID: z.string(),
+    pieceIndex: z.number(),
+});
+
+export const PuzzlePlacePieceEventDataToClient = z.object({
+    type: z.literal(EventType.enum.PUZZLE_PLACE_PIECE),
+    pieceIndex: z.number(),
+    userID: z.string(),
+});
+
+export const PuzzleRoundEndEventDataToClient = z.object({
+    type: z.literal(EventType.enum.PUZZLE_ROUND_END),
+    completed: z.boolean(),
+    placedPieces: z.array(z.number()),
+    totalPieces: z.number(),
+});
 
 // Roulette Client → Server
 export const RouletteVoteSkipEventData = z.object({
@@ -437,6 +488,13 @@ export type RouletteLifeLostEventDataToClientType = z.infer<typeof RouletteLifeL
 export type RouletteSkipUpdateEventDataToClientType = z.infer<typeof RouletteSkipUpdateEventDataToClient>
 export type RoulettePlayerEliminatedEventDataToClientType = z.infer<typeof RoulettePlayerEliminatedEventDataToClient>
 export type RouletteAllTagsGuessedEventDataToClientType = z.infer<typeof RouletteAllTagsGuessedEventDataToClient>
+
+export type PuzzlePieceDefinitionType = z.infer<typeof PuzzlePieceDefinition>
+export type PuzzlePieceAssignmentType = z.infer<typeof PuzzlePieceAssignment>
+export type PuzzleRoundStartEventDataToClientType = z.infer<typeof PuzzleRoundStartEventDataToClient>
+export type PuzzlePlacePieceEventDataType = z.infer<typeof PuzzlePlacePieceEventData>
+export type PuzzlePlacePieceEventDataToClientType = z.infer<typeof PuzzlePlacePieceEventDataToClient>
+export type PuzzleRoundEndEventDataToClientType = z.infer<typeof PuzzleRoundEndEventDataToClient>
 
 export type ClientRoomType = z.infer<typeof ClientRoom>;
 

@@ -22,6 +22,7 @@ const leaderboardRepo_1 = require("../data/repos/leaderboardRepo");
 const gameService_1 = require("./gameService");
 const botSequenceService_1 = require("./botSequenceService");
 const rouletteService_1 = require("./rouletteService");
+const puzzleService_1 = require("./puzzleService");
 const store_2 = require("../state/store");
 const recordPostAndTags = (post) => __awaiter(void 0, void 0, void 0, function* () {
     yield (0, postsRepo_1.upsertPost)(post);
@@ -96,6 +97,30 @@ const handleRoulettePost = (room) => __awaiter(void 0, void 0, void 0, function*
     (0, rouletteService_1.startTurn)(room.id);
     return { kind: 'send_post', post: postToSendWithPreferlist, botActionSequence };
 });
+const handlePuzzlePost = (room, userID) => __awaiter(void 0, void 0, void 0, function* () {
+    if (room.postQueue.length === 0) {
+        room.postQueue = yield (0, e621Client_1.getImageOnlyPosts)(room.blacklist, room.preferlist);
+    }
+    const postToSend = room.postQueue.shift();
+    if (!postToSend) {
+        console.error('No image posts available to send (Puzzle).');
+        return { kind: 'no_post' };
+    }
+    yield (0, gameService_1.ensureActiveGame)(room, userID);
+    yield recordPostAndTags(postToSend);
+    const activeGame = store_1.activeGames.get(room.id);
+    if (activeGame) {
+        activeGame.currentPost = postToSend;
+        activeGame.currentRoundGuesses = new Map();
+        store_1.activeGames.set(room.id, activeGame);
+        yield recordRoundPost(room.id, activeGame.roundId, postToSend.id, activeGame.nextPostOrder);
+    }
+    room.postsViewedThisRound += 1;
+    yield (0, roomsRepo_1.upsertRoom)(room);
+    // Delegate to puzzle service to generate pieces and broadcast PUZZLE_ROUND_START
+    yield (0, puzzleService_1.handlePuzzleRoundStart)(room.id, postToSend.url, postToSend.id);
+    return { kind: 'puzzle_started' };
+});
 const handleRequestPost = (roomID, userID) => __awaiter(void 0, void 0, void 0, function* () {
     const roomToSendPost = store_1.rooms.get(roomID);
     if (!roomToSendPost)
@@ -107,6 +132,14 @@ const handleRequestPost = (roomID, userID) => __awaiter(void 0, void 0, void 0, 
             yield (0, roomsRepo_1.upsertRoom)(roomToSendPost);
         }
         return yield handleRoulettePost(roomToSendPost);
+    }
+    // Puzzle mode: skip tag guessing, use puzzle flow
+    if (roomToSendPost.gameMode === 'Puzzle') {
+        if (!roomToSendPost.gameStarted) {
+            roomToSendPost.gameStarted = true;
+            yield (0, roomsRepo_1.upsertRoom)(roomToSendPost);
+        }
+        return yield handlePuzzlePost(roomToSendPost, userID);
     }
     roomToSendPost.allUsersReady.set(userID, true);
     yield (0, roomReadyStateRepo_1.upsertRoomReadyStates)(roomToSendPost);

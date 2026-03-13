@@ -1,16 +1,49 @@
 import { DisplayedPost } from '../components/DisplayedPost';
 import { TagListContainer } from '../components/TagListContainer';
 import { UserContext } from '../contexts/UserContext';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState, useRef } from 'react';
 import type { BotActionSequenceType, GameModeType, GuessedTagEntryType, PostTagType, PostType, ShowLeaderboardEventDataToClientType, EndGameEventDataToClientType, RequestPostEventDataToClientType } from '../types';
 import { EventType } from '../types';
 import LeaderBoard from '../components/Leaderboard';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import styles from '@/styles/pages/main-page.module.css';
+import { PuzzleCanvas } from '../components/puzzle/PuzzleCanvas';
+import { usePuzzleState } from '../hooks/usePuzzleState';
 // TODO: ^ use this lol
 
 const emptyTagList : PostTagType[] = [];
+
+function PuzzleTimerOverlay({ timerEnd }: { timerEnd: number }) {
+  const [secondsLeft, setSecondsLeft] = useState(() => Math.max(0, Math.ceil((timerEnd - Date.now()) / 1000)));
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((timerEnd - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining > 0) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [timerEnd]);
+
+  const isUrgent = secondsLeft <= 10;
+  return (
+    <div style={{
+      position: 'absolute', top: 8, right: 12, zIndex: 10,
+      color: isUrgent ? '#ff4444' : '#ffffff',
+      fontSize: '1.1rem', fontFamily: 'monospace',
+      fontWeight: isUrgent ? 'bold' : 'normal',
+    }}>
+      {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')}
+    </div>
+  );
+}
 
 type Props = {
   currentPost: PostType,
@@ -27,6 +60,9 @@ function MainPage({currentPost, update, gameMode, botActionSequence, roundGuesse
   const {roomID, readyStates, connectionManager, userID, owner } = useContext(UserContext);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [postOrientation, setPostOrientation] = useState<'portrait' | 'landscape' | 'unknown'>('unknown');
+
+  // Puzzle mode state
+  const puzzle = usePuzzleState(connectionManager, roomID ?? undefined, userID ?? undefined);
 
   const navigate = useNavigate();
   
@@ -88,6 +124,13 @@ function MainPage({currentPost, update, gameMode, botActionSequence, roundGuesse
   }, [gameMode, owner, userID, canStartNewRound, startNewRound])
 
   const shouldShowLeaderboard = roomID != null && (gameMode === 'Roulette' || !showLeaderboard);
+
+  // Puzzle mode countdown timer display
+  const puzzleTimeLeft = useMemo(() => {
+    if (!puzzle.isActive || puzzle.timerEnd === 0) return null;
+    return puzzle.timerEnd;
+  }, [puzzle.isActive, puzzle.timerEnd]);
+
   return (
     <div className={styles.page}>
       <header className={styles.topNav}>
@@ -124,7 +167,56 @@ function MainPage({currentPost, update, gameMode, botActionSequence, roundGuesse
         </ul>
       </nav>
       <main className={styles.pageBody}>
-        {shouldShowLeaderboard ? (
+        {gameMode === 'Puzzle' ? (
+          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            {/* Timer overlay */}
+            {puzzle.isActive && puzzleTimeLeft && (
+              <PuzzleTimerOverlay timerEnd={puzzleTimeLeft} />
+            )}
+            {/* Round indicator */}
+            {puzzle.roundNumber > 0 && (
+              <div style={{
+                position: 'absolute', top: 8, left: 12, zIndex: 10,
+                color: '#ccc', fontSize: '0.85rem', fontFamily: 'monospace',
+              }}>
+                Round {puzzle.roundNumber}/{puzzle.totalRounds}
+              </div>
+            )}
+            {/* Round end status */}
+            {puzzle.roundComplete && (
+              <div style={{
+                position: 'absolute', top: '50%', left: '50%',
+                transform: 'translate(-50%, -50%)', zIndex: 20,
+                background: 'rgba(0,0,0,0.85)', padding: '2rem',
+                borderRadius: '8px', color: puzzle.roundCompleted ? '#00ff88' : '#ff6666',
+                fontSize: '1.5rem', textAlign: 'center',
+              }}>
+                {puzzle.roundCompleted ? 'Puzzle Complete!' : 'Time Up!'}
+                {userID === owner?.id && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <Button variant="outline" onClick={update}>Next Round</Button>
+                  </div>
+                )}
+              </div>
+            )}
+            {puzzle.isActive && puzzle.postUrl ? (
+              <PuzzleCanvas
+                pieces={puzzle.pieces}
+                myPieceIndices={puzzle.myPieceIndices}
+                placedPieces={puzzle.placedPieces}
+                postUrl={puzzle.postUrl}
+                onPlacePiece={puzzle.onPlacePiece}
+                timerEnd={puzzle.timerEnd}
+              />
+            ) : (
+              !puzzle.roundComplete && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#aaa' }}>
+                  Waiting for puzzle round to start...
+                </div>
+              )
+            )}
+          </div>
+        ) : shouldShowLeaderboard ? (
           <div className={styles.contentGrid}>
             <TagListContainer
               tags={currentPost ? currentPost.tags : emptyTagList}

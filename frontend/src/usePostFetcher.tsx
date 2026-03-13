@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { ConnectionManager } from './util/ConnectionManager';
 import { UserContext } from './contexts/UserContext';
-import type { BotActionSequenceType, GameModeType, GuessedTagEntryType, PostType, RequestPostEventDataToClientType, RequestPostEventDataType, RouletteAllTagsGuessedEventDataToClientType, SyncRoundStateEventDataToClientType } from './types';
+import type { BotActionSequenceType, GameModeType, GuessedTagEntryType, PostType, RequestPostEventDataToClientType, RequestPostEventDataType, RouletteAllTagsGuessedEventDataToClientType, SyncRoundStateEventDataToClientType, PuzzleRoundStartEventDataToClientType } from './types';
 import { EventType } from './types';
 
 // custom hook, returns an object that has the CurrentPost, and an update callback function that we define
@@ -9,12 +9,14 @@ export default function usePostFetcher(connectionManager: ConnectionManager, roo
     currentPost: PostType | null;
     botActionSequence: BotActionSequenceType | null;
     roundGuesses: GuessedTagEntryType[];
+    puzzleRoundActive: boolean;
     update: () => Promise<void>;
   } {
     // want component re-rendering when this changes
     const [currentPost, setCurrentPost] = useState<PostType | null>(null);
     const [botActionSequence, setBotActionSequence] = useState<BotActionSequenceType | null>(null);
     const [roundGuesses, setRoundGuesses] = useState<GuessedTagEntryType[]>([]);
+    const [puzzleRoundActive, setPuzzleRoundActive] = useState(false);
     const {userID, readyStates, setReadyStates} = useContext(UserContext);
 
     // run update once on mount
@@ -54,10 +56,17 @@ export default function usePostFetcher(connectionManager: ConnectionManager, roo
         setRoundGuesses([]);
       };
 
+      // In Puzzle mode, PUZZLE_ROUND_START signals an active puzzle round.
+      // Set puzzleRoundActive so MainPage shows the PuzzleCanvas.
+      const onPuzzleRoundStart = (_data: PuzzleRoundStartEventDataToClientType) => {
+        setPuzzleRoundActive(true);
+      };
+
       const unsubscribers = [
         connectionManager.listen<RequestPostEventDataToClientType>(EventType.enum.REQUEST_POST, onRequestPost),
         connectionManager.listen<SyncRoundStateEventDataToClientType>(EventType.enum.SYNC_ROUND_STATE, onSyncRoundState),
         connectionManager.listen<RouletteAllTagsGuessedEventDataToClientType>(EventType.enum.ROULETTE_ALL_TAGS_GUESSED, onRouletteAllTagsGuessed),
+        connectionManager.listen<PuzzleRoundStartEventDataToClientType>(EventType.enum.PUZZLE_ROUND_START, onPuzzleRoundStart),
       ];
 
       return () => {
@@ -72,5 +81,5 @@ export default function usePostFetcher(connectionManager: ConnectionManager, roo
         connectionManager.send(data);
       }
     }
-    return { currentPost, botActionSequence, roundGuesses, update };
+    return { currentPost, botActionSequence, roundGuesses, puzzleRoundActive, update };
   }

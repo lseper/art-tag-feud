@@ -32,6 +32,7 @@ const convertServerRoomToClientRoom = (serverRoom, users) => {
         preferlist: serverRoom.preferlist,
         startingLives: serverRoom.startingLives,
         turnTimeMs: serverRoom.turnTimeMs,
+        puzzleTimerSeconds: serverRoom.puzzleTimerSeconds,
     };
 };
 exports.convertServerRoomToClientRoom = convertServerRoomToClientRoom;

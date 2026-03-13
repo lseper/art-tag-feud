@@ -23,7 +23,9 @@ const TAG_STD = 25;
 const BASE_TAG_SCORE = 1;
 const MOST_TAG_INCLUDE_CHANCE = 0.6;
 
-const getPosts = async (additionalBlacklist: string[] = [], preferlist: PreferlistTagType[] = []): Promise<PostType[]> => {
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp']);
+
+const getPosts = async (additionalBlacklist: string[] = [], preferlist: PreferlistTagType[] = [], imageOnly = false): Promise<PostType[]> => {
     if (!username || !api_key) {
         throw new Error('Missing E621_USERNAME or E621_API_KEY in backend/.env');
     }
@@ -52,7 +54,10 @@ const getPosts = async (additionalBlacklist: string[] = [], preferlist: Preferli
         console.error(err.message);
     });
     const posts = data?.posts ?? [];
-    const result = posts.map((post: any): PostType => {
+    const filteredPosts = imageOnly
+        ? posts.filter((post: any) => IMAGE_EXTENSIONS.has((post.file?.ext ?? '').toLowerCase()))
+        : posts;
+    const result = filteredPosts.map((post: any): PostType => {
         const url: string = post.file.url;
         const id: number = post.id;
         const generalTags: PostTagType[] = post.tags.general.map((tag_name: string): PostTagType => {
@@ -98,4 +103,8 @@ const scaleScores = (tags: PostTagType[]): PostTagType[] => {
     return tags.map((tag, i) => ({ ...tag, score: newScores[i] > 0 ? newScores[i] : BASE_TAG_SCORE }));
 };
 
-export { getPosts };
+const getImageOnlyPosts = async (additionalBlacklist: string[] = [], preferlist: PreferlistTagType[] = []): Promise<PostType[]> => {
+    return getPosts(additionalBlacklist, preferlist, true);
+};
+
+export { getPosts, getImageOnlyPosts };

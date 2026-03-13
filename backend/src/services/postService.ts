@@ -1,7 +1,7 @@
 import type { PostTagType, PostType, ServerRoomType } from '../domain/contracts';
 import { activeGames, rooms } from '../state/store';
 import { roomIsReadyForNewPost } from '../domain/roomUtils';
-import { getPosts } from '../data/e621Client';
+import { getPosts, getImageOnlyPosts } from '../data/e621Client';
 import { upsertRoom } from '../data/repos/roomsRepo';
 import { upsertRoomReadyStates } from '../data/repos/roomReadyStateRepo';
 import { upsertPost, upsertPostTags } from '../data/repos/postsRepo';
@@ -11,6 +11,7 @@ import { insertLeaderboardSnapshot } from '../data/repos/leaderboardRepo';
 import { ensureActiveGame, startNextRound, endGame } from './gameService';
 import { generateBotActionSequence } from './botSequenceService';
 import { initRouletteGame, handleNewPost as rouletteHandleNewPost, startTurn } from './rouletteService';
+import { handlePuzzleRoundStart } from './puzzleService';
 import { rouletteGames } from '../state/store';
 
 const recordPostAndTags = async (post: PostType) => {
@@ -98,6 +99,37 @@ const handleRoulettePost = async (room: ServerRoomType) => {
     return { kind: 'send_post', post: postToSendWithPreferlist, botActionSequence } as const;
 };
 
+const handlePuzzlePost = async (room: ServerRoomType, userID: string) => {
+    if (room.postQueue.length === 0) {
+        room.postQueue = await getImageOnlyPosts(room.blacklist, room.preferlist);
+    }
+
+    const postToSend = room.postQueue.shift();
+    if (!postToSend) {
+        console.error('No image posts available to send (Puzzle).');
+        return { kind: 'no_post' } as const;
+    }
+
+    await ensureActiveGame(room, userID);
+    await recordPostAndTags(postToSend);
+
+    const activeGame = activeGames.get(room.id);
+    if (activeGame) {
+        activeGame.currentPost = postToSend;
+        activeGame.currentRoundGuesses = new Map();
+        activeGames.set(room.id, activeGame);
+        await recordRoundPost(room.id, activeGame.roundId, postToSend.id, activeGame.nextPostOrder);
+    }
+
+    room.postsViewedThisRound += 1;
+    await upsertRoom(room);
+
+    // Delegate to puzzle service to generate pieces and broadcast PUZZLE_ROUND_START
+    await handlePuzzleRoundStart(room.id, postToSend.url, postToSend.id);
+
+    return { kind: 'puzzle_started' } as const;
+};
+
 const handleRequestPost = async (roomID: string, userID: string) => {
     const roomToSendPost = rooms.get(roomID);
     if (!roomToSendPost) return { kind: 'no_room' } as const;
@@ -109,6 +141,15 @@ const handleRequestPost = async (roomID: string, userID: string) => {
             await upsertRoom(roomToSendPost);
         }
         return await handleRoulettePost(roomToSendPost);
+    }
+
+    // Puzzle mode: skip tag guessing, use puzzle flow
+    if (roomToSendPost.gameMode === 'Puzzle') {
+        if (!roomToSendPost.gameStarted) {
+            roomToSendPost.gameStarted = true;
+            await upsertRoom(roomToSendPost);
+        }
+        return await handlePuzzlePost(roomToSendPost, userID);
     }
 
     roomToSendPost.allUsersReady.set(userID, true);

@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RouletteTurnStartEventDataToClient = exports.RouletteVoteSkipEventData = exports.UpdateRoomSettingsEventDataToClient = exports.UpdatePreferlistEventDataToClient = exports.UpdateBlacklistEventDataToClient = exports.ShowLeaderboardEventDataToClient = exports.EndGameEventDataToClient = exports.StartGameEventDataToClient = exports.ReadyUpEventDataToClient = exports.RequestPostEventDataToClient = exports.GetSelectedIconsEventDataToClient = exports.SetUserIconEventDataToClient = exports.SetUsernameEventDataToClient = exports.SyncRoundStateEventDataToClient = exports.GuessTagEventDataToClient = exports.AllRoomsEventDataToClient = exports.LeaveRoomEventDataToClient = exports.JoinRoomEventDataToClient = exports.CreateRoomEventDataToClient = exports.ClientRoom = exports.UserReadyState = exports.RequestBotFillEventData = exports.BotActionSequence = exports.BotAction = exports.UpdateRoomSettingsEventData = exports.UpdatePreferlistEventData = exports.UpdateBlacklistEventData = exports.AllRoomsEventData = exports.StartGameEventData = exports.ReadyUpEventData = exports.RequestPostEventData = exports.GetSelectedIconsEventData = exports.SetUserIconEventData = exports.SetUsernameEventData = exports.GuessTagEventData = exports.LeaveRoomEventData = exports.JoinRoomEventData = exports.CreateRoomEventData = exports.ServerRoom = exports.GuessedTagEntry = exports.User = exports.PreferlistTag = exports.BotDifficulty = exports.RoomRating = exports.GameMode = exports.PreferlistFrequency = exports.Post = exports.PostTag = exports.TagType = exports.EventType = void 0;
-exports.RouletteAllTagsGuessedEventDataToClient = exports.RoulettePlayerEliminatedEventDataToClient = exports.RouletteSkipUpdateEventDataToClient = exports.RouletteLifeLostEventDataToClient = void 0;
+exports.PuzzlePieceAssignment = exports.PuzzlePieceDefinition = exports.UpdateRoomSettingsEventDataToClient = exports.UpdatePreferlistEventDataToClient = exports.UpdateBlacklistEventDataToClient = exports.ShowLeaderboardEventDataToClient = exports.EndGameEventDataToClient = exports.StartGameEventDataToClient = exports.ReadyUpEventDataToClient = exports.RequestPostEventDataToClient = exports.GetSelectedIconsEventDataToClient = exports.SetUserIconEventDataToClient = exports.SetUsernameEventDataToClient = exports.SyncRoundStateEventDataToClient = exports.GuessTagEventDataToClient = exports.AllRoomsEventDataToClient = exports.LeaveRoomEventDataToClient = exports.JoinRoomEventDataToClient = exports.CreateRoomEventDataToClient = exports.ClientRoom = exports.UserReadyState = exports.RequestBotFillEventData = exports.BotActionSequence = exports.BotAction = exports.UpdateRoomSettingsEventData = exports.UpdatePreferlistEventData = exports.UpdateBlacklistEventData = exports.AllRoomsEventData = exports.StartGameEventData = exports.ReadyUpEventData = exports.RequestPostEventData = exports.GetSelectedIconsEventData = exports.SetUserIconEventData = exports.SetUsernameEventData = exports.GuessTagEventData = exports.LeaveRoomEventData = exports.JoinRoomEventData = exports.CreateRoomEventData = exports.ServerRoom = exports.GuessedTagEntry = exports.User = exports.PreferlistTag = exports.BotDifficulty = exports.RoomRating = exports.GameMode = exports.PreferlistFrequency = exports.Post = exports.PostTag = exports.TagType = exports.EventType = void 0;
+exports.RouletteAllTagsGuessedEventDataToClient = exports.RoulettePlayerEliminatedEventDataToClient = exports.RouletteSkipUpdateEventDataToClient = exports.RouletteLifeLostEventDataToClient = exports.RouletteTurnStartEventDataToClient = exports.RouletteVoteSkipEventData = exports.SyncRoundStateEventDataToClientWithPuzzle = exports.PuzzleRoundEndEventDataToClient = exports.PuzzlePlacePieceEventDataToClient = exports.PuzzlePlacePieceEventData = exports.PuzzleRoundStartEventDataToClient = void 0;
 // @ts-nocheck
 const zod_1 = require("zod");
 // shared
@@ -29,7 +29,10 @@ exports.EventType = zod_1.z.enum(['DEFAULT',
     'ROULETTE_VOTE_SKIP',
     'ROULETTE_SKIP_UPDATE',
     'ROULETTE_PLAYER_ELIMINATED',
-    'ROULETTE_ALL_TAGS_GUESSED']);
+    'ROULETTE_ALL_TAGS_GUESSED',
+    'PUZZLE_ROUND_START',
+    'PUZZLE_PLACE_PIECE',
+    'PUZZLE_ROUND_END']);
 /**
  * Server-Only Types
  */
@@ -45,7 +48,7 @@ exports.Post = zod_1.z.object({
     tags: zod_1.z.array(exports.PostTag)
 });
 exports.PreferlistFrequency = zod_1.z.enum(['most', 'all']);
-exports.GameMode = zod_1.z.enum(['Blitz', 'Roulette', 'Imposter']);
+exports.GameMode = zod_1.z.enum(['Blitz', 'Roulette', 'Imposter', 'Puzzle']);
 exports.RoomRating = zod_1.z.enum(['Safe', 'Questionable', 'Explicit']);
 exports.BotDifficulty = zod_1.z.enum(['Saint', 'Sinner', 'Succubus']);
 exports.PreferlistTag = zod_1.z.object({
@@ -87,6 +90,7 @@ exports.ServerRoom = zod_1.z.object({
     gameStarted: zod_1.z.boolean(),
     startingLives: zod_1.z.optional(zod_1.z.number()),
     turnTimeMs: zod_1.z.optional(zod_1.z.number()),
+    puzzleTimerSeconds: zod_1.z.optional(zod_1.z.number()),
 });
 exports.CreateRoomEventData = zod_1.z.object({
     roomID: zod_1.z.optional(zod_1.z.string()),
@@ -101,6 +105,7 @@ exports.CreateRoomEventData = zod_1.z.object({
     isPrivate: zod_1.z.optional(zod_1.z.boolean()),
     startingLives: zod_1.z.optional(zod_1.z.number()),
     turnTimeMs: zod_1.z.optional(zod_1.z.number()),
+    puzzleTimerSeconds: zod_1.z.optional(zod_1.z.number()),
     type: zod_1.z.literal(exports.EventType.enum.CREATE_ROOM)
 });
 exports.JoinRoomEventData = zod_1.z.object({
@@ -181,6 +186,7 @@ exports.UpdateRoomSettingsEventData = zod_1.z.object({
     isPrivate: zod_1.z.boolean(),
     startingLives: zod_1.z.optional(zod_1.z.number()),
     turnTimeMs: zod_1.z.optional(zod_1.z.number()),
+    puzzleTimerSeconds: zod_1.z.optional(zod_1.z.number()),
     type: zod_1.z.literal(exports.EventType.enum.UPDATE_ROOM_SETTINGS)
 });
 exports.BotAction = zod_1.z.object({
@@ -229,6 +235,7 @@ exports.ClientRoom = zod_1.z.object({
     preferlist: zod_1.z.array(exports.PreferlistTag),
     startingLives: zod_1.z.optional(zod_1.z.number()),
     turnTimeMs: zod_1.z.optional(zod_1.z.number()),
+    puzzleTimerSeconds: zod_1.z.optional(zod_1.z.number()),
 });
 exports.CreateRoomEventDataToClient = zod_1.z.object({
     roomID: zod_1.z.string(),
@@ -315,7 +322,51 @@ exports.UpdateRoomSettingsEventDataToClient = zod_1.z.object({
     isPrivate: zod_1.z.boolean(),
     startingLives: zod_1.z.optional(zod_1.z.number()),
     turnTimeMs: zod_1.z.optional(zod_1.z.number()),
+    puzzleTimerSeconds: zod_1.z.optional(zod_1.z.number()),
     type: zod_1.z.literal(exports.EventType.enum.UPDATE_ROOM_SETTINGS)
+});
+// Puzzle Schemas
+exports.PuzzlePieceDefinition = zod_1.z.object({
+    index: zod_1.z.number(),
+    vertices: zod_1.z.array(zod_1.z.tuple([zod_1.z.number(), zod_1.z.number()])),
+    centroid: zod_1.z.tuple([zod_1.z.number(), zod_1.z.number()]),
+});
+exports.PuzzlePieceAssignment = zod_1.z.object({
+    userId: zod_1.z.string(),
+    pieceIndices: zod_1.z.array(zod_1.z.number()),
+});
+exports.PuzzleRoundStartEventDataToClient = zod_1.z.object({
+    type: zod_1.z.literal(exports.EventType.enum.PUZZLE_ROUND_START),
+    postUrl: zod_1.z.string(),
+    postId: zod_1.z.number(),
+    pieces: zod_1.z.array(exports.PuzzlePieceDefinition),
+    assignments: zod_1.z.array(exports.PuzzlePieceAssignment),
+    timerDurationMs: zod_1.z.number(),
+    roundNumber: zod_1.z.number(),
+    totalRounds: zod_1.z.number(),
+});
+exports.PuzzlePlacePieceEventData = zod_1.z.object({
+    type: zod_1.z.literal(exports.EventType.enum.PUZZLE_PLACE_PIECE),
+    roomID: zod_1.z.string(),
+    userID: zod_1.z.string(),
+    pieceIndex: zod_1.z.number(),
+});
+exports.PuzzlePlacePieceEventDataToClient = zod_1.z.object({
+    type: zod_1.z.literal(exports.EventType.enum.PUZZLE_PLACE_PIECE),
+    pieceIndex: zod_1.z.number(),
+    userID: zod_1.z.string(),
+});
+exports.PuzzleRoundEndEventDataToClient = zod_1.z.object({
+    type: zod_1.z.literal(exports.EventType.enum.PUZZLE_ROUND_END),
+    completed: zod_1.z.boolean(),
+    placedPieces: zod_1.z.array(zod_1.z.number()),
+    totalPieces: zod_1.z.number(),
+});
+exports.SyncRoundStateEventDataToClientWithPuzzle = zod_1.z.object({
+    post: zod_1.z.optional(exports.Post),
+    guessedTags: zod_1.z.array(exports.GuessedTagEntry),
+    puzzlePlacedPieces: zod_1.z.optional(zod_1.z.array(zod_1.z.number())),
+    type: zod_1.z.literal(exports.EventType.enum.SYNC_ROUND_STATE)
 });
 // Roulette Client → Server
 exports.RouletteVoteSkipEventData = zod_1.z.object({

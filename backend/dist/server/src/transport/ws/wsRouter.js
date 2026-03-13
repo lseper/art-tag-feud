@@ -21,6 +21,7 @@ const postService_1 = require("../../services/postService");
 const gameService_1 = require("../../services/gameService");
 const botService_1 = require("../../services/botService");
 const rouletteService_1 = require("../../services/rouletteService");
+const puzzleService_1 = require("../../services/puzzleService");
 const handleMessage = (server, response, data) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b, _c, _d, _e;
     const dataJSON = JSON.parse(data.toString());
@@ -121,7 +122,7 @@ const handleMessage = (server, response, data) => __awaiter(void 0, void 0, void
             }
             const data = result.data;
             const userID = (0, userService_1.getOrCreateUser)(response, data.userID);
-            const createResult = yield (0, roomService_1.createOrUpdateRoom)(userID, data.roomName, data.postsPerRound, data.roundsPerGame, data.roomID, data.gameMode, data.rating, data.isPrivate, data.botCount, data.botDifficulties, data.startingLives, data.turnTimeMs);
+            const createResult = yield (0, roomService_1.createOrUpdateRoom)(userID, data.roomName, data.postsPerRound, data.roundsPerGame, data.roomID, data.gameMode, data.rating, data.isPrivate, data.botCount, data.botDifficulties, data.startingLives, data.turnTimeMs, data.puzzleTimerSeconds);
             if (createResult) {
                 const roomToClient = createResult.roomToClient;
                 (0, wsBroadcast_1.broadcast)(server, { type: contracts_1.EventType.enum.JOIN_ROOM, user: createResult.user, room: roomToClient });
@@ -302,7 +303,7 @@ const handleMessage = (server, response, data) => __awaiter(void 0, void 0, void
             if (!room || room.owner.id !== data.userID) {
                 break;
             }
-            const updateResult = yield (0, roomService_1.updateRoomSettings)(data.roomID, data.roomName, data.postsPerRound, data.roundsPerGame, data.botCount, data.botDifficulties, data.gameMode, data.rating, data.isPrivate, data.startingLives, data.turnTimeMs);
+            const updateResult = yield (0, roomService_1.updateRoomSettings)(data.roomID, data.roomName, data.postsPerRound, data.roundsPerGame, data.botCount, data.botDifficulties, data.gameMode, data.rating, data.isPrivate, data.startingLives, data.turnTimeMs, data.puzzleTimerSeconds);
             if (!updateResult) {
                 break;
             }
@@ -320,6 +321,7 @@ const handleMessage = (server, response, data) => __awaiter(void 0, void 0, void
                 isPrivate: updateResult.room.isPrivate,
                 startingLives: updateResult.room.startingLives,
                 turnTimeMs: updateResult.room.turnTimeMs,
+                puzzleTimerSeconds: updateResult.room.puzzleTimerSeconds,
             };
             (0, wsBroadcast_1.broadcastToRoom)(updateResult.room, responseData);
             break;
@@ -377,6 +379,29 @@ const handleMessage = (server, response, data) => __awaiter(void 0, void 0, void
             createdBots.forEach(bot => {
                 (0, wsBroadcast_1.broadcastToRoom)(room, { type: contracts_1.EventType.enum.JOIN_ROOM, user: bot, room: roomToClient });
             });
+            break;
+        }
+        case contracts_1.EventType.enum.PUZZLE_PLACE_PIECE: {
+            const result = contracts_1.PuzzlePlacePieceEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const room = (0, roomService_1.getRoom)(data.roomID);
+            if (!room)
+                break;
+            const placeResult = (0, puzzleService_1.handlePuzzlePlacePiece)(data.roomID, data.userID, data.pieceIndex);
+            if (!placeResult)
+                break;
+            const placePieceData = {
+                type: contracts_1.EventType.enum.PUZZLE_PLACE_PIECE,
+                pieceIndex: data.pieceIndex,
+                userID: data.userID,
+            };
+            (0, wsBroadcast_1.broadcastToRoom)(room, placePieceData);
+            if (placeResult.completed) {
+                (0, puzzleService_1.handlePuzzleComplete)(data.roomID);
+            }
             break;
         }
         default:
