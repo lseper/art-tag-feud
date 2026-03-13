@@ -20,11 +20,16 @@ const getOrCreateUser = (socket, userID) => {
         while (store_1.userSockets.get(newUserID)) {
             newUserID = (0, uuid_1.v4)();
         }
-        const createdUser = { username: `User_${userID}`, id: newUserID, score: 0 };
+        const createdUser = { username: `User_${userID}`, id: newUserID, score: 0, isBot: false };
         store_1.userSockets.set(newUserID, socket);
         store_1.users.set(newUserID, createdUser);
         return newUserID;
     }
+    if (!store_1.users.get(userID)) {
+        const createdUser = { username: `User_${userID}`, id: userID, score: 0 };
+        store_1.users.set(userID, createdUser);
+    }
+    store_1.userSockets.set(userID, socket);
     return userID;
 };
 exports.getOrCreateUser = getOrCreateUser;

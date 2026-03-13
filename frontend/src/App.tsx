@@ -1,5 +1,5 @@
 import { UserContext } from './contexts/UserContext';
-import type { PreferlistTagType, UserType, UserReadyStateType } from './types';
+import type { GameModeType, PreferlistTagType, UserType, UserReadyStateType } from './types';
 import { useEffect, useState } from 'react';
 import { ConnectionManager } from './util/ConnectionManager';
 import { Routes, Route } from 'react-router-dom';
@@ -25,6 +25,8 @@ function App(): JSX.Element {
   const [owner, setOwner] = useState<UserType | undefined>();
   const [blacklist, setBlacklist] = useState<string[]>([]);
   const [preferlist, setPreferlist] = useState<PreferlistTagType[]>([]);
+  const [gameMode, setGameMode] = useState<GameModeType>('Blitz');
+  const [rouletteEliminationOrder, setRouletteEliminationOrder] = useState<string[]>([]);
 
   const leaveRoomCleanup = () => {
     setRoomID(undefined);
@@ -36,6 +38,7 @@ function App(): JSX.Element {
     setIsPrivate(true);
     setBlacklist([]);
     setPreferlist([]);
+    setRouletteEliminationOrder([]);
   }
 
   useEffect(() => {
@@ -45,31 +48,35 @@ function App(): JSX.Element {
   }, [userID]);
 
   const value = {
-    username, 
-    userID, 
-    score, 
-    roomID, 
+    username,
+    userID,
+    score,
+    roomID,
     roomName,
     roomCode,
     isPrivate,
-    icon, 
-    readyStates, 
-    owner, 
+    icon,
+    readyStates,
+    owner,
     blacklist,
     preferlist,
-    setUsername, 
-    setUserID, 
-    setScore, 
-    setRoomID, 
+    gameMode,
+    rouletteEliminationOrder,
+    setUsername,
+    setUserID,
+    setScore,
+    setRoomID,
     setRoomName,
     setRoomCode,
     setIsPrivate,
-    setIcon, 
-    setReadyStates, 
-    setOwner, 
+    setIcon,
+    setReadyStates,
+    setOwner,
     setBlacklist,
     setPreferlist,
-    leaveRoomCleanup, 
+    setGameMode,
+    setRouletteEliminationOrder,
+    leaveRoomCleanup,
     connectionManager
   };
 

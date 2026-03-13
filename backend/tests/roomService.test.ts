@@ -32,6 +32,7 @@ vi.mock('../src/data/repos/roomsRepo', () => ({
 }));
 
 vi.mock('../src/data/repos/roomMembersRepo', () => ({
+    getRoomMember: vi.fn(),
     upsertRoomMember: vi.fn(),
     removeRoomMember: vi.fn(),
 }));
@@ -133,7 +134,7 @@ describe('roomService core operations', () => {
         rooms.set(room.id, room);
         users.set(user.id, user);
 
-        const result = await joinRoom(room.id, user.id);
+        const result = await joinRoom(room.id, undefined, user.id);
 
         expect(result?.room.members.some(member => member.id === user.id)).toBe(true);
         expect(result?.user.roomID).toBe(room.id);

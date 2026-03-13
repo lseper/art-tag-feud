@@ -23,9 +23,13 @@ const upsertRoom = (room) => __awaiter(void 0, void 0, void 0, function* () {
         owner_player_id: room.owner.id,
         posts_per_round: room.postsPerRound,
         rounds_per_game: room.roundsPerGame,
+        bot_count: room.botCount,
+        bot_difficulties: room.botDifficulties,
         cur_round: room.curRound,
         posts_viewed_this_round: room.postsViewedThisRound,
         game_started: room.gameStarted,
+        is_private: room.isPrivate,
+        room_code: room.roomCode,
         updated_at: new Date().toISOString(),
     }, { onConflict: 'id' });
     (0, supabaseUtils_1.logSupabaseError)('upsert room', error);

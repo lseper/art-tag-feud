@@ -16,6 +16,7 @@ import {
     UpdatePreferlistEventData,
     UpdateRoomSettingsEventData,
     RequestBotFillEventData,
+    RouletteVoteSkipEventData,
 } from '../../domain/contracts';
 import type {
     AllRoomsEventDataToClientType,
@@ -32,6 +33,8 @@ import type {
     UpdateBlacklistEventDataToClientType,
     UpdatePreferlistEventDataToClientType,
     UpdateRoomSettingsEventDataToClientType,
+    RouletteSkipUpdateEventDataToClientType,
+    RouletteAllTagsGuessedEventDataToClientType,
 } from '../../domain/contracts';
 import { convertServerRoomToClientRoom } from '../../domain/roomUtils';
 import { activeGames, users } from '../../state/store';
@@ -42,6 +45,7 @@ import { handleGuessTag } from '../../services/guessService';
 import { handleRequestPost } from '../../services/postService';
 import { ensureActiveGame } from '../../services/gameService';
 import { createBotsForRoom } from '../../services/botService';
+import { handleVoteSkip } from '../../services/rouletteService';
 
 const handleMessage = async (server: WebSocketServer, response: WebSocket, data: RawData) => {
     const dataJSON = JSON.parse(data.toString());
@@ -55,10 +59,34 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
             }
             const data = result.data;
             const guessResult = await handleGuessTag(data.roomID, data.user.id, data.tag);
-            if (guessResult) {
-                const guessTagData = { type: EventType.enum.GUESS_TAG, tag: guessResult.tag, user: guessResult.user };
-                broadcastToRoom(guessResult.room, guessTagData);
+            if (!guessResult) break;
+
+            const room = getRoom(data.roomID);
+            if (!room) break;
+
+            if (room.gameMode === 'Roulette') {
+                const rr = guessResult.rouletteResult;
+                if (!rr) break;
+                if (rr.kind === 'correct' || rr.kind === 'all_tags_guessed') {
+                    broadcastToRoom(room, { type: EventType.enum.GUESS_TAG, tag: guessResult.tag, user: guessResult.user });
+                }
+                if (rr.kind === 'all_tags_guessed') {
+                    broadcastToRoom<RouletteAllTagsGuessedEventDataToClientType>(room, { type: EventType.enum.ROULETTE_ALL_TAGS_GUESSED });
+                    // Auto-advance to next post
+                    const postResult = await handleRequestPost(data.roomID, data.user.id);
+                    if (postResult.kind === 'send_post') {
+                        broadcastToRoom<RequestPostEventDataToClientType>(room, {
+                            type: EventType.enum.REQUEST_POST,
+                            post: postResult.post,
+                            botActionSequence: postResult.botActionSequence ?? undefined,
+                        });
+                    }
+                }
+                break;
             }
+
+            const guessTagData = { type: EventType.enum.GUESS_TAG, tag: guessResult.tag, user: guessResult.user };
+            broadcastToRoom(guessResult.room, guessTagData);
             break;
         }
         case EventType.enum.SET_USERNAME: {
@@ -129,6 +157,8 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
                 data.isPrivate,
                 data.botCount,
                 data.botDifficulties,
+                data.startingLives,
+                data.turnTimeMs,
             );
             if (createResult) {
                 const roomToClient = createResult.roomToClient;
@@ -319,6 +349,8 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
                 data.gameMode,
                 data.rating,
                 data.isPrivate,
+                data.startingLives,
+                data.turnTimeMs,
             );
             if (!updateResult) {
                 break;
@@ -335,8 +367,40 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
                 rating: updateResult.room.rating,
                 roomCode: updateResult.room.roomCode,
                 isPrivate: updateResult.room.isPrivate,
+                startingLives: updateResult.room.startingLives,
+                turnTimeMs: updateResult.room.turnTimeMs,
             };
             broadcastToRoom(updateResult.room, responseData);
+            break;
+        }
+        case EventType.enum.ROULETTE_VOTE_SKIP: {
+            const result = RouletteVoteSkipEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const room = getRoom(data.roomID);
+            if (!room) break;
+            const skipResult = handleVoteSkip(data.roomID, data.userID, data.vote);
+            if (!skipResult) break;
+            const skipUpdateData: RouletteSkipUpdateEventDataToClientType = {
+                type: EventType.enum.ROULETTE_SKIP_UPDATE,
+                skipVotes: skipResult.skipVotes,
+                totalPlayers: skipResult.totalPlayers,
+                threshold: skipResult.threshold,
+            };
+            broadcastToRoom(room, skipUpdateData);
+            if (skipResult.shouldSkip) {
+                broadcastToRoom<RouletteAllTagsGuessedEventDataToClientType>(room, { type: EventType.enum.ROULETTE_ALL_TAGS_GUESSED });
+                const postResult = await handleRequestPost(data.roomID, data.userID);
+                if (postResult.kind === 'send_post') {
+                    broadcastToRoom<RequestPostEventDataToClientType>(room, {
+                        type: EventType.enum.REQUEST_POST,
+                        post: postResult.post,
+                        botActionSequence: postResult.botActionSequence ?? undefined,
+                    });
+                }
+            }
             break;
         }
         case EventType.enum.REQUEST_BOT_FILL: {

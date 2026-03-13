@@ -20,7 +20,13 @@ export const EventType = z.enum(['DEFAULT',
     'UPDATE_PREFERLIST',
     'UPDATE_ROOM_SETTINGS',
     'REQUEST_BOT_FILL',
-    'SYNC_ROUND_STATE']);
+    'SYNC_ROUND_STATE',
+    'ROULETTE_TURN_START',
+    'ROULETTE_LIFE_LOST',
+    'ROULETTE_VOTE_SKIP',
+    'ROULETTE_SKIP_UPDATE',
+    'ROULETTE_PLAYER_ELIMINATED',
+    'ROULETTE_ALL_TAGS_GUESSED']);
 
 /**
  * Server-Only Types
@@ -85,6 +91,8 @@ export const ServerRoom = z.object({
     postsViewedThisRound: z.number(),
     allUsersReady: z.map(z.string(), z.boolean()),
     gameStarted: z.boolean(),
+    startingLives: z.optional(z.number()),
+    turnTimeMs: z.optional(z.number()),
 })
 
 export const CreateRoomEventData = z.object({
@@ -98,6 +106,8 @@ export const CreateRoomEventData = z.object({
     gameMode: z.optional(GameMode),
     rating: z.optional(RoomRating),
     isPrivate: z.optional(z.boolean()),
+    startingLives: z.optional(z.number()),
+    turnTimeMs: z.optional(z.number()),
     type: z.literal(EventType.enum.CREATE_ROOM)
 });
 export const JoinRoomEventData = z.object({
@@ -176,6 +186,8 @@ export const UpdateRoomSettingsEventData = z.object({
     gameMode: GameMode,
     rating: RoomRating,
     isPrivate: z.boolean(),
+    startingLives: z.optional(z.number()),
+    turnTimeMs: z.optional(z.number()),
     type: z.literal(EventType.enum.UPDATE_ROOM_SETTINGS)
 })
 
@@ -226,7 +238,9 @@ export const ClientRoom = z.object({
     owner: User,
     readyStates: z.array(UserReadyState),
     blacklist: z.array(z.string()),
-    preferlist: z.array(PreferlistTag)
+    preferlist: z.array(PreferlistTag),
+    startingLives: z.optional(z.number()),
+    turnTimeMs: z.optional(z.number()),
 })
 
 export const CreateRoomEventDataToClient = z.object({
@@ -325,7 +339,50 @@ export const UpdateRoomSettingsEventDataToClient = z.object({
     rating: RoomRating,
     roomCode: z.string(),
     isPrivate: z.boolean(),
+    startingLives: z.optional(z.number()),
+    turnTimeMs: z.optional(z.number()),
     type: z.literal(EventType.enum.UPDATE_ROOM_SETTINGS)
+})
+
+// Roulette Client → Server
+export const RouletteVoteSkipEventData = z.object({
+    roomID: z.string(),
+    userID: z.string(),
+    vote: z.boolean(),
+    type: z.literal(EventType.enum.ROULETTE_VOTE_SKIP)
+})
+
+// Roulette Server → Client
+export const RouletteTurnStartEventDataToClient = z.object({
+    activePlayerID: z.string(),
+    turnTimeMs: z.number(),
+    turnOrder: z.array(z.string()),
+    playerLives: z.record(z.string(), z.number()),
+    type: z.literal(EventType.enum.ROULETTE_TURN_START)
+})
+
+export const RouletteLifeLostEventDataToClient = z.object({
+    playerID: z.string(),
+    livesRemaining: z.number(),
+    reason: z.enum(['wrong_guess', 'timeout']),
+    type: z.literal(EventType.enum.ROULETTE_LIFE_LOST)
+})
+
+export const RouletteSkipUpdateEventDataToClient = z.object({
+    skipVotes: z.number(),
+    totalPlayers: z.number(),
+    threshold: z.number(),
+    type: z.literal(EventType.enum.ROULETTE_SKIP_UPDATE)
+})
+
+export const RoulettePlayerEliminatedEventDataToClient = z.object({
+    playerID: z.string(),
+    placement: z.number(),
+    type: z.literal(EventType.enum.ROULETTE_PLAYER_ELIMINATED)
+})
+
+export const RouletteAllTagsGuessedEventDataToClient = z.object({
+    type: z.literal(EventType.enum.ROULETTE_ALL_TAGS_GUESSED)
 })
 
 /**
@@ -374,6 +431,12 @@ export type UpdateBlacklistEventDataToClientType = z.infer<typeof UpdateBlacklis
 export type UpdatePreferlistEventDataToClientType = z.infer<typeof UpdatePreferlistEventDataToClient>
 export type UpdateRoomSettingsEventDataToClientType = z.infer<typeof UpdateRoomSettingsEventDataToClient>
 export type SyncRoundStateEventDataToClientType = z.infer<typeof SyncRoundStateEventDataToClient>
+export type RouletteVoteSkipEventDataType = z.infer<typeof RouletteVoteSkipEventData>
+export type RouletteTurnStartEventDataToClientType = z.infer<typeof RouletteTurnStartEventDataToClient>
+export type RouletteLifeLostEventDataToClientType = z.infer<typeof RouletteLifeLostEventDataToClient>
+export type RouletteSkipUpdateEventDataToClientType = z.infer<typeof RouletteSkipUpdateEventDataToClient>
+export type RoulettePlayerEliminatedEventDataToClientType = z.infer<typeof RoulettePlayerEliminatedEventDataToClient>
+export type RouletteAllTagsGuessedEventDataToClientType = z.infer<typeof RouletteAllTagsGuessedEventDataToClient>
 
 export type ClientRoomType = z.infer<typeof ClientRoom>;
 

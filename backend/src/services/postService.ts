@@ -10,6 +10,8 @@ import { insertGuess } from '../data/repos/guessesRepo';
 import { insertLeaderboardSnapshot } from '../data/repos/leaderboardRepo';
 import { ensureActiveGame, startNextRound, endGame } from './gameService';
 import { generateBotActionSequence } from './botSequenceService';
+import { initRouletteGame, handleNewPost as rouletteHandleNewPost, startTurn } from './rouletteService';
+import { rouletteGames } from '../state/store';
 
 const recordPostAndTags = async (post: PostType) => {
     await upsertPost(post);
@@ -45,9 +47,69 @@ const recordLeaderboardSnapshot = async (room: ServerRoomType) => {
     await insertLeaderboardSnapshot(active.gameId, active.roundId, snapshot);
 };
 
+const handleRoulettePost = async (room: ServerRoomType) => {
+    if (room.postQueue.length === 0) {
+        room.postQueue = await getPosts(room.blacklist, room.preferlist);
+    }
+
+    const postToSend = room.postQueue.shift();
+    if (!postToSend) {
+        console.error('No posts available to send (Roulette).');
+        return { kind: 'no_post' } as const;
+    }
+
+    await ensureActiveGame(room);
+    await recordPostAndTags(postToSend);
+
+    const activeGame = activeGames.get(room.id);
+    let roundPostId: string | null = null;
+    if (activeGame) {
+        roundPostId = await recordRoundPost(room.id, activeGame.roundId, postToSend.id, activeGame.nextPostOrder);
+    }
+
+    const preferlistAllTimeTags = new Set(room.preferlist.filter(e => e.frequency === 'all').map(e => e.tag));
+    const tags = Array.isArray(postToSend.tags) ? postToSend.tags : [];
+    const postToSendWithPreferlist = preferlistAllTimeTags.size > 0 ? {
+        ...postToSend,
+        tags: tags.map(tag => preferlistAllTimeTags.has(tag.name) ? { ...tag, score: 0 } : tag),
+    } : { ...postToSend, tags };
+
+    if (activeGame) {
+        activeGame.currentPost = postToSendWithPreferlist;
+        activeGame.currentRoundGuesses = new Map();
+        activeGames.set(room.id, activeGame);
+    }
+
+    room.postsViewedThisRound += 1;
+    await upsertRoom(room);
+
+    const botActionSequence = roundPostId
+        ? await generateBotActionSequence(room, roundPostId, postToSendWithPreferlist.tags)
+        : null;
+
+    // Initialize or reset roulette state for the new post
+    if (!rouletteGames.has(room.id)) {
+        initRouletteGame(room.id);
+    } else {
+        rouletteHandleNewPost(room.id);
+    }
+    startTurn(room.id);
+
+    return { kind: 'send_post', post: postToSendWithPreferlist, botActionSequence } as const;
+};
+
 const handleRequestPost = async (roomID: string, userID: string) => {
     const roomToSendPost = rooms.get(roomID);
     if (!roomToSendPost) return { kind: 'no_room' } as const;
+
+    // Roulette mode: skip ready-check and round progression
+    if (roomToSendPost.gameMode === 'Roulette') {
+        if (!roomToSendPost.gameStarted) {
+            roomToSendPost.gameStarted = true;
+            await upsertRoom(roomToSendPost);
+        }
+        return await handleRoulettePost(roomToSendPost);
+    }
 
     roomToSendPost.allUsersReady.set(userID, true);
     await upsertRoomReadyStates(roomToSendPost);

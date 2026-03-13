@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useContext } from 'react';
-import type { GuessTagEventDataType, GuessTagEventDataToClientType, GuessedTagEntryType, PostTagType, UserType } from './types';
+import type { GameModeType, GuessTagEventDataType, GuessTagEventDataToClientType, GuessedTagEntryType, PostTagType, RouletteTurnStartEventDataToClientType, RouletteVoteSkipEventDataType, UserType } from './types';
 import alias_data_untyped from './data/tag-aliases.json'
 import { UserContext } from './contexts/UserContext';
 import { EventType } from './types';
@@ -15,12 +15,19 @@ function checkAlias(tag_name: string) : string {
     }
 }
 // custom hook, returns an object that has the CurrentPost, and an update callback function that we define
-export default function useTagListGuesser(startingTags : PostTagType[], forcedGuessedTagNames: string[] = [], initialGuesses: GuessedTagEntryType[] = []) : [
-    GuessedTagEntryType[], (guess: string) => boolean, () => void, (tag: PostTagType, user: UserType) => boolean
+export default function useTagListGuesser(
+    startingTags : PostTagType[],
+    forcedGuessedTagNames: string[] = [],
+    initialGuesses: GuessedTagEntryType[] = [],
+    gameMode: GameModeType = 'Blitz',
+) : [
+    GuessedTagEntryType[], (guess: string) => boolean, () => void, (tag: PostTagType, user: UserType) => boolean,
+    string | null, // activePlayerID for Roulette
 ] {
     // want component re-rendering when this changes
     const [guessedTags, setGuessedTags] = useState<GuessedTagEntryType[]>([]);
     const [hiddenTags, setHiddenTags] = useState(startingTags);
+    const [activePlayerID, setActivePlayerID] = useState<string | null>(null);
     const {connectionManager, username, readyStates, setReadyStates, userID, roomID, score} = useContext(UserContext);
 
     // TODO: uncomment once reveal all tags functionality is added
@@ -62,6 +69,19 @@ export default function useTagListGuesser(startingTags : PostTagType[], forcedGu
         setGuessedTags(nextGuessedTags);
     }, [forcedGuessedTagNames, initialGuesses, startingTags])
 
+    // Listen for Roulette turn updates
+    useEffect(() => {
+        if (gameMode !== 'Roulette') return;
+        const onTurnStart = (data: RouletteTurnStartEventDataToClientType) => {
+            setActivePlayerID(data.activePlayerID);
+        };
+        const unsubscriber = connectionManager.listen<RouletteTurnStartEventDataToClientType>(
+            EventType.enum.ROULETTE_TURN_START,
+            onTurnStart,
+        );
+        return () => unsubscriber();
+    }, [connectionManager, gameMode]);
+
     const handleGuess = useCallback((guess: string) : {isCorrect: boolean, tag?: PostTagType} => {
         let tagIndex = hiddenTags.findIndex((tag : PostTagType) => tag.name === guess);
         if(guessedTags.some(entry => entry.tag.name === guess)){
@@ -97,9 +117,27 @@ export default function useTagListGuesser(startingTags : PostTagType[], forcedGu
         }
         return true;
     }, [guessedTags, handleGuess, readyStates, setReadyStates]);
-    
+
     // define what the update callback will be
     const guessTag = (guess: string) : boolean => {
+        if (gameMode === 'Roulette') {
+            // In Roulette, send the guess regardless of correctness (server validates turn/tag)
+            if (userID && roomID) {
+                const usernameToSend = username ?? 'DEFAULT_USERNAME';
+                const userToSend: UserType = {id: userID, score, username: usernameToSend, roomID};
+                const { isCorrect, tag } = handleGuess(guess);
+                const normalizedGuess = guess.trim().toLowerCase().replace(/\s+/g, '_');
+                // For correct guesses, send the actual PostTag; for wrong, send a dummy tag
+                const tagToSend: PostTagType = isCorrect && tag != null
+                    ? tag
+                    : { name: normalizedGuess, type: 'general', score: 0 };
+                const data: GuessTagEventDataType = { type: EventType.enum.GUESS_TAG, tag: tagToSend, user: userToSend, roomID };
+                connectionManager.send(data);
+            }
+            // Return false so TagListContainer doesn't apply a Blitz time penalty
+            return false;
+        }
+
         const {isCorrect, tag} = handleGuess(guess);
         if(userID && roomID && isCorrect && tag != null) {
             // TODO: emit username as well
@@ -117,11 +155,13 @@ export default function useTagListGuesser(startingTags : PostTagType[], forcedGu
             if(isCorrect && tag != null) {
                 const newGuessedTags = [...guessedTags, { tag, user: data.user }];
                 setGuessedTags(newGuessedTags);
-                // update user's score on client side
-                const userToUpdateScore = readyStates.find(readyState => readyState.user.id === data.user.id);
-                if(userToUpdateScore) {
-                    userToUpdateScore.user.score += tag.score;
-                    setReadyStates([...readyStates]);
+                // update user's score on client side (only for Blitz mode)
+                if (gameMode !== 'Roulette') {
+                    const userToUpdateScore = readyStates.find(readyState => readyState.user.id === data.user.id);
+                    if(userToUpdateScore) {
+                        userToUpdateScore.user.score += tag.score;
+                        setReadyStates([...readyStates]);
+                    }
                 }
             }
         };
@@ -130,7 +170,7 @@ export default function useTagListGuesser(startingTags : PostTagType[], forcedGu
             unsubscribers.forEach(unsubscribe => unsubscribe());
         }
 
-    }, [connectionManager, guessedTags, handleGuess, readyStates, setReadyStates])
+    }, [connectionManager, gameMode, guessedTags, handleGuess, readyStates, setReadyStates])
 
-    return [ guessedTags, guessTag, revealAllTags, applyLocalGuess ];
+    return [ guessedTags, guessTag, revealAllTags, applyLocalGuess, activePlayerID ];
   }

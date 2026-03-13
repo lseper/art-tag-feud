@@ -96,6 +96,8 @@ const createOrUpdateRoom = async (
     isPrivate?: boolean,
     botCount?: number,
     botDifficulties?: BotDifficultyType[],
+    startingLives?: number,
+    turnTimeMs?: number,
 ) => {
     const user = users.get(userID);
     if (!user) return null;
@@ -114,6 +116,8 @@ const createOrUpdateRoom = async (
             room.botCount,
             botDifficulties ?? room.botDifficulties,
         );
+        if (startingLives !== undefined) room.startingLives = startingLives;
+        if (turnTimeMs !== undefined) room.turnTimeMs = turnTimeMs;
         if (!room.roomCode) {
             room.roomCode = createRoomCode();
         }
@@ -158,6 +162,8 @@ const createOrUpdateRoom = async (
         postsViewedThisRound: 0,
         gameStarted: false,
         owner: user,
+        startingLives,
+        turnTimeMs,
     };
     rooms.set(newRoomID, newRoom);
     await upsertPlayer(user);
@@ -322,6 +328,8 @@ const updateRoomSettings = async (
     gameMode: GameModeType,
     rating: RoomRatingType,
     isPrivate: boolean,
+    startingLives?: number,
+    turnTimeMs?: number,
 ) => {
     const room = rooms.get(roomID);
     if (!room) return null;
@@ -335,6 +343,8 @@ const updateRoomSettings = async (
     room.gameMode = gameMode;
     room.rating = rating;
     room.isPrivate = isPrivate;
+    if (startingLives !== undefined) room.startingLives = startingLives;
+    if (turnTimeMs !== undefined) room.turnTimeMs = turnTimeMs;
     await ensureBotCountForRoom(room, botCount, room.botDifficulties);
     if (shouldReset) {
         resetRoom(room);

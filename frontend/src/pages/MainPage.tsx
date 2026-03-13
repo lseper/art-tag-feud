@@ -71,6 +71,7 @@ function MainPage({currentPost, update, gameMode, botActionSequence, roundGuesse
   }, []);
 
   const nextRoundButton = useMemo(() => {
+    if (gameMode === 'Roulette') return null;
     if (!(owner && owner.id === userID && canStartNewRound)) {
       return null;
     }
@@ -84,9 +85,9 @@ function MainPage({currentPost, update, gameMode, botActionSequence, roundGuesse
         Next Round
       </Button>
     );
-  }, [owner, userID, canStartNewRound, startNewRound])
+  }, [gameMode, owner, userID, canStartNewRound, startNewRound])
 
-  const shouldShowLeaderboard = roomID != null && !showLeaderboard;
+  const shouldShowLeaderboard = roomID != null && (gameMode === 'Roulette' || !showLeaderboard);
   return (
     <div className={styles.page}>
       <header className={styles.topNav}>
