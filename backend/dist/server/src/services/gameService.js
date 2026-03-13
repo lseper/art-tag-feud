@@ -28,6 +28,8 @@ const ensureActiveGame = (room, createdByPlayerID) => __awaiter(void 0, void 0, 
         roundId,
         roundIndex: room.curRound,
         nextPostOrder: 0,
+        currentPost: undefined,
+        currentRoundGuesses: new Map(),
     };
     store_1.activeGames.set(room.id, state);
     return state;
@@ -42,6 +44,8 @@ const startNextRound = (roomID, gameId, roundIndex) => __awaiter(void 0, void 0,
         roundId,
         roundIndex,
         nextPostOrder: 0,
+        currentPost: undefined,
+        currentRoundGuesses: new Map(),
     };
     store_1.activeGames.set(roomID, state);
     return state;

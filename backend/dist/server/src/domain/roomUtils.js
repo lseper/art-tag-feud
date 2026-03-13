@@ -18,10 +18,20 @@ const convertServerRoomToClientRoom = (serverRoom, users) => {
     return {
         roomID: serverRoom.id,
         roomName: serverRoom.name,
+        postsPerRound: serverRoom.postsPerRound,
+        roundsPerGame: serverRoom.roundsPerGame,
+        botCount: serverRoom.botCount,
+        botDifficulties: serverRoom.botDifficulties,
+        gameMode: serverRoom.gameMode,
+        rating: serverRoom.rating,
+        roomCode: serverRoom.roomCode,
+        isPrivate: serverRoom.isPrivate,
         readyStates,
         owner: serverRoom.owner,
         blacklist: serverRoom.blacklist,
         preferlist: serverRoom.preferlist,
+        startingLives: serverRoom.startingLives,
+        turnTimeMs: serverRoom.turnTimeMs,
     };
 };
 exports.convertServerRoomToClientRoom = convertServerRoomToClientRoom;

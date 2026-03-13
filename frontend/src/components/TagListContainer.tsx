@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useContext, useCallback, useRef, type FormEvent } from 'react';
-import type { BotActionSequenceType, GameModeType, GuessedTagEntryType, ReadyUpEventDataType, ReadyUpEventDataToClientType, RequestPostEventDataToClientType, PostTagType } from '../types';
+import type { BotActionSequenceType, GameModeType, GuessedTagEntryType, ReadyUpEventDataType, ReadyUpEventDataToClientType, RequestPostEventDataToClientType, PostTagType, RouletteTurnStartEventDataToClientType, RouletteVoteSkipEventDataType, RouletteSkipUpdateEventDataToClientType, RouletteLifeLostEventDataToClientType, RoulettePlayerEliminatedEventDataToClientType } from '../types';
 import { EventType } from '../types';
 import TagList from './TagList';
 import useTagListGuesser from '../useTagListGuesser';
@@ -15,10 +15,12 @@ import { breakpointValues } from '../styles/theme/breakpoints';
 import styles from '@/styles/components/tag-list-container-wrapper.module.css';
 import layoutStyles from '@/styles/components/tag-list-container.module.css';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 const STARTING_TIME = 30;
 const FRAME_RATE = 60;
 const INCORRECT_GUESS_PENALTY = 0.25;
+const EMPTY_GUESSES: GuessedTagEntryType[] = [];
 
 interface Props {
     tags: PostTagType[];
@@ -30,25 +32,39 @@ interface Props {
     roundGuesses?: GuessedTagEntryType[];
 };
 
+// Type alias to avoid importing UserReadyStateType just for the mergeBotScores helper
+type ReadyState = { user: { id: string; isBot?: boolean; score: number; [key: string]: unknown }; ready: boolean; [key: string]: unknown };
+
 const TagListContainerElement: React.FC<Props> = (props: Props) => {
-    const { tags, nextRoundButton, postOrientation = 'unknown', children, gameMode = 'Blitz', botActionSequence = null, roundGuesses = [] } = props;
+    const { tags, nextRoundButton, postOrientation = 'unknown', children, gameMode = 'Blitz', botActionSequence = null, roundGuesses = EMPTY_GUESSES } = props;
     const [guess, setGuess] = useState('');
-    const {userID, roomID, readyStates, setReadyStates, connectionManager, preferlist} = useContext(UserContext);
+    const {userID, roomID, readyStates, setReadyStates, connectionManager, preferlist, rouletteEliminationOrder, setRouletteEliminationOrder} = useContext(UserContext);
     const allTimePreferTagNames = useMemo(() => {
         return (preferlist ?? []).filter(entry => entry.frequency === 'all').map(entry => entry.tag);
     }, [preferlist]);
     const allTimePreferTagSet = useMemo(() => new Set(allTimePreferTagNames), [allTimePreferTagNames]);
-    const [guessedTags, guessTag, revealAllTags, applyLocalGuess] = useTagListGuesser(tags, allTimePreferTagNames, roundGuesses);
+    const [guessedTags, guessTag, revealAllTags, applyLocalGuess, activePlayerID] = useTagListGuesser(tags, allTimePreferTagNames, roundGuesses, gameMode);
+
+    // Roulette-specific state
+    const [rouletteTurnTimeMs, setRouletteTurnTimeMs] = useState(15000);
+    const [rouletteTimeLeft, setRouletteTimeLeft] = useState(15000);
+    const [playerLives, setPlayerLives] = useState<Record<string, number>>({});
+    const [skipVotes, setSkipVotes] = useState(0);
+    const [skipTotalPlayers, setSkipTotalPlayers] = useState(0);
+    const [hasVotedSkip, setHasVotedSkip] = useState(false);
+    const rouletteTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const isMyTurn = gameMode === 'Roulette' && activePlayerID === userID;
 
     useBotSequencePlayer(botActionSequence, readyStates, setReadyStates, applyLocalGuess);
 
-    const mergeBotScores = useCallback((incoming: UserReadyStateType[]) => {
+    const mergeBotScores = useCallback((incoming: ReadyState[]) => {
         const botScoreMap = new Map(
             readyStates
-                .filter(state => state.user.isBot)
-                .map(state => [state.user.id, state.user.score]),
+                .filter((state: ReadyState) => state.user.isBot)
+                .map((state: ReadyState) => [state.user.id, state.user.score]),
         );
-        return incoming.map(state => {
+        return incoming.map((state: ReadyState) => {
             if (!state.user.isBot) {
                 return state;
             }
@@ -93,13 +109,15 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
     useEffect(() => {
         const onTimerEnd = (data: ReadyUpEventDataToClientType) => {
             const readyStates = data.room.readyStates;
-            // populate new ready states
-            setReadyStates(mergeBotScores(readyStates));
+            setReadyStates(mergeBotScores(readyStates as unknown as ReadyState[]) as typeof readyStates);
         }
 
         const onNewRoundStart = (_data: RequestPostEventDataToClientType) => {
-            // new round has started, so reset the timer
             setTime(STARTING_TIME);
+            if (gameMode === 'Roulette') {
+                setSkipVotes(0);
+                setHasVotedSkip(false);
+            }
         }
 
         const unsubscribers = [
@@ -110,12 +128,64 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
         return () => {
             unsubscribers.forEach(unsubscribe => unsubscribe());
         }
-    }, [connectionManager, mergeBotScores, setReadyStates]);
+    }, [connectionManager, gameMode, mergeBotScores, setReadyStates]);
+
+    // Roulette-specific event listeners
+    useEffect(() => {
+        if (gameMode !== 'Roulette') return;
+
+        const onTurnStart = (data: RouletteTurnStartEventDataToClientType) => {
+            setPlayerLives(data.playerLives);
+            setRouletteTurnTimeMs(data.turnTimeMs);
+            setRouletteTimeLeft(data.turnTimeMs);
+        };
+
+        const onSkipUpdate = (data: RouletteSkipUpdateEventDataToClientType) => {
+            setSkipVotes(data.skipVotes);
+            setSkipTotalPlayers(data.totalPlayers);
+        };
+
+        const onLifeLost = (data: RouletteLifeLostEventDataToClientType) => {
+            setPlayerLives(prev => ({ ...prev, [data.playerID]: data.livesRemaining }));
+        };
+
+        const onPlayerEliminated = (data: RoulettePlayerEliminatedEventDataToClientType) => {
+            setRouletteEliminationOrder([...rouletteEliminationOrder, data.playerID]);
+        };
+
+        const unsubscribers = [
+            connectionManager.listen<RouletteTurnStartEventDataToClientType>(EventType.enum.ROULETTE_TURN_START, onTurnStart),
+            connectionManager.listen<RouletteSkipUpdateEventDataToClientType>(EventType.enum.ROULETTE_SKIP_UPDATE, onSkipUpdate),
+            connectionManager.listen<RouletteLifeLostEventDataToClientType>(EventType.enum.ROULETTE_LIFE_LOST, onLifeLost),
+            connectionManager.listen<RoulettePlayerEliminatedEventDataToClientType>(EventType.enum.ROULETTE_PLAYER_ELIMINATED, onPlayerEliminated),
+        ];
+
+        return () => {
+            unsubscribers.forEach(unsubscribe => unsubscribe());
+        };
+    }, [connectionManager, gameMode, rouletteEliminationOrder, setRouletteEliminationOrder]);
+
+    // Roulette turn countdown timer (client-side display only)
+    useEffect(() => {
+        if (gameMode !== 'Roulette') return;
+        if (rouletteTimerRef.current) {
+            clearInterval(rouletteTimerRef.current);
+        }
+        setRouletteTimeLeft(rouletteTurnTimeMs);
+        rouletteTimerRef.current = setInterval(() => {
+            setRouletteTimeLeft(prev => Math.max(0, prev - (1000 / FRAME_RATE)));
+        }, 1000 / FRAME_RATE);
+        return () => {
+            if (rouletteTimerRef.current) {
+                clearInterval(rouletteTimerRef.current);
+            }
+        };
+    }, [gameMode, rouletteTurnTimeMs]);
 
     useEffect(() => {
         hasRevealedAllTagsRef.current = false;
     }, [tags]);
-    
+
     const readyForNextRound = useCallback((ready: boolean) => {
         if(userID != null && roomID != null) {
           const data: ReadyUpEventDataType = {type: EventType.enum.READY_UP, userID, roomID, ready};
@@ -135,6 +205,8 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
       }, [readyStates]);
 
     useEffect(() => {
+        if (gameMode === 'Roulette') return;
+
         // frame rate of 60 fps for timer
         const timer = setInterval(() => setTime(time - (1 / FRAME_RATE)), (1000 / FRAME_RATE));
 
@@ -150,16 +222,35 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
         return () => {
             clearInterval(timer);
         }
-    }, [allUsersFinished, myReadyState?.ready, readyForNextRound, revealAllTags, time]);
+    }, [allUsersFinished, gameMode, myReadyState?.ready, readyForNextRound, revealAllTags, time]);
 
     const handleGuessSubmit = useCallback((e: FormEvent) => {
         e.preventDefault();
+        if (gameMode === 'Roulette') {
+            if (!isMyTurn) return;
+            guessTag(guess);
+            setGuess('');
+            return;
+        }
         const guessedCorrect = guessTag(guess);
         if (!guessedCorrect) {
             setTime(time - INCORRECT_GUESS_PENALTY);
         }
         setGuess("");
-    }, [guess, guessTag, time]);
+    }, [gameMode, guess, guessTag, isMyTurn, time]);
+
+    const handleVoteSkipToggle = useCallback(() => {
+        if (!userID || !roomID) return;
+        const newVote = !hasVotedSkip;
+        setHasVotedSkip(newVote);
+        const data: RouletteVoteSkipEventDataType = {
+            type: EventType.enum.ROULETTE_VOTE_SKIP,
+            roomID,
+            userID,
+            vote: newVote,
+        };
+        connectionManager.send(data);
+    }, [connectionManager, hasVotedSkip, roomID, userID]);
 
     // Mobile layout
     if (isMobileViewport) {
@@ -168,26 +259,41 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
             <>
                 {children}
                 {!showLandscapeTags && (
-                    <MobileTagsOverlay 
-                        guessedTags={guessedTags} 
+                    <MobileTagsOverlay
+                        guessedTags={guessedTags}
                     />
                 )}
                 {showLandscapeTags && (
                     <MobileLandscapeTags guessedTags={guessedTags} />
                 )}
-                <InRoundLeaderboard isMobile />
-                <MobileInputBar 
+                <InRoundLeaderboard isMobile gameMode={gameMode} activePlayerID={activePlayerID} playerLives={playerLives} />
+                <MobileInputBar
                     guess={guess}
                     setGuess={setGuess}
                     onSubmit={handleGuessSubmit}
                     nextRoundButton={nextRoundButton}
                     progressBar={(
-                        <MobileProgressBar 
-                            percentComplete={time / STARTING_TIME * 100} 
-                            totalTime={STARTING_TIME}
+                        <MobileProgressBar
+                            percentComplete={gameMode === 'Roulette'
+                                ? (rouletteTimeLeft / Math.max(rouletteTurnTimeMs, 1) * 100)
+                                : time / STARTING_TIME * 100}
+                            totalTime={gameMode === 'Roulette' ? rouletteTurnTimeMs / 1000 : STARTING_TIME}
                         />
                     )}
                 />
+                {gameMode === 'Roulette' && (
+                    <div style={{ padding: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {isMyTurn && <span style={{ fontWeight: 'bold', color: 'var(--c-tag-general)' }}>YOUR TURN</span>}
+                        <Button
+                            variant="outline"
+                            onClick={handleVoteSkipToggle}
+                            style={{ opacity: hasVotedSkip ? 1 : 0.6 }}
+                        >
+                            {hasVotedSkip ? 'Voted Skip' : 'Vote Skip'}
+                            {skipTotalPlayers > 0 && ` (${skipVotes}/${skipTotalPlayers})`}
+                        </Button>
+                    </div>
+                )}
             </>
         );
     }
@@ -238,9 +344,9 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
             <div className={layoutStyles.tagSection}>
                 <TagListLabel className={layoutStyles.tagSectionLabel}>{label}</TagListLabel>
                 <TagsList className={layoutStyles.tagSectionList}>
-                    <TagList 
-                        tags={sectionTags} 
-                        guessedTags={guessedSectionTags} 
+                    <TagList
+                        tags={sectionTags}
+                        guessedTags={guessedSectionTags}
                         autoRevealedTagNames={allTimePreferTagSet}
                     />
                 </TagsList>
@@ -268,20 +374,42 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
     );
     const layoutClassName = hasRightColumn ? layoutStyles.columnsThree : layoutStyles.columnsTwo;
 
+    const timerPercent = gameMode === 'Roulette'
+        ? (rouletteTimeLeft / Math.max(rouletteTurnTimeMs, 1) * 100)
+        : (time / STARTING_TIME * 100);
+    const timerTotal = gameMode === 'Roulette' ? rouletteTurnTimeMs / 1000 : STARTING_TIME;
+
     // Desktop layout
     return (
         <div className={`${layoutStyles.columnsLayout} ${layoutClassName}`.trim()}>
             <div className={layoutStyles.leftColumn}>
                 <div className={layoutStyles.sidebar}>
                     <h1 className={layoutStyles.sidebarTitle}>Guess</h1>
+                    {gameMode === 'Roulette' && (
+                        <div style={{ marginBottom: '8px' }}>
+                            {isMyTurn
+                                ? <span style={{ fontWeight: 'bold', color: 'var(--c-tag-general)', display: 'block', marginBottom: '4px' }}>YOUR TURN</span>
+                                : <span style={{ color: 'var(--c-text-secondary)', display: 'block', marginBottom: '4px' }}>Waiting for your turn...</span>
+                            }
+                            <Button
+                                variant="outline"
+                                onClick={handleVoteSkipToggle}
+                                style={{ opacity: hasVotedSkip ? 1 : 0.6, width: '100%' }}
+                            >
+                                {hasVotedSkip ? 'Voted Skip' : 'Vote Skip'}
+                                {skipTotalPlayers > 0 && ` (${skipVotes}/${skipTotalPlayers})`}
+                            </Button>
+                        </div>
+                    )}
                     <TagsInputContainer className={layoutStyles.sidebarInputContainer}>
                         <TagsInput className={layoutStyles.sidebarInput}>
                             <form onSubmit={handleGuessSubmit}>
                                 <Input
                                     type="text"
-                                    placeholder="Guess"
+                                    placeholder={gameMode === 'Roulette' && !isMyTurn ? 'Not your turn' : 'Guess'}
                                     value={guess}
                                     onChange={(e) => setGuess(e.target.value)}
+                                    disabled={gameMode === 'Roulette' && !isMyTurn}
                                 />
                             </form>
                         </TagsInput>
@@ -297,9 +425,14 @@ const TagListContainerElement: React.FC<Props> = (props: Props) => {
             </div>
             <div className={layoutStyles.middleColumn}>
                 <div className={layoutStyles.roundBanner}>
-                    <InRoundLeaderboard className={layoutStyles.roundLeaderboard} />
+                    <InRoundLeaderboard
+                        className={layoutStyles.roundLeaderboard}
+                        gameMode={gameMode}
+                        activePlayerID={activePlayerID}
+                        playerLives={playerLives}
+                    />
                     <div className={layoutStyles.roundProgress}>
-                        <ProgressBar percentComplete={time / STARTING_TIME * 100} totalTime={STARTING_TIME}/>
+                        <ProgressBar percentComplete={timerPercent} totalTime={timerTotal}/>
                     </div>
                 </div>
                 <div className={layoutStyles.postSlot}>
@@ -327,4 +460,3 @@ export const TagListContainer = (props: Props) => (
     <TagListContainerElement {...props} />
   </div>
 );
-

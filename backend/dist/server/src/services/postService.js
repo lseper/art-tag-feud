@@ -20,6 +20,9 @@ const roundPostsRepo_1 = require("../data/repos/roundPostsRepo");
 const guessesRepo_1 = require("../data/repos/guessesRepo");
 const leaderboardRepo_1 = require("../data/repos/leaderboardRepo");
 const gameService_1 = require("./gameService");
+const botSequenceService_1 = require("./botSequenceService");
+const rouletteService_1 = require("./rouletteService");
+const store_2 = require("../state/store");
 const recordPostAndTags = (post) => __awaiter(void 0, void 0, void 0, function* () {
     yield (0, postsRepo_1.upsertPost)(post);
     const tags = Array.isArray(post.tags) ? post.tags : [];
@@ -54,12 +57,63 @@ const recordLeaderboardSnapshot = (room) => __awaiter(void 0, void 0, void 0, fu
     }, {});
     yield (0, leaderboardRepo_1.insertLeaderboardSnapshot)(active.gameId, active.roundId, snapshot);
 });
+const handleRoulettePost = (room) => __awaiter(void 0, void 0, void 0, function* () {
+    if (room.postQueue.length === 0) {
+        room.postQueue = yield (0, e621Client_1.getPosts)(room.blacklist, room.preferlist);
+    }
+    const postToSend = room.postQueue.shift();
+    if (!postToSend) {
+        console.error('No posts available to send (Roulette).');
+        return { kind: 'no_post' };
+    }
+    yield (0, gameService_1.ensureActiveGame)(room);
+    yield recordPostAndTags(postToSend);
+    const activeGame = store_1.activeGames.get(room.id);
+    let roundPostId = null;
+    if (activeGame) {
+        roundPostId = yield recordRoundPost(room.id, activeGame.roundId, postToSend.id, activeGame.nextPostOrder);
+    }
+    const preferlistAllTimeTags = new Set(room.preferlist.filter(e => e.frequency === 'all').map(e => e.tag));
+    const tags = Array.isArray(postToSend.tags) ? postToSend.tags : [];
+    const postToSendWithPreferlist = preferlistAllTimeTags.size > 0 ? Object.assign(Object.assign({}, postToSend), { tags: tags.map(tag => preferlistAllTimeTags.has(tag.name) ? Object.assign(Object.assign({}, tag), { score: 0 }) : tag) }) : Object.assign(Object.assign({}, postToSend), { tags });
+    if (activeGame) {
+        activeGame.currentPost = postToSendWithPreferlist;
+        activeGame.currentRoundGuesses = new Map();
+        store_1.activeGames.set(room.id, activeGame);
+    }
+    room.postsViewedThisRound += 1;
+    yield (0, roomsRepo_1.upsertRoom)(room);
+    const botActionSequence = roundPostId
+        ? yield (0, botSequenceService_1.generateBotActionSequence)(room, roundPostId, postToSendWithPreferlist.tags)
+        : null;
+    // Initialize or reset roulette state for the new post
+    if (!store_2.rouletteGames.has(room.id)) {
+        (0, rouletteService_1.initRouletteGame)(room.id);
+    }
+    else {
+        (0, rouletteService_1.handleNewPost)(room.id);
+    }
+    (0, rouletteService_1.startTurn)(room.id);
+    return { kind: 'send_post', post: postToSendWithPreferlist, botActionSequence };
+});
 const handleRequestPost = (roomID, userID) => __awaiter(void 0, void 0, void 0, function* () {
     const roomToSendPost = store_1.rooms.get(roomID);
     if (!roomToSendPost)
         return { kind: 'no_room' };
+    // Roulette mode: skip ready-check and round progression
+    if (roomToSendPost.gameMode === 'Roulette') {
+        if (!roomToSendPost.gameStarted) {
+            roomToSendPost.gameStarted = true;
+            yield (0, roomsRepo_1.upsertRoom)(roomToSendPost);
+        }
+        return yield handleRoulettePost(roomToSendPost);
+    }
     roomToSendPost.allUsersReady.set(userID, true);
     yield (0, roomReadyStateRepo_1.upsertRoomReadyStates)(roomToSendPost);
+    if (!roomToSendPost.gameStarted) {
+        roomToSendPost.gameStarted = true;
+        yield (0, roomsRepo_1.upsertRoom)(roomToSendPost);
+    }
     if (roomToSendPost.postQueue.length === 0) {
         roomToSendPost.postQueue = yield (0, e621Client_1.getPosts)(roomToSendPost.blacklist, roomToSendPost.preferlist);
     }
@@ -79,6 +133,12 @@ const handleRequestPost = (roomID, userID) => __awaiter(void 0, void 0, void 0, 
             yield (0, gameService_1.startNextRound)(roomToSendPost.id, activeGame.gameId, roomToSendPost.curRound);
         }
         yield (0, roomsRepo_1.upsertRoom)(roomToSendPost);
+        const active = store_1.activeGames.get(roomToSendPost.id);
+        if (active) {
+            active.currentPost = undefined;
+            active.currentRoundGuesses = new Map();
+            store_1.activeGames.set(roomToSendPost.id, active);
+        }
         return { kind: 'show_leaderboard' };
     }
     const postToSend = roomToSendPost.postQueue.shift();
@@ -89,21 +149,31 @@ const handleRequestPost = (roomID, userID) => __awaiter(void 0, void 0, void 0, 
     yield (0, gameService_1.ensureActiveGame)(roomToSendPost, userID);
     yield recordPostAndTags(postToSend);
     const activeGame = store_1.activeGames.get(roomToSendPost.id);
+    let roundPostId = null;
     if (activeGame) {
-        yield recordRoundPost(roomToSendPost.id, activeGame.roundId, postToSend.id, activeGame.nextPostOrder);
+        roundPostId = yield recordRoundPost(roomToSendPost.id, activeGame.roundId, postToSend.id, activeGame.nextPostOrder);
     }
     const preferlistAllTimeTags = new Set(roomToSendPost.preferlist.filter(entry => entry.frequency === 'all').map(entry => entry.tag));
     const tags = Array.isArray(postToSend.tags) ? postToSend.tags : [];
     const postToSendWithPreferlist = preferlistAllTimeTags.size > 0 ? Object.assign(Object.assign({}, postToSend), { tags: tags.map(tag => preferlistAllTimeTags.has(tag.name) ? Object.assign(Object.assign({}, tag), { score: 0 }) : tag) }) : Object.assign(Object.assign({}, postToSend), { tags });
+    if (activeGame) {
+        activeGame.currentPost = postToSendWithPreferlist;
+        activeGame.currentRoundGuesses = new Map();
+        store_1.activeGames.set(roomToSendPost.id, activeGame);
+    }
     roomToSendPost.postsViewedThisRound += 1;
     yield (0, roomsRepo_1.upsertRoom)(roomToSendPost);
     const newReadyMap = new Map();
-    roomToSendPost.allUsersReady.forEach((v, k) => {
-        newReadyMap.set(k, false);
+    roomToSendPost.allUsersReady.forEach((_v, k) => {
+        const member = roomToSendPost.members.find(user => user.id === k);
+        newReadyMap.set(k, (member === null || member === void 0 ? void 0 : member.isBot) ? true : false);
     });
     roomToSendPost.allUsersReady = newReadyMap;
     yield (0, roomReadyStateRepo_1.upsertRoomReadyStates)(roomToSendPost);
-    return { kind: 'send_post', post: postToSendWithPreferlist };
+    const botActionSequence = roundPostId
+        ? yield (0, botSequenceService_1.generateBotActionSequence)(roomToSendPost, roundPostId, postToSendWithPreferlist.tags)
+        : null;
+    return { kind: 'send_post', post: postToSendWithPreferlist, botActionSequence };
 });
 exports.handleRequestPost = handleRequestPost;
 //# sourceMappingURL=postService.js.map

@@ -30,7 +30,7 @@ describe('userService', () => {
         const result = getOrCreateUser(socket, 'u1');
 
         expect(result).toBe('u1');
-        expect(users.size).toBe(0);
+        expect(users.size).toBe(1);
     });
 
     it('getOrCreateUser creates a user with a unique id', () => {

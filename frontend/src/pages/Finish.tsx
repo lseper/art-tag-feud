@@ -18,9 +18,25 @@ export const Finish : React.FC<Props> = ({className}: Props) => {
   /**
    * Server-driven user values
    */
-  const {userID, roomID, readyStates, owner, setOwner, setReadyStates, leaveRoomCleanup, connectionManager} = useContext(UserContext);
+  const {userID, roomID, readyStates, owner, setOwner, setReadyStates, leaveRoomCleanup, connectionManager, gameMode, rouletteEliminationOrder} = useContext(UserContext);
   const navigate = useNavigate();
-  
+
+  // Sort readyStates by Roulette survival order on mount
+  useEffect(() => {
+    if (gameMode !== 'Roulette') return;
+    const eliminatedSet = new Set(rouletteEliminationOrder);
+    const survivors = readyStates.filter(rs => !eliminatedSet.has(rs.user.id));
+    const eliminated = rouletteEliminationOrder
+      .map(id => readyStates.find(rs => rs.user.id === id))
+      .filter((rs): rs is (typeof readyStates)[number] => rs != null)
+      .reverse(); // last eliminated = highest ranked among eliminated
+    const sorted = [...survivors, ...eliminated];
+    if (sorted.length === readyStates.length) {
+      setReadyStates(sorted);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
   useEffect(() => {
 
     // transfer ownership of room if owner leaves, lets people leave room
@@ -41,16 +57,29 @@ export const Finish : React.FC<Props> = ({className}: Props) => {
     const unsubscribers = [
         connectionManager.listen<LeaveRoomEventDataToClientType>(EventType.enum.LEAVE_ROOM, onUserLeftRoom),
     ];
-    
+
     return () => {
         unsubscribers.forEach(unsubscribe => unsubscribe());
     }
 }, [connectionManager, owner, readyStates, setOwner, setReadyStates])
 
     const winner = useMemo(() => {
+        if (gameMode === 'Roulette') {
+            const eliminatedSet = new Set(rouletteEliminationOrder);
+            const survivors = readyStates.filter(rs => !eliminatedSet.has(rs.user.id));
+            if (survivors.length > 0) {
+                return survivors[0];
+            }
+            // All eliminated — last eliminated was the winner
+            if (rouletteEliminationOrder.length > 0) {
+                const lastEliminatedID = rouletteEliminationOrder[rouletteEliminationOrder.length - 1];
+                return readyStates.find(rs => rs.user.id === lastEliminatedID);
+            }
+            return readyStates[0];
+        }
         readyStates.sort((a, b) => b.user.score - a.user.score);
         return readyStates[0];
-    }, [readyStates]);
+    }, [gameMode, readyStates, rouletteEliminationOrder]);
 
     const leaveRoom = useCallback(() => {
         if(roomID && userID) {

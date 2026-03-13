@@ -42,6 +42,8 @@ import lobbyStyles from '@/styles/pages/lobby.module.css';
 const POSTS_PER_ROUND_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const ROUNDS_PER_GAME_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const BOT_COUNT_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+const STARTING_LIVES_OPTIONS = [1, 2, 3, 4, 5];
+const TURN_TIME_SEC_OPTIONS = [5, 10, 15, 20, 25, 30];
 const GAME_MODE_OPTIONS = ['Blitz', 'Roulette', 'Imposter'] as const;
 const BOT_DIFFICULTY_OPTIONS: { value: BotDifficultyType; label: string }[] = [
   { value: 'Saint', label: 'Saint (Easy)' },
@@ -63,6 +65,8 @@ type RoomSettingsUpdate = {
   gameMode?: GameModeOption;
   rating?: RoomRatingType;
   isPrivate?: boolean;
+  startingLives?: number;
+  turnTimeSec?: number;
 };
 const RATING_OPTIONS = ['Safe', 'Questionable', 'Explicit'] as const;
 const RATING_STYLE_MAP = {
@@ -118,6 +122,7 @@ export const GameSetup: React.FC = () => {
     setBlacklist,
     setPreferlist,
     setScore,
+    setGameMode: setContextGameMode,
     leaveRoomCleanup,
     connectionManager,
   } = useContext(UserContext);
@@ -135,6 +140,8 @@ export const GameSetup: React.FC = () => {
   const [preferlistFrequency, setPreferlistFrequency] = useState<PreferlistFrequencyType>('most');
   const [gameMode, setGameMode] = useState<GameModeOption>('Blitz');
   const [rating, setRating] = useState<RoomRatingType>('Explicit');
+  const [startingLives, setStartingLives] = useState<number[]>([3]);
+  const [turnTimeSec, setTurnTimeSec] = useState<number[]>([15]);
   const [isGameModeExpanded, setIsGameModeExpanded] = useState(true);
   const [fallbackRoomCode] = useState(() => createRoomCode());
   const hasAutoCreatedRoom = useRef(false);
@@ -203,7 +210,10 @@ export const GameSetup: React.FC = () => {
       setBotCount([data.room.botCount ?? 0]);
       applyIncomingBotDifficulties(data.room.botCount ?? 0, data.room.botDifficulties);
       setGameMode(data.room.gameMode);
+      setContextGameMode(data.room.gameMode);
       setRating(data.room.rating);
+      setStartingLives([data.room.startingLives ?? 3]);
+      setTurnTimeSec([(data.room.turnTimeMs ?? 15000) / 1000]);
       if (userID === data.user.id) {
         setRoomID(data.room.roomID);
         setOwner(data.room.owner);
@@ -225,7 +235,10 @@ export const GameSetup: React.FC = () => {
       setBotCount([data.room.botCount ?? 0]);
       applyIncomingBotDifficulties(data.room.botCount ?? 0, data.room.botDifficulties);
       setGameMode(data.room.gameMode);
+      setContextGameMode(data.room.gameMode);
       setRating(data.room.rating);
+      setStartingLives([data.room.startingLives ?? 3]);
+      setTurnTimeSec([(data.room.turnTimeMs ?? 15000) / 1000]);
     };
 
     const onUserLeftRoom = (data: LeaveRoomEventDataToClientType) => {
@@ -246,7 +259,10 @@ export const GameSetup: React.FC = () => {
       setBotCount([data.room.botCount ?? 0]);
       applyIncomingBotDifficulties(data.room.botCount ?? 0, data.room.botDifficulties);
       setGameMode(data.room.gameMode);
+      setContextGameMode(data.room.gameMode);
       setRating(data.room.rating);
+      setStartingLives([data.room.startingLives ?? 3]);
+      setTurnTimeSec([(data.room.turnTimeMs ?? 15000) / 1000]);
     };
 
     const onBlacklistUpdate = (data: UpdateBlacklistEventDataToClientType) => {
@@ -273,7 +289,10 @@ export const GameSetup: React.FC = () => {
       setBotCount([data.botCount ?? 0]);
       applyIncomingBotDifficulties(data.botCount ?? 0, data.botDifficulties);
       setGameMode(data.gameMode);
+      setContextGameMode(data.gameMode);
       setRating(data.rating);
+      setStartingLives([data.startingLives ?? 3]);
+      setTurnTimeSec([(data.turnTimeMs ?? 15000) / 1000]);
       if (!hasEditedRoomName.current) {
         setRoomNameInput(data.roomName);
       }
@@ -542,6 +561,8 @@ export const GameSetup: React.FC = () => {
         gameMode,
         rating,
         isPrivate,
+        startingLives: startingLives[0],
+        turnTimeMs: turnTimeSec[0] * 1000,
       };
       connectionManager.send(data);
     }
@@ -606,6 +627,8 @@ export const GameSetup: React.FC = () => {
     const nextGameMode = overrides.gameMode ?? gameMode;
     const nextRating = overrides.rating ?? rating;
     const nextIsPrivate = overrides.isPrivate ?? isPrivate;
+    const nextStartingLives = overrides.startingLives ?? startingLives[0];
+    const nextTurnTimeSec = overrides.turnTimeSec ?? turnTimeSec[0];
     if (!nextRoomName || nextPostsPerRound == null || nextRoundsPerGame == null || nextBotCount == null) {
       return;
     }
@@ -621,6 +644,8 @@ export const GameSetup: React.FC = () => {
       gameMode: nextGameMode,
       rating: nextRating,
       isPrivate: nextIsPrivate,
+      startingLives: nextStartingLives,
+      turnTimeMs: nextTurnTimeSec * 1000,
     };
     pendingBotDifficultiesRef.current = nextBotDifficulties;
     connectionManager.send(data);
@@ -636,6 +661,8 @@ export const GameSetup: React.FC = () => {
     botCount,
     botDifficulties,
     isPrivate,
+    startingLives,
+    turnTimeSec,
     userID,
   ]);
 
@@ -671,6 +698,20 @@ export const GameSetup: React.FC = () => {
     sendRoomSettingsUpdate({ botDifficulties: next });
   }, [botCount, botDifficulties, normalizeBotDifficulties, sendRoomSettingsUpdate]);
 
+  const updateStartingLives = useCallback((next: number[]) => {
+    setStartingLives(next);
+    if (next[0] != null) {
+      sendRoomSettingsUpdate({ startingLives: next[0] });
+    }
+  }, [sendRoomSettingsUpdate]);
+
+  const updateTurnTimeSec = useCallback((next: number[]) => {
+    setTurnTimeSec(next);
+    if (next[0] != null) {
+      sendRoomSettingsUpdate({ turnTimeSec: next[0] });
+    }
+  }, [sendRoomSettingsUpdate]);
+
   const saveGameSetup = useCallback(() => {
     if (inputsAreValid) {
       sendRoomSettingsUpdate();
@@ -690,6 +731,7 @@ export const GameSetup: React.FC = () => {
       setIsGameModeExpanded(true);
     }
     setGameMode(nextMode);
+    setContextGameMode(nextMode);
     const nextPostsPerRound = cachedSettings?.postsPerRound ?? postsPerRound;
     const nextRoundsPerGame = cachedSettings?.roundsPerGame ?? roundsPerGame;
     setPostsPerRound([...nextPostsPerRound]);
@@ -871,30 +913,57 @@ export const GameSetup: React.FC = () => {
               <section className={cn(styles.formSection, !isHost && styles.readOnlySection)} aria-disabled={!isHost}>
                 <div className={styles.sectionInfo}>
                   <h2>Room Setup</h2>
-                  <p>Configure the round length.</p>
+                  <p>{gameMode === 'Roulette' ? 'Configure lives and turn time.' : 'Configure the round length.'}</p>
                 </div>
                 <div className={styles.sectionContent}>
                   <div className={styles.pickerStack}>
-                    <NumberPicker
-                      title="Posts Per Round"
-                      options={POSTS_PER_ROUND_OPTIONS}
-                      selected={postsPerRound}
-                      setSelected={updatePostsPerRound}
-                      color="var(--c-tag-species)"
-                      backgroundColor="var(--background)"
-                      singleSelect
-                      disabled={!isHost}
-                    />
-                    <NumberPicker
-                      title="Rounds Per Game"
-                      options={ROUNDS_PER_GAME_OPTIONS}
-                      selected={roundsPerGame}
-                      setSelected={updateRoundsPerGame}
-                      color="var(--c-tag-species)"
-                      backgroundColor="var(--background)"
-                      singleSelect
-                      disabled={!isHost}
-                    />
+                    {gameMode === 'Roulette' ? (
+                      <>
+                        <NumberPicker
+                          title="Starting Lives"
+                          options={STARTING_LIVES_OPTIONS}
+                          selected={startingLives}
+                          setSelected={updateStartingLives}
+                          color="var(--c-tag-species)"
+                          backgroundColor="var(--background)"
+                          singleSelect
+                          disabled={!isHost}
+                        />
+                        <NumberPicker
+                          title="Turn Time (seconds)"
+                          options={TURN_TIME_SEC_OPTIONS}
+                          selected={turnTimeSec}
+                          setSelected={updateTurnTimeSec}
+                          color="var(--c-tag-species)"
+                          backgroundColor="var(--background)"
+                          singleSelect
+                          disabled={!isHost}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <NumberPicker
+                          title="Posts Per Round"
+                          options={POSTS_PER_ROUND_OPTIONS}
+                          selected={postsPerRound}
+                          setSelected={updatePostsPerRound}
+                          color="var(--c-tag-species)"
+                          backgroundColor="var(--background)"
+                          singleSelect
+                          disabled={!isHost}
+                        />
+                        <NumberPicker
+                          title="Rounds Per Game"
+                          options={ROUNDS_PER_GAME_OPTIONS}
+                          selected={roundsPerGame}
+                          setSelected={updateRoundsPerGame}
+                          color="var(--c-tag-species)"
+                          backgroundColor="var(--background)"
+                          singleSelect
+                          disabled={!isHost}
+                        />
+                      </>
+                    )}
                   </div>
                 </div>
               </section>

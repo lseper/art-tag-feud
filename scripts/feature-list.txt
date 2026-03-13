@@ -1,0 +1,3 @@
+- [ ] /specs/support-animations.md
+- [-] /specs/roulette-game-mode.md
+- [ ] /specs/puzzle-game-mode.md

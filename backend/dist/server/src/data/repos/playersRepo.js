@@ -13,6 +13,7 @@ exports.upsertPlayer = void 0;
 const supabaseClient_1 = require("../supabaseClient");
 const supabaseUtils_1 = require("../supabaseUtils");
 const upsertPlayer = (user) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
     if (!supabaseClient_1.supabase)
         return;
     const { error } = yield supabaseClient_1.supabase
@@ -20,6 +21,8 @@ const upsertPlayer = (user) => __awaiter(void 0, void 0, void 0, function* () {
         .upsert({
         id: user.id,
         username: user.username,
+        is_bot: (_a = user.isBot) !== null && _a !== void 0 ? _a : false,
+        bot_profile_id: (_b = user.botProfileId) !== null && _b !== void 0 ? _b : null,
         last_seen_at: new Date().toISOString(),
     }, { onConflict: 'id' });
     (0, supabaseUtils_1.logSupabaseError)('upsert player', error);

@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.removeRoomMember = exports.upsertRoomMember = void 0;
+exports.getRoomMember = exports.removeRoomMember = exports.upsertRoomMember = void 0;
 const supabaseClient_1 = require("../supabaseClient");
 const supabaseUtils_1 = require("../supabaseUtils");
 const upsertRoomMember = (roomID, user) => __awaiter(void 0, void 0, void 0, function* () {
@@ -33,10 +33,23 @@ const removeRoomMember = (roomID, userID) => __awaiter(void 0, void 0, void 0, f
         return;
     const { error } = yield supabaseClient_1.supabase
         .from('room_members')
-        .delete()
+        .update({ left_at: new Date().toISOString(), icon: null })
         .eq('room_id', roomID)
         .eq('player_id', userID);
     (0, supabaseUtils_1.logSupabaseError)('remove room member', error);
 });
 exports.removeRoomMember = removeRoomMember;
+const getRoomMember = (roomID, userID) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!supabaseClient_1.supabase)
+        return null;
+    const { data, error } = yield supabaseClient_1.supabase
+        .from('room_members')
+        .select('score,left_at')
+        .eq('room_id', roomID)
+        .eq('player_id', userID)
+        .maybeSingle();
+    (0, supabaseUtils_1.logSupabaseError)('get room member', error);
+    return data !== null && data !== void 0 ? data : null;
+});
+exports.getRoomMember = getRoomMember;
 //# sourceMappingURL=roomMembersRepo.js.map

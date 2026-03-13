@@ -15,6 +15,9 @@ const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
 export default defineConfig({
   base: process.env.GITHUB_PAGES ? `/${repoName ?? 'art-tag-feud'}/` : '/',
   plugins: [react()],
+  optimizeDeps: {
+    include: ['@storybook/addon-a11y/preview', '@storybook/react-vite'],
+  },
   resolve: {
     alias: {
       '@': path.resolve(dirname, './src'),

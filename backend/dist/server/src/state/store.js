@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getNumUsers = exports.decrementUsers = exports.incrementUsers = exports.activeGames = exports.userSockets = exports.users = exports.rooms = void 0;
+exports.getNumUsers = exports.decrementUsers = exports.incrementUsers = exports.rouletteGames = exports.activeGames = exports.userSockets = exports.users = exports.rooms = void 0;
 let numUsers = 0;
 const rooms = new Map();
 exports.rooms = rooms;
@@ -10,6 +10,8 @@ const userSockets = new Map();
 exports.userSockets = userSockets;
 const activeGames = new Map();
 exports.activeGames = activeGames;
+const rouletteGames = new Map();
+exports.rouletteGames = rouletteGames;
 const incrementUsers = () => {
     numUsers += 1;
 };

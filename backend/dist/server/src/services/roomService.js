@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateRoomPreferlist = exports.updateRoomBlacklist = exports.updateRoomReadyState = exports.leaveRoom = exports.joinRoom = exports.createOrUpdateRoom = exports.getSelectedIcons = exports.getRoom = exports.getAllRooms = void 0;
+exports.updateRoomSettings = exports.updateRoomPreferlist = exports.updateRoomBlacklist = exports.updateRoomReadyState = exports.leaveRoom = exports.joinRoom = exports.createOrUpdateRoom = exports.getSelectedIcons = exports.getRoom = exports.getAllRooms = void 0;
 const uuid_1 = require("uuid");
 const store_1 = require("../state/store");
 const roomUtils_1 = require("../domain/roomUtils");
@@ -20,12 +20,29 @@ const roomReadyStateRepo_1 = require("../data/repos/roomReadyStateRepo");
 const blacklistRepo_1 = require("../data/repos/blacklistRepo");
 const preferlistRepo_1 = require("../data/repos/preferlistRepo");
 const playersRepo_1 = require("../data/repos/playersRepo");
+const botService_1 = require("./botService");
+const DEFAULT_BOT_DIFFICULTY = 'Sinner';
+const normalizeBotDifficulties = (botCount, difficulties) => {
+    const values = new Set(['Saint', 'Sinner', 'Succubus']);
+    const source = Array.isArray(difficulties) ? difficulties : [];
+    return Array.from({ length: botCount }, (_value, index) => {
+        const entry = source[index];
+        return values.has(entry) ? entry : DEFAULT_BOT_DIFFICULTY;
+    });
+};
 const getAllRooms = () => {
-    return (0, roomUtils_1.convertServerRoomsToClientRooms)(store_1.rooms.values(), store_1.users);
+    const publicRooms = [...store_1.rooms.values()].filter(room => !room.isPrivate);
+    return (0, roomUtils_1.convertServerRoomsToClientRooms)(publicRooms, store_1.users);
 };
 exports.getAllRooms = getAllRooms;
 const getRoom = (roomID) => { var _a; return (_a = store_1.rooms.get(roomID)) !== null && _a !== void 0 ? _a : null; };
 exports.getRoom = getRoom;
+const normalizeRoomCode = (roomCode) => roomCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+const getRoomByCode = (roomCode) => {
+    var _a;
+    const normalized = normalizeRoomCode(roomCode);
+    return (_a = [...store_1.rooms.values()].find(room => room.roomCode === normalized)) !== null && _a !== void 0 ? _a : null;
+};
 const getSelectedIcons = (roomID) => {
     const room = store_1.rooms.get(roomID);
     if (!room)
@@ -45,7 +62,25 @@ const getSelectedIcons = (roomID) => {
     return selectedIcons;
 };
 exports.getSelectedIcons = getSelectedIcons;
-const createOrUpdateRoom = (userID, roomName, postsPerRound, roundsPerGame, roomID) => __awaiter(void 0, void 0, void 0, function* () {
+const DEFAULT_GAME_MODE = 'Blitz';
+const DEFAULT_RATING = 'Explicit';
+const markBotsReady = (room) => {
+    room.members.forEach(member => {
+        if (member.isBot) {
+            room.allUsersReady.set(member.id, true);
+        }
+    });
+};
+const createRoomCode = () => {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = '';
+    for (let i = 0; i < 12; i += 1) {
+        result += alphabet[Math.floor(Math.random() * alphabet.length)];
+    }
+    return result;
+};
+const createOrUpdateRoom = (userID, roomName, postsPerRound, roundsPerGame, roomID, gameMode, rating, isPrivate, botCount, botDifficulties, startingLives, turnTimeMs) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c, _d;
     const user = store_1.users.get(userID);
     if (!user)
         return null;
@@ -56,7 +91,21 @@ const createOrUpdateRoom = (userID, roomName, postsPerRound, roundsPerGame, room
         room.postsPerRound = postsPerRound;
         room.roundsPerGame = roundsPerGame;
         room.name = roomName;
+        room.gameMode = (_a = gameMode !== null && gameMode !== void 0 ? gameMode : room.gameMode) !== null && _a !== void 0 ? _a : DEFAULT_GAME_MODE;
+        room.rating = (_b = rating !== null && rating !== void 0 ? rating : room.rating) !== null && _b !== void 0 ? _b : DEFAULT_RATING;
+        room.isPrivate = (_c = isPrivate !== null && isPrivate !== void 0 ? isPrivate : room.isPrivate) !== null && _c !== void 0 ? _c : false;
+        room.botCount = (_d = botCount !== null && botCount !== void 0 ? botCount : room.botCount) !== null && _d !== void 0 ? _d : 0;
+        room.botDifficulties = normalizeBotDifficulties(room.botCount, botDifficulties !== null && botDifficulties !== void 0 ? botDifficulties : room.botDifficulties);
+        if (startingLives !== undefined)
+            room.startingLives = startingLives;
+        if (turnTimeMs !== undefined)
+            room.turnTimeMs = turnTimeMs;
+        if (!room.roomCode) {
+            room.roomCode = createRoomCode();
+        }
+        yield (0, botService_1.ensureBotCountForRoom)(room, room.botCount, room.botDifficulties);
         (0, roomUtils_1.resetRoom)(room);
+        markBotsReady(room);
         yield (0, roomsRepo_1.upsertRoom)(room);
         const roomToClient = (0, roomUtils_1.convertServerRoomToClientRoom)(room, store_1.users);
         return { room, roomToClient, user, created: false };
@@ -68,11 +117,21 @@ const createOrUpdateRoom = (userID, roomName, postsPerRound, roundsPerGame, room
     const newRoomAllUsersReady = new Map();
     newRoomAllUsersReady.set(user.id, false);
     user.roomID = newRoomID;
+    let roomCode = createRoomCode();
+    while ([...store_1.rooms.values()].some(existing => existing.roomCode === roomCode)) {
+        roomCode = createRoomCode();
+    }
     const newRoom = {
         id: newRoomID,
         name: roomName,
         postsPerRound,
         roundsPerGame,
+        botCount: botCount !== null && botCount !== void 0 ? botCount : 0,
+        botDifficulties: normalizeBotDifficulties(botCount !== null && botCount !== void 0 ? botCount : 0, botDifficulties),
+        gameMode: gameMode !== null && gameMode !== void 0 ? gameMode : DEFAULT_GAME_MODE,
+        rating: rating !== null && rating !== void 0 ? rating : DEFAULT_RATING,
+        roomCode,
+        isPrivate: isPrivate !== null && isPrivate !== void 0 ? isPrivate : false,
         members: [user],
         blacklist: [],
         preferlist: [],
@@ -82,9 +141,12 @@ const createOrUpdateRoom = (userID, roomName, postsPerRound, roundsPerGame, room
         postsViewedThisRound: 0,
         gameStarted: false,
         owner: user,
+        startingLives,
+        turnTimeMs,
     };
     store_1.rooms.set(newRoomID, newRoom);
     yield (0, playersRepo_1.upsertPlayer)(user);
+    yield (0, botService_1.ensureBotCountForRoom)(newRoom, newRoom.botCount, newRoom.botDifficulties);
     yield (0, roomsRepo_1.upsertRoom)(newRoom);
     yield (0, roomMembersRepo_1.upsertRoomMember)(newRoomID, user);
     yield (0, roomReadyStateRepo_1.upsertRoomReadyStates)(newRoom);
@@ -92,16 +154,37 @@ const createOrUpdateRoom = (userID, roomName, postsPerRound, roundsPerGame, room
     return { room: newRoom, roomToClient, user, created: true };
 });
 exports.createOrUpdateRoom = createOrUpdateRoom;
-const joinRoom = (roomID, userID) => __awaiter(void 0, void 0, void 0, function* () {
-    const room = store_1.rooms.get(roomID);
+const joinRoom = (roomID, roomCode, userID) => __awaiter(void 0, void 0, void 0, function* () {
+    const room = roomID ? store_1.rooms.get(roomID) : (roomCode ? getRoomByCode(roomCode) : null);
     const user = store_1.users.get(userID);
     if (!room || !user)
         return null;
-    room.members.push(user);
-    room.allUsersReady.set(user.id, false);
-    user.roomID = roomID;
+    if (room.isPrivate) {
+        const normalizedCode = roomCode ? normalizeRoomCode(roomCode) : '';
+        if (!normalizedCode || normalizedCode !== room.roomCode) {
+            return null;
+        }
+    }
+    const isExistingMember = room.members.some(member => member.id === user.id);
+    const roomMember = yield (0, roomMembersRepo_1.getRoomMember)(room.id, user.id);
+    if ((roomMember === null || roomMember === void 0 ? void 0 : roomMember.score) != null) {
+        user.score = roomMember.score;
+    }
+    else if (!isExistingMember && room.gameStarted) {
+        const lowestScore = room.members.length > 0
+            ? room.members.reduce((minScore, member) => Math.min(minScore, member.score), room.members[0].score)
+            : 0;
+        user.score = Math.max(0, lowestScore - 400);
+    }
+    if (!isExistingMember) {
+        room.members.push(user);
+    }
+    if (!room.allUsersReady.has(user.id)) {
+        room.allUsersReady.set(user.id, false);
+    }
+    user.roomID = room.id;
     yield (0, playersRepo_1.upsertPlayer)(user);
-    yield (0, roomMembersRepo_1.upsertRoomMember)(roomID, user);
+    yield (0, roomMembersRepo_1.upsertRoomMember)(room.id, user);
     yield (0, roomReadyStateRepo_1.upsertRoomReadyStates)(room);
     const roomToClient = (0, roomUtils_1.convertServerRoomToClientRoom)(room, store_1.users);
     return { room, user, roomToClient };
@@ -207,4 +290,32 @@ const updateRoomPreferlist = (roomID, tag, action, frequency) => __awaiter(void 
     return { room, normalizedTag, removedFromBlacklist: action === 'add' };
 });
 exports.updateRoomPreferlist = updateRoomPreferlist;
+const updateRoomSettings = (roomID, roomName, postsPerRound, roundsPerGame, botCount, botDifficulties, gameMode, rating, isPrivate, startingLives, turnTimeMs) => __awaiter(void 0, void 0, void 0, function* () {
+    const room = store_1.rooms.get(roomID);
+    if (!room)
+        return null;
+    const shouldReset = room.postsPerRound !== postsPerRound || room.roundsPerGame !== roundsPerGame;
+    room.name = roomName;
+    room.postsPerRound = postsPerRound;
+    room.roundsPerGame = roundsPerGame;
+    room.botCount = botCount;
+    room.botDifficulties = normalizeBotDifficulties(botCount, botDifficulties);
+    room.gameMode = gameMode;
+    room.rating = rating;
+    room.isPrivate = isPrivate;
+    if (startingLives !== undefined)
+        room.startingLives = startingLives;
+    if (turnTimeMs !== undefined)
+        room.turnTimeMs = turnTimeMs;
+    yield (0, botService_1.ensureBotCountForRoom)(room, botCount, room.botDifficulties);
+    if (shouldReset) {
+        (0, roomUtils_1.resetRoom)(room);
+        markBotsReady(room);
+    }
+    store_1.rooms.set(room.id, room);
+    yield (0, roomsRepo_1.upsertRoom)(room);
+    const roomToClient = (0, roomUtils_1.convertServerRoomToClientRoom)(room, store_1.users);
+    return { room, roomToClient };
+});
+exports.updateRoomSettings = updateRoomSettings;
 //# sourceMappingURL=roomService.js.map

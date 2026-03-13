@@ -47,6 +47,8 @@ describe('gameService', () => {
             roundId: 'round-2',
             roundIndex: 0,
             nextPostOrder: 0,
+            currentPost: undefined,
+            currentRoundGuesses: new Map(),
         });
         expect(activeGames.get('room-1')?.gameId).toBe('game-2');
         expect(createGame).toHaveBeenCalledWith('room-1', 'u1', 2, 3);

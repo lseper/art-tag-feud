@@ -1,6 +1,6 @@
 import { createContext } from 'react';
 import { ConnectionManager } from '../util/ConnectionManager';
-import type {PreferlistTagType, UserReadyStateType, UserType} from '../types';
+import type {GameModeType, PreferlistTagType, UserReadyStateType, UserType} from '../types';
 
 type UserContextType = {
     // user specific things
@@ -17,6 +17,8 @@ type UserContextType = {
     owner?: UserType,
     blacklist: string[],
     preferlist: PreferlistTagType[],
+    gameMode: GameModeType,
+    rouletteEliminationOrder: string[],
     connectionManager: ConnectionManager
 
     setUserID: (userID: string) => void,
@@ -31,6 +33,8 @@ type UserContextType = {
     setScore: (score: number) => void,
     setBlacklist: (blacklist: string[]) => void,
     setPreferlist: (preferlist: PreferlistTagType[]) => void,
+    setGameMode: (gameMode: GameModeType) => void,
+    setRouletteEliminationOrder: (order: string[]) => void,
     leaveRoomCleanup: () => void,
 }
 
@@ -41,7 +45,9 @@ export const UserContext = createContext<UserContextType>({
         blacklist: [],
         preferlist: [],
         isPrivate: true,
-    
+        gameMode: 'Blitz',
+        rouletteEliminationOrder: [],
+
         setUserID: (_userID: string) => {},
         setUsername: (_username: string) => {},
         setRoomID: (_roomID: string) => {},
@@ -54,5 +60,7 @@ export const UserContext = createContext<UserContextType>({
         setReadyStates: (_readyStates: UserReadyStateType[]) => {},
         setBlacklist: (_blacklist: string[]) => {},
         setPreferlist: (_preferlist: PreferlistTagType[]) => {},
+        setGameMode: (_gameMode: GameModeType) => {},
+        setRouletteEliminationOrder: (_order: string[]) => {},
         leaveRoomCleanup: () => {},
 });

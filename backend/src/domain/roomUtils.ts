@@ -29,6 +29,8 @@ const convertServerRoomToClientRoom = (serverRoom: ServerRoomType, users: Map<st
         owner: serverRoom.owner,
         blacklist: serverRoom.blacklist,
         preferlist: serverRoom.preferlist,
+        startingLives: serverRoom.startingLives,
+        turnTimeMs: serverRoom.turnTimeMs,
     };
 };
 
