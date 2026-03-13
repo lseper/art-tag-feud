@@ -1,5 +1,15 @@
 import type { WebSocket } from 'ws';
-import type { PostType, ServerRoomType, UserType } from '../domain/contracts';
+import type { PostType, PuzzlePieceDefinitionType, PuzzlePieceAssignmentType, ServerRoomType, UserType } from '../domain/contracts';
+
+export type PuzzleState = {
+    pieces: PuzzlePieceDefinitionType[];
+    assignments: PuzzlePieceAssignmentType[];
+    placedPieces: Map<number, string>;
+    timerHandle: ReturnType<typeof setTimeout> | null;
+    timerDurationMs: number;
+    timerStartedAt: number;
+    totalPieces: number;
+};
 
 export type ActiveGameState = {
     gameId: string;
@@ -9,6 +19,7 @@ export type ActiveGameState = {
     currentRoundPostId?: string;
     currentPost?: PostType;
     currentRoundGuesses?: Map<string, string>;
+    puzzleState?: PuzzleState;
 };
 
 export type RouletteGameState = {

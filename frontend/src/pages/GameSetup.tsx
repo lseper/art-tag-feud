@@ -44,7 +44,8 @@ const ROUNDS_PER_GAME_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const BOT_COUNT_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 const STARTING_LIVES_OPTIONS = [1, 2, 3, 4, 5];
 const TURN_TIME_SEC_OPTIONS = [5, 10, 15, 20, 25, 30];
-const GAME_MODE_OPTIONS = ['Blitz', 'Roulette', 'Imposter'] as const;
+const PUZZLE_TIMER_SEC_OPTIONS = [60, 90, 120, 180];
+const GAME_MODE_OPTIONS = ['Blitz', 'Roulette', 'Imposter', 'Puzzle'] as const;
 const BOT_DIFFICULTY_OPTIONS: { value: BotDifficultyType; label: string }[] = [
   { value: 'Saint', label: 'Saint (Easy)' },
   { value: 'Sinner', label: 'Sinner (Medium)' },
@@ -67,6 +68,7 @@ type RoomSettingsUpdate = {
   isPrivate?: boolean;
   startingLives?: number;
   turnTimeSec?: number;
+  puzzleTimerSec?: number;
 };
 const RATING_OPTIONS = ['Safe', 'Questionable', 'Explicit'] as const;
 const RATING_STYLE_MAP = {
@@ -127,7 +129,7 @@ export const GameSetup: React.FC = () => {
     connectionManager,
   } = useContext(UserContext);
 
-  const { currentPost, botActionSequence, roundGuesses, update } = usePostFetcher(connectionManager, roomID);
+  const { currentPost, botActionSequence, roundGuesses, puzzleRoundActive, update } = usePostFetcher(connectionManager, roomID, gameMode);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [roomNameInput, setRoomNameInput] = useState(() => (username ? `${username}'s Room` : ''));
@@ -142,6 +144,7 @@ export const GameSetup: React.FC = () => {
   const [rating, setRating] = useState<RoomRatingType>('Explicit');
   const [startingLives, setStartingLives] = useState<number[]>([3]);
   const [turnTimeSec, setTurnTimeSec] = useState<number[]>([15]);
+  const [puzzleTimerSec, setPuzzleTimerSec] = useState<number[]>([120]);
   const [isGameModeExpanded, setIsGameModeExpanded] = useState(true);
   const [fallbackRoomCode] = useState(() => createRoomCode());
   const hasAutoCreatedRoom = useRef(false);
@@ -214,6 +217,7 @@ export const GameSetup: React.FC = () => {
       setRating(data.room.rating);
       setStartingLives([data.room.startingLives ?? 3]);
       setTurnTimeSec([(data.room.turnTimeMs ?? 15000) / 1000]);
+      setPuzzleTimerSec([data.room.puzzleTimerSeconds ?? 120]);
       if (userID === data.user.id) {
         setRoomID(data.room.roomID);
         setOwner(data.room.owner);
@@ -239,6 +243,7 @@ export const GameSetup: React.FC = () => {
       setRating(data.room.rating);
       setStartingLives([data.room.startingLives ?? 3]);
       setTurnTimeSec([(data.room.turnTimeMs ?? 15000) / 1000]);
+      setPuzzleTimerSec([data.room.puzzleTimerSeconds ?? 120]);
     };
 
     const onUserLeftRoom = (data: LeaveRoomEventDataToClientType) => {
@@ -263,6 +268,7 @@ export const GameSetup: React.FC = () => {
       setRating(data.room.rating);
       setStartingLives([data.room.startingLives ?? 3]);
       setTurnTimeSec([(data.room.turnTimeMs ?? 15000) / 1000]);
+      setPuzzleTimerSec([data.room.puzzleTimerSeconds ?? 120]);
     };
 
     const onBlacklistUpdate = (data: UpdateBlacklistEventDataToClientType) => {
@@ -293,6 +299,7 @@ export const GameSetup: React.FC = () => {
       setRating(data.rating);
       setStartingLives([data.startingLives ?? 3]);
       setTurnTimeSec([(data.turnTimeMs ?? 15000) / 1000]);
+      setPuzzleTimerSec([data.puzzleTimerSeconds ?? 120]);
       if (!hasEditedRoomName.current) {
         setRoomNameInput(data.roomName);
       }
@@ -563,6 +570,7 @@ export const GameSetup: React.FC = () => {
         isPrivate,
         startingLives: startingLives[0],
         turnTimeMs: turnTimeSec[0] * 1000,
+        puzzleTimerSeconds: puzzleTimerSec[0],
       };
       connectionManager.send(data);
     }
@@ -629,6 +637,7 @@ export const GameSetup: React.FC = () => {
     const nextIsPrivate = overrides.isPrivate ?? isPrivate;
     const nextStartingLives = overrides.startingLives ?? startingLives[0];
     const nextTurnTimeSec = overrides.turnTimeSec ?? turnTimeSec[0];
+    const nextPuzzleTimerSec = overrides.puzzleTimerSec ?? puzzleTimerSec[0];
     if (!nextRoomName || nextPostsPerRound == null || nextRoundsPerGame == null || nextBotCount == null) {
       return;
     }
@@ -646,6 +655,7 @@ export const GameSetup: React.FC = () => {
       isPrivate: nextIsPrivate,
       startingLives: nextStartingLives,
       turnTimeMs: nextTurnTimeSec * 1000,
+      puzzleTimerSeconds: nextPuzzleTimerSec,
     };
     pendingBotDifficultiesRef.current = nextBotDifficulties;
     connectionManager.send(data);
@@ -663,6 +673,7 @@ export const GameSetup: React.FC = () => {
     isPrivate,
     startingLives,
     turnTimeSec,
+    puzzleTimerSec,
     userID,
   ]);
 
@@ -709,6 +720,13 @@ export const GameSetup: React.FC = () => {
     setTurnTimeSec(next);
     if (next[0] != null) {
       sendRoomSettingsUpdate({ turnTimeSec: next[0] });
+    }
+  }, [sendRoomSettingsUpdate]);
+
+  const updatePuzzleTimerSec = useCallback((next: number[]) => {
+    setPuzzleTimerSec(next);
+    if (next[0] != null) {
+      sendRoomSettingsUpdate({ puzzleTimerSec: next[0] });
     }
   }, [sendRoomSettingsUpdate]);
 
@@ -790,7 +808,7 @@ export const GameSetup: React.FC = () => {
     );
   }, [readyUp, renderLobbyUserIcon, userID]);
 
-  if (currentPost) {
+  if (currentPost || (gameMode === 'Puzzle' && puzzleRoundActive)) {
     return (
       <MainPage
         currentPost={currentPost}
@@ -913,7 +931,7 @@ export const GameSetup: React.FC = () => {
               <section className={cn(styles.formSection, !isHost && styles.readOnlySection)} aria-disabled={!isHost}>
                 <div className={styles.sectionInfo}>
                   <h2>Room Setup</h2>
-                  <p>{gameMode === 'Roulette' ? 'Configure lives and turn time.' : 'Configure the round length.'}</p>
+                  <p>{gameMode === 'Roulette' ? 'Configure lives and turn time.' : gameMode === 'Puzzle' ? 'Configure rounds and timer.' : 'Configure the round length.'}</p>
                 </div>
                 <div className={styles.sectionContent}>
                   <div className={styles.pickerStack}>
@@ -934,6 +952,29 @@ export const GameSetup: React.FC = () => {
                           options={TURN_TIME_SEC_OPTIONS}
                           selected={turnTimeSec}
                           setSelected={updateTurnTimeSec}
+                          color="var(--c-tag-species)"
+                          backgroundColor="var(--background)"
+                          singleSelect
+                          disabled={!isHost}
+                        />
+                      </>
+                    ) : gameMode === 'Puzzle' ? (
+                      <>
+                        <NumberPicker
+                          title="Puzzle Timer (seconds)"
+                          options={PUZZLE_TIMER_SEC_OPTIONS}
+                          selected={puzzleTimerSec}
+                          setSelected={updatePuzzleTimerSec}
+                          color="var(--c-tag-species)"
+                          backgroundColor="var(--background)"
+                          singleSelect
+                          disabled={!isHost}
+                        />
+                        <NumberPicker
+                          title="Rounds Per Game"
+                          options={ROUNDS_PER_GAME_OPTIONS}
+                          selected={roundsPerGame}
+                          setSelected={updateRoundsPerGame}
                           color="var(--c-tag-species)"
                           backgroundColor="var(--background)"
                           singleSelect

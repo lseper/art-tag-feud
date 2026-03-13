@@ -13,7 +13,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 var _a, _b;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPosts = void 0;
+exports.getImageOnlyPosts = exports.getPosts = void 0;
 const axios_1 = __importDefault(require("axios"));
 const contracts_1 = require("../domain/contracts");
 const tagUtils_1 = require("../domain/tagUtils");
@@ -33,7 +33,8 @@ const TAG_MEAN_SCORE = 75;
 const TAG_STD = 25;
 const BASE_TAG_SCORE = 1;
 const MOST_TAG_INCLUDE_CHANCE = 0.6;
-const getPosts = (additionalBlacklist = [], preferlist = []) => __awaiter(void 0, void 0, void 0, function* () {
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp']);
+const getPosts = (additionalBlacklist = [], preferlist = [], imageOnly = false) => __awaiter(void 0, void 0, void 0, function* () {
     var _c;
     if (!username || !api_key) {
         throw new Error('Missing E621_USERNAME or E621_API_KEY in backend/.env');
@@ -63,7 +64,10 @@ const getPosts = (additionalBlacklist = [], preferlist = []) => __awaiter(void 0
         console.error(err.message);
     });
     const posts = (_c = data === null || data === void 0 ? void 0 : data.posts) !== null && _c !== void 0 ? _c : [];
-    const result = posts.map((post) => {
+    const filteredPosts = imageOnly
+        ? posts.filter((post) => { var _a, _b; return IMAGE_EXTENSIONS.has(((_b = (_a = post.file) === null || _a === void 0 ? void 0 : _a.ext) !== null && _b !== void 0 ? _b : '').toLowerCase()); })
+        : posts;
+    const result = filteredPosts.map((post) => {
         const url = post.file.url;
         const id = post.id;
         const generalTags = post.tags.general.map((tag_name) => {
@@ -106,4 +110,8 @@ const scaleScores = (tags) => {
     const newScores = zScores.map(score => Math.round((score * TAG_STD) + TAG_MEAN_SCORE));
     return tags.map((tag, i) => (Object.assign(Object.assign({}, tag), { score: newScores[i] > 0 ? newScores[i] : BASE_TAG_SCORE })));
 };
+const getImageOnlyPosts = (additionalBlacklist = [], preferlist = []) => __awaiter(void 0, void 0, void 0, function* () {
+    return getPosts(additionalBlacklist, preferlist, true);
+});
+exports.getImageOnlyPosts = getImageOnlyPosts;
 //# sourceMappingURL=e621Client.js.map

@@ -17,6 +17,7 @@ import {
     UpdateRoomSettingsEventData,
     RequestBotFillEventData,
     RouletteVoteSkipEventData,
+    PuzzlePlacePieceEventData,
 } from '../../domain/contracts';
 import type {
     AllRoomsEventDataToClientType,
@@ -35,6 +36,7 @@ import type {
     UpdateRoomSettingsEventDataToClientType,
     RouletteSkipUpdateEventDataToClientType,
     RouletteAllTagsGuessedEventDataToClientType,
+    PuzzlePlacePieceEventDataToClientType,
 } from '../../domain/contracts';
 import { convertServerRoomToClientRoom } from '../../domain/roomUtils';
 import { activeGames, users } from '../../state/store';
@@ -46,6 +48,7 @@ import { handleRequestPost } from '../../services/postService';
 import { ensureActiveGame } from '../../services/gameService';
 import { createBotsForRoom } from '../../services/botService';
 import { handleVoteSkip } from '../../services/rouletteService';
+import { handlePuzzlePlacePiece, handlePuzzleComplete } from '../../services/puzzleService';
 
 const handleMessage = async (server: WebSocketServer, response: WebSocket, data: RawData) => {
     const dataJSON = JSON.parse(data.toString());
@@ -159,6 +162,7 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
                 data.botDifficulties,
                 data.startingLives,
                 data.turnTimeMs,
+                data.puzzleTimerSeconds,
             );
             if (createResult) {
                 const roomToClient = createResult.roomToClient;
@@ -351,6 +355,7 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
                 data.isPrivate,
                 data.startingLives,
                 data.turnTimeMs,
+                data.puzzleTimerSeconds,
             );
             if (!updateResult) {
                 break;
@@ -369,6 +374,7 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
                 isPrivate: updateResult.room.isPrivate,
                 startingLives: updateResult.room.startingLives,
                 turnTimeMs: updateResult.room.turnTimeMs,
+                puzzleTimerSeconds: updateResult.room.puzzleTimerSeconds,
             };
             broadcastToRoom(updateResult.room, responseData);
             break;
@@ -424,6 +430,30 @@ const handleMessage = async (server: WebSocketServer, response: WebSocket, data:
             createdBots.forEach(bot => {
                 broadcastToRoom<JoinRoomEventDataToClientType>(room, { type: EventType.enum.JOIN_ROOM, user: bot, room: roomToClient });
             });
+            break;
+        }
+        case EventType.enum.PUZZLE_PLACE_PIECE: {
+            const result = PuzzlePlacePieceEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const room = getRoom(data.roomID);
+            if (!room) break;
+
+            const placeResult = handlePuzzlePlacePiece(data.roomID, data.userID, data.pieceIndex);
+            if (!placeResult) break;
+
+            const placePieceData: PuzzlePlacePieceEventDataToClientType = {
+                type: EventType.enum.PUZZLE_PLACE_PIECE,
+                pieceIndex: data.pieceIndex,
+                userID: data.userID,
+            };
+            broadcastToRoom(room, placePieceData);
+
+            if (placeResult.completed) {
+                handlePuzzleComplete(data.roomID);
+            }
             break;
         }
         default:

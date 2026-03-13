@@ -31,6 +31,7 @@ const convertServerRoomToClientRoom = (serverRoom: ServerRoomType, users: Map<st
         preferlist: serverRoom.preferlist,
         startingLives: serverRoom.startingLives,
         turnTimeMs: serverRoom.turnTimeMs,
+        puzzleTimerSeconds: serverRoom.puzzleTimerSeconds,
     };
 };
 

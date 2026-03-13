@@ -79,7 +79,7 @@ const createRoomCode = () => {
     }
     return result;
 };
-const createOrUpdateRoom = (userID, roomName, postsPerRound, roundsPerGame, roomID, gameMode, rating, isPrivate, botCount, botDifficulties, startingLives, turnTimeMs) => __awaiter(void 0, void 0, void 0, function* () {
+const createOrUpdateRoom = (userID, roomName, postsPerRound, roundsPerGame, roomID, gameMode, rating, isPrivate, botCount, botDifficulties, startingLives, turnTimeMs, puzzleTimerSeconds) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b, _c, _d;
     const user = store_1.users.get(userID);
     if (!user)
@@ -100,6 +100,8 @@ const createOrUpdateRoom = (userID, roomName, postsPerRound, roundsPerGame, room
             room.startingLives = startingLives;
         if (turnTimeMs !== undefined)
             room.turnTimeMs = turnTimeMs;
+        if (puzzleTimerSeconds !== undefined)
+            room.puzzleTimerSeconds = puzzleTimerSeconds;
         if (!room.roomCode) {
             room.roomCode = createRoomCode();
         }
@@ -143,6 +145,7 @@ const createOrUpdateRoom = (userID, roomName, postsPerRound, roundsPerGame, room
         owner: user,
         startingLives,
         turnTimeMs,
+        puzzleTimerSeconds,
     };
     store_1.rooms.set(newRoomID, newRoom);
     yield (0, playersRepo_1.upsertPlayer)(user);
@@ -290,7 +293,7 @@ const updateRoomPreferlist = (roomID, tag, action, frequency) => __awaiter(void 
     return { room, normalizedTag, removedFromBlacklist: action === 'add' };
 });
 exports.updateRoomPreferlist = updateRoomPreferlist;
-const updateRoomSettings = (roomID, roomName, postsPerRound, roundsPerGame, botCount, botDifficulties, gameMode, rating, isPrivate, startingLives, turnTimeMs) => __awaiter(void 0, void 0, void 0, function* () {
+const updateRoomSettings = (roomID, roomName, postsPerRound, roundsPerGame, botCount, botDifficulties, gameMode, rating, isPrivate, startingLives, turnTimeMs, puzzleTimerSeconds) => __awaiter(void 0, void 0, void 0, function* () {
     const room = store_1.rooms.get(roomID);
     if (!room)
         return null;
@@ -307,6 +310,8 @@ const updateRoomSettings = (roomID, roomName, postsPerRound, roundsPerGame, botC
         room.startingLives = startingLives;
     if (turnTimeMs !== undefined)
         room.turnTimeMs = turnTimeMs;
+    if (puzzleTimerSeconds !== undefined)
+        room.puzzleTimerSeconds = puzzleTimerSeconds;
     yield (0, botService_1.ensureBotCountForRoom)(room, botCount, room.botDifficulties);
     if (shouldReset) {
         (0, roomUtils_1.resetRoom)(room);
