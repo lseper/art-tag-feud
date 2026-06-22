@@ -1,0 +1,104 @@
+---
+description: Rules for working with feature flags in the Morph backend
+globs: src/morph/**/*.py
+---
+
+# Feature Flags — Morph Backend
+
+Pluggable provider architecture. Currently **PostHog** with local evaluation.
+
+- PostHog UI: https://us.posthog.com/project/295145/feature_flags
+- PostHog feature flag docs: https://posthog.com/docs/feature-flags
+
+## Naming
+
+- **Lowercase kebab-case only** — `my-new-feature`, not `my_new_feature`.
+- **No version suffixes** — create a new flag, retire the old one.
+
+## Two Flag Types
+
+### Boolean (temporary)
+
+For feature gating. Always include a removal date:
+
+```python
+# TODO: Remove after full rollout (target: 2026-04-15)
+if is_feature_enabled(FeatureFlagKeys.MY_NEW_FEATURE, tenant_id=tenant_id):
+    ...
+```
+
+### Multivariate (can be permanent)
+
+For remote config or A/B testing. Returns `(variant_key, payload)`. **Raises ValueError if the flag is boolean** — use `is_feature_enabled` for booleans.
+
+```python
+from morph.feature_flags import FeatureFlagKeys, get_multivariate_flag
+
+variant_key, payload = get_multivariate_flag(FeatureFlagKeys.TENANT_CONFIG, tenant_id=tenant_id)
+# payload may be None if no payload is configured
+```
+
+## Usage
+
+```python
+from morph.feature_flags import (
+    FeatureFlagKeys,
+    is_feature_enabled,
+    get_multivariate_flag,
+    require_feature_flag_endpoint,
+)
+
+# Boolean check
+if is_feature_enabled(FeatureFlagKeys.MY_FEATURE, tenant_id=tenant_id):
+    ...
+
+# Multivariate (variant key + payload)
+variant_key, payload = get_multivariate_flag(FeatureFlagKeys.MY_CONFIG, tenant_id=tenant_id)
+
+# Gate an entire endpoint (returns 403 when off)
+@router.post("/my-endpoint", dependencies=[Depends(require_feature_flag_endpoint(FeatureFlagKeys.MY_FEATURE))])
+async def my_endpoint(...):
+    ...
+```
+
+## Adding a New Flag
+
+1. Create in PostHog UI (see [PostHog docs](https://posthog.com/docs/feature-flags/creating-feature-flags) for UI steps).
+2. Add key to `FeatureFlagKeys` in `src/morph/feature_flags/keys.py`.
+3. Use `is_feature_enabled` / `get_multivariate_flag` / `require_feature_flag_endpoint`.
+
+**Targeting rules:**
+- `tenant_id` alone is meaningless — must always be scoped to a `silo_name`.
+- Rule priority is by order — first match wins. Specific rules above broad rules.
+
+## Fallback Behaviour
+
+- `is_feature_enabled` → `False` on error/uninitialized. Never raises.
+- `get_multivariate_flag` → **raises ValueError** on boolean flags or uninitialized provider.
+- The else branch is always the safe fallback.
+
+## Architecture — Do Not Change
+
+Module: `src/morph/feature_flags/`
+
+- `provider.py` — Abstract `FeatureFlagProvider` interface.
+- `posthog_provider.py` — PostHog implementation with local evaluation.
+- `keys.py` — `FeatureFlagKeys` constants. **Always add new flags here.**
+- `feature_flags.py` — Facade: `is_feature_enabled()`, `get_multivariate_flag()`, `require_feature_flag_endpoint()`, lifecycle.
+- `__init__.py` — Public re-exports.
+
+### Key design decisions
+
+- **Module-level singleton** — init at startup, shut down at shutdown.
+- **`is_feature_enabled` never raises** — returns `False`, logs warning.
+- **`get_multivariate_flag` raises** on boolean flags or uninitialized — no silent fallback.
+- **Local evaluation** — polled every ~30s, resolved in-memory.
+- **Distinct ID format** — `morph:{silo_name}:{tenant_id}`.
+- **Group-based targeting** — `silo:tenant` group always sent.
+
+## Do NOT
+
+- Use `get_multivariate_flag` for boolean flags — it will raise. Use `is_feature_enabled`.
+- Use boolean flags for permanent config — use multivariate.
+- Put experimental code in the else branch.
+- Swallow errors silently — log at `warning` level minimum.

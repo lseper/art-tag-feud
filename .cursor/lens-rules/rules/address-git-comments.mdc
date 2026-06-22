@@ -1,0 +1,48 @@
+---
+description: Fetch and address PR review comments on the current branch in lens-www
+alwaysApply: false
+---
+
+# Addressing PR Review Comments
+
+When asked to address, fix, or resolve PR comments, follow these steps.
+
+## 1. Identify the PR
+
+Run `git branch --show-current` to get the active branch, then find the open PR:
+
+```bash
+gh pr list --head <branch> --repo Modelcode-ai/lens-www --json number,title --limit 1
+```
+
+If no PR is found, stop and tell the user.
+
+## 2. Fetch PR Comments
+
+Use `agent-browser` to view the PR comments:
+
+> 1. Open Github `` (or whatever port the dev server is running on — check the terminal).
+>    ```bash
+>    agent-browser --session-name github open https://github.com/Modelcode-ai/lens-www/pulls
+>    ```
+>    Look for the pull request and click it. This will load the pull request.
+
+## 3. Triage Comments
+
+- Ignore resolved threads.
+- Group remaining comments by file and order them by line number.
+- Summarize all unresolved comments to the user before making changes.
+
+## 4. Address Each Comment
+
+For each unresolved comment:
+1. Read the referenced file and surrounding context.
+2. Make the requested change. If the comment is ambiguous, ask the user for clarification rather than guessing.
+3. Follow all project rules (see `frontend.mdc` and `team/` rules) when writing code.
+
+## 5. Report Back
+
+After all changes are made, provide a summary listing:
+- Each comment addressed and what was changed.
+- Any comments skipped (with reason).
+- Any comments that need the user's decision.

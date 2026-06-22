@@ -1,0 +1,184 @@
+---
+description: Fix multiple bugs from a checklist-style markdown spec in lens-www, with optional per-bug git branches
+alwaysApply: false
+---
+
+# Bugfixes from Spec
+
+When invoked, you receive **one markdown spec path** that lists bugs to fix in **lens-www** only. Work stays inside the `lens-www` repository unless the spec explicitly requires coordinated changes elsewhere (default: lens-www only).
+
+## Spec format (required shape)
+
+Each bug is a checklist item with optional sub-bullets. Parse every `- [ ]` block as one bug. Typical shape:
+
+```markdown
+- [ ] Bug Title
+    - Fix: Loose idea of fix (optional)
+    - Context: Additional context (optional; may appear as NOTE: or similar)
+    - Linear ticket - https://linear.app/modelcode/issue/ENG-XXXX/slug
+```
+
+Rules for parsing:
+
+1. **Bug title** — The first line after `- [ ]` (strip surrounding quotes if present).
+2. **Fix hint** — Any sub-bullet whose label starts with `Fix:` (case-insensitive).
+3. **Context** — Any sub-bullet whose label starts with `Context:`, `NOTE:`, or clearly describes reproduction / expected behavior.
+4. **Linear ticket** — A URL on `linear.app` containing `ENG-` (or team slug + issue id). Extract **Ticket ID** (e.g. `ENG-2841`) for branch names and PR titles. If a bug has no URL, use a short slug derived from the title for branch naming.
+
+See `specs/knowledge-hub-bugfixes.md` (or equivalent) as a reference for checklist layout; titles may wrap across lines—merge continuation lines into one title until the next `- [ ]` item.
+
+---
+
+## Branch strategy (OVERRIDE)
+
+Inspect the user’s message for the exact phrase: **`OVERRIDE: SEPARATE_GIT_BRANCHES`**
+
+| Condition | Git strategy |
+|-----------|----------------|
+| Phrase **present** | **One branch per bug**, one PR per bug (unless the user says otherwise). Branch from the same base (usually `origin/main`) for each bug unless a bug depends on another’s merge—in that case, document the dependency and base the dependent branch on the prerequisite branch or merge order. |
+| Phrase **absent** | **One branch for all bugs** in this spec, one PR that lists every bug and ticket. |
+
+Determine the current OS user for the branch prefix by running `whoami`.
+
+- **Single-branch naming:** `<whoami>-<primary-ticket-or-brief-slug>` (e.g. `lseper-eng-2841-knowledge-hub-bugfixes` when one ticket is primary, or a short feature slug if many tickets).
+- **Per-bug branch naming:** `<whoami>-<ticket-id-lowercase>` per bug (e.g. `lseper-eng-2841`). Normalize ticket id to lowercase.
+
+---
+
+## Step 0: Parse the spec
+
+1. Read the bugfix markdown file in full.
+2. Split into **bug records**: each `- [ ] ...` through the line before the next `- [ ]`.
+3. For each record extract: title, optional Fix, optional Context/NOTE, Linear URL and **ENG-XXXX** (if any).
+4. Build an ordered **bug list** (order in the file is the default implementation order). Respect dependencies (if Bug B only makes sense after Bug A, implement A first or split branches accordingly).
+
+---
+
+## Step 1: Prepare branch(es)
+
+Run git commands from the **`lens-www`** directory.
+
+**Base:** `git fetch origin main` then branch from `origin/main` unless the user specifies another base (same as implement-feature).
+
+**Single branch (default):**
+
+```bash
+git fetch origin main
+git checkout -b <branch-name> origin/main
+```
+
+If the branch already exists locally: `git checkout <branch-name>` then `git rebase origin/main` (or merge, per team preference—prefer rebase if clean).
+
+**Separate branches (OVERRIDE: SEPARATE_GIT_BRANCHES):**
+
+For each bug, in order:
+
+```bash
+git fetch origin main
+git checkout -b <whoami>-<ticket-lowercase> origin/main
+```
+
+Implement **only that bug** on that branch, commit, open PR, then move to the next bug on a fresh branch from `origin/main` unless dependency requires otherwise.
+
+---
+
+## Step 2: Gather context (parallel where helpful)
+
+Before coding, reduce guesswork:
+
+### Linear (per bug with a URL)
+
+Launch a **browser-use subagent** when Linear links exist.
+
+> **Linear ticket:** `<URL>`  
+> Use `--session-name linear`. Open the issue, read title, description, acceptance criteria, comments, sub-issues.  
+> Return: summary, acceptance criteria, regressions called out, design notes.
+
+### Codebase investigation
+
+Launch an **explore subagent** (or search locally) to find the exact components, routes, hooks, and styles involved.
+
+> **Bug:** `<title>`  
+> **Context from spec:** `<Context / Fix hints>`  
+> Map files and patterns; identify minimal change surface; list **risk areas** (shared components, permissions, query keys). Do not edit files.
+
+### Optional: GitHub PR research
+
+If the spec or Linear links reference GitHub PRs, use the same GitHub PR research pattern as **implement-feature** (`.cursor/rules/implement-feature.mdc`, Subagent A).
+
+---
+
+## Step 3: Implement fixes
+
+**Goal:** Fix each bug with **minimal, targeted diffs**. Do not refactor unrelated code. Do not change behavior outside the bug’s scope.
+
+1. **Plan per bug** — Files to touch, root cause hypothesis, how you will **prove** the fix.
+2. **Implement** — Follow existing lens-www conventions (see workspace rules: global CSS, `cn()` / clsx, `env` from `@/utils/env.server` on server routes, `requirePermission` on API routes, design system components, etc.).
+3. **Regression guard** — After each bug (or each commit), consider what flows share the same code path; note what you will re-check in the browser.
+4. **Lint** — Run lints on changed files after each logical edit; fix what you introduced.
+5. **Commits**
+   - **Single branch:** `git commit -m "ENG-XXXX: <short fix description>"` per bug or per cohesive change set.
+   - **Separate branches:** one or more commits on that bug’s branch only.
+
+---
+
+## Step 4: Verify (mandatory — do not skip)
+
+You are **not finished** with a bug until you are **confident the bug is fixed** by your changes **and** you have **reasonable confidence** adjacent behavior still works.
+
+Launch a **browser-use subagent** (and/or run automated tests if already present for the area).
+
+> Use `--session-name lens-www`. Open `http://localhost:3000`, wait for network idle, log in if needed (GitHub OAuth; session may persist).  
+> **Per bug:** reproduce the **old** behavior if still possible on main (or reason from code), then confirm **new** behavior matches spec + Linear acceptance.  
+> **Regression:** exercise at least one nearby flow that uses the same UI or API.  
+> Poll slow/async UI every 15–30s as in implement-feature.
+
+Return **PASS/FAIL per bug** with evidence (snapshots, screenshots).
+
+**If FAIL:** fix, commit, re-verify. Iterate up to **3 full verification cycles** per bug; if still failing, stop and report with evidence.
+
+**Automated tests:** If the repo has tests covering touched modules, run the narrowest applicable command (for example Vitest, Playwright, or other scripts in `package.json`) for those paths and fix failures you caused.
+
+---
+
+## Step 5: Open PR(s)
+
+Delegate to **make-lens-pr** (`.cursor/rules/make-lens-pr.mdc`).
+
+- **Single branch:** One PR listing **all** bugs, each with title, ticket link, and what changed.
+- **Separate branches:** One PR per branch/bug (title like `ENG-2841: <short description>`).
+
+PR body should reference the spec file path and each Linear URL.
+
+---
+
+## Completion criteria (strict)
+
+- Every `- [ ]` bug in the spec has been **addressed in code** on the appropriate branch(es).
+- **Verification:** Each bug has a **PASS** from Step 4 tied to concrete behavior—not “should be fixed” without checking.
+- **No new breakage:** Deliberate regression checks done for shared surfaces you touched.
+- Do **not** mark your work complete on a bug if you are not **100% confident** the bug is fixed; iterate until you are, or escalate with full evidence after the retry limit.
+
+---
+
+## Summary of execution order
+
+**Default (one branch):**
+
+```
+Step 0: Parse bug markdown → ordered bug list + ticket ids
+Step 1: One branch from origin/main
+Step 2: [PARALLEL] Linear + codebase (+ optional GitHub) per bug or batched
+Step 3: Fix bugs sequentially (minimal diffs, commits per bug or logical group)
+Step 4: Browser verify each bug + regression smoke (loop until PASS or cap)
+Step 5: One PR via make-lens-pr
+```
+
+**OVERRIDE: SEPARATE_GIT_BRANCHES:**
+
+```
+Step 0: Same
+Step 1–5: Repeat per bug: branch → research → implement → verify → PR
+```
+
+For detailed flow-specific browser checks, you may delegate to subagents in `lens-www/.cursor/feature-flows` when applicable (same idea as implement-feature).

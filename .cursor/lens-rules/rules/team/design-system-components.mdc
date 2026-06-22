@@ -1,0 +1,34 @@
+---
+globs: *.tsx
+alwaysApply: true
+---
+
+````cursorrules
+# Design System - Use Existing Components
+
+## 🎯 The Rule
+
+When implementing any UX pattern, **strongly prefer existing design system components** over building from scratch.
+
+## What Counts as a Design System Component
+
+A component is part of the design system if it meets **either** of these criteria:
+
+- **(a) Located in `components/morph/`** — shared product components (e.g. `Tag`, `Tooltip`, `Button`, `Card`, `Drawer`, `Dialog`)
+- **(b) Has a Ladle story** — any component with a `*.stories.tsx` file next to it (e.g. `Button.stories.tsx`, `Tag.stories.tsx`)
+
+## Using Design System Components
+
+When you find a relevant component:
+
+- **Read its Ladle story** (`*.stories.tsx`) first — it documents available props, variants, and intended usage
+- **Check 2–3 existing product uses** (grep for the component's import) to see real-world configuration patterns
+
+## Navigating UX patterns that aren't supported by the design system
+
+If the user requests a UX pattern that the existing design system components **don't support**, say so explicitly before proceeding:
+
+> "The existing `[ComponentName]` component doesn't support [X]. I can either extend it or build a custom implementation — which would you prefer?"
+
+Do **not** silently build a one-off custom component when a design system component almost fits. Surface the gap so the user can decide.
+````

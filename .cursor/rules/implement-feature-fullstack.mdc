@@ -1,0 +1,266 @@
+---
+description: Implement a fullstack feature (Morph API + lens-www UI) from spec files, with tests, Ruff, curl API checks, and browser verification
+alwaysApply: false
+---
+
+# Implement Feature (Fullstack — Morph + lens-www)
+
+Use this rule when a feature spans **both** repositories:
+
+- **`morph/`** — FastAPI backend (`CLAUDE.md`, domain modules, Alembic, pytest, Ruff).
+- **`lens-www/`** — Next.js frontend (`CLAUDE.md`, `.cursor/rules/`, global CSS / `workshop.css`, design system under `components/morph/`).
+
+When invoked, you receive **spec file paths** (typically **three**) that describe the work:
+
+1. **Full design doc** — Architecture, data models, API contracts, UI behavior, and implementation guidance (may span multiple PRs).
+2. **Condensed summary** — Context, decisions, Q&A, links to PRs/issues.
+3. **PR task list** — The discrete work to complete in *this* PR (your checklist).
+
+Your job: understand the feature end-to-end, implement backend and frontend tasks as the spec requires, validate with **pytest + Ruff + `curl`** on Morph and **lints + browser** on lens-www, and open **pull requests in both repos** (same branch name) without leaving verification unfinished.
+
+**Repos are separate git roots** — you need a branch and PR in each repo that contains changes.
+
+---
+
+## Step 0: Parse the Specs
+
+1. Read all provided spec files in full.
+2. From the **PR task list**, extract:
+   - **Ticket ID** — `ENG-XXXX` (case-insensitive); normalize to **lowercase** for branch naming.
+   - **Task items** — label which tasks are **Morph**, **lens-www**, or **both** (if unclear, infer from the design doc).
+3. From the **condensed summary**, extract feature name, constraints, and links.
+4. From the **full design doc**, extract:
+   - **API** — paths, methods, schemas, auth headers, events, migrations.
+   - **UI** — screens, components, data fetching, real-time behavior.
+   - **Ordering** — whether the API must land before the UI, or if parallel work is safe.
+5. Run `whoami` for the branch prefix.
+6. Construct **one branch name** for both repos: `<whoami>-<ticket-id-lowercase>` (e.g. `lseper-eng-2100`).
+
+---
+
+## Step 1: Prepare Branches (Both Repos)
+
+Create or update the **same** `<branch-name>` in **each** repo that will change (usually both).
+
+### Morph (`morph/`)
+
+From the **morph** repository root:
+
+```bash
+git fetch origin main
+git checkout -b <branch-name> origin/main
+```
+
+If the branch exists: `git checkout <branch-name>` then `git rebase origin/main` (or the spec’s base branch).
+
+### lens-www (`lens-www/`)
+
+From the **lens-www** repository root:
+
+```bash
+git fetch origin main
+git checkout -b <branch-name> origin/main
+```
+
+If the branch exists: check out and rebase onto the spec-indicated base (often `origin/main`).
+
+> If the spec names a **different base branch** than `main`, use that base in **both** repos consistently.
+
+---
+
+## Step 2: Gather External Context (Parallel)
+
+Before coding, pull context from the specs. Launch subagents **in parallel** where useful.
+
+### Subagent A — GitHub PR research (if PR URLs exist)
+
+Use **agent-browser** (or equivalent) to read referenced PRs.
+
+> **PRs to review:** \<list from specs\>
+>
+> Use `--session-name github` for agent-browser commands.
+>
+> 1. For each PR: open URL, `wait --load networkidle`, read description and “Files changed”.
+> 2. Note patterns (hooks, components, API routes, FastAPI routers, DB layers), naming, integration, reviewer threads.
+>
+> Return: per-PR summary, reusable patterns, integration points, open items.
+
+### Subagent B — Linear ticket research (if Linear URLs exist)
+
+Use **agent-browser** with `--session-name linear`.
+
+> 1. Open the team board if needed, find the ticket.
+> 2. Read title, description, acceptance criteria, comments, sub-issues, attachments.
+>
+> Return: ticket summary, extra context, dependencies.
+
+### Subagent C — lens-www codebase investigation
+
+**Read-only** explore of the frontend.
+
+> Map components, hooks, API routes (`app/api` / `pages/api` as applicable), React Query/Zustand/context, types, and **Next.js proxy patterns** to Morph. Follow `.cursor/rules/` under `lens-www` (UI core, TSX, CSS in `workshop.css` for new components, design system in `components/morph/`, `PermissionGate` / `requirePermission` where relevant).
+>
+> Return: relevant files, patterns, extension points, reuse opportunities, risks.
+
+### Subagent D — Morph codebase investigation
+
+**Read-only** explore of the backend.
+
+> Map domains under `src/morph/`, `_api.py` / `_db.py` / `_schemas.py`, auth headers in `morph/auth/dependencies.py`, exceptions, Alembic, and tests under `tests/unit` and `tests/integration`.
+>
+> Return: relevant files, patterns, extension points, reuse, risks.
+
+---
+
+## Step 3: Implement (Plan → Backend → Frontend)
+
+Synthesize Step 2, then execute the **PR task list**.
+
+### 3.0 — Plan
+
+- Map each task to **files** in `morph/` and/or `lens-www/`.
+- Default **order**: **Morph first** (schema, migrations, endpoints, tests), then **lens-www** (types, API routes, UI), so the UI can call real contracts. If the spec defines UI-first with mocks, follow the spec.
+- Keep API and UI **contractually aligned** (paths, fields, error shapes) with the design doc.
+
+### 3.1 — Morph implementation
+
+Follow **`morph/CLAUDE.md`** and **`morph/.cursor/rules/`** (if present):
+
+- Domain pattern; async; type hints; lazy logging; `morph.core.exceptions`; tenant/RLS; Windows + Linux sandbox rules when touching sandbox command execution.
+- Add/update **tests** (`pytest`) for new behavior; use **integration** tests when DB/auth/HTTP boundaries matter.
+- After edits: **Ruff**
+
+```bash
+# morph repo root, .venv active
+ruff check --fix .
+ruff format .
+```
+
+- Commit in **morph** with:
+
+```bash
+git add -A
+git commit -m "<TICKET-ID>: <backend: concise description>"
+```
+
+### 3.2 — lens-www implementation
+
+Follow **`lens-www/CLAUDE.md`** and **`lens-www/.cursor/rules/`**:
+
+- `cn()` from `clsx`; no CSS imports in components; new component styles in **`styles/workshop.css`** with block comments; globally unique class names; design system components where appropriate; permissions per `security.mdc` / access-forge.
+- After logical edits: fix **diagnostics on changed files** (TypeScript/ESLint as configured in the project).
+- Commit in **lens-www** with:
+
+```bash
+git add -A
+git commit -m "<TICKET-ID>: <frontend: concise description>"
+```
+
+---
+
+## Step 4: Validate (Mandatory)
+
+Fullstack work must pass **backend gates**, **manual API checks**, and **frontend verification**.
+
+### 4a — Morph automated gates
+
+From **morph** repo root, virtualenv active:
+
+```bash
+ruff check .
+ruff format --check .
+pytest tests/unit
+```
+
+Run **`pytest tests/integration`** when the feature depends on DB, auth, or full HTTP stack per the spec.
+
+### 4b — Morph manual API verification (`curl`)
+
+1. Run the API (host/port from config/spec), e.g.:
+
+```bash
+uvicorn morph.main:create_app --factory --reload
+```
+
+2. Use **`/docs`** and **`/openapi.json`** to confirm paths, methods, and bodies.
+3. Send **`curl`** requests with the headers your routes expect (**`morph/auth/dependencies.py`** — do not invent headers). Do not log or commit secrets.
+4. For each **task-critical** endpoint: at least one **success** and, where specified, one **expected failure** (validation/auth).
+5. If anything fails, fix code/tests and repeat **4a** and **4b**.
+
+Example (adjust URL and headers):
+
+```bash
+curl -sS -X GET "http://127.0.0.1:8000/v1/example" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: <tenant_id>" \
+  -H "X-Real-Tenant-Id: <real_tenant_id>" \
+  -H "X-User-Id: <user_id>" \
+  -H "X-Real-User-Id: <real_user_id>"
+```
+
+### 4c — lens-www verification (agent-browser)
+
+Point a **browser-use** subagent at the running app (per **`lens-www/.cursor/rules/implement-feature.mdc`**):
+
+> **Feature:** \<name\>
+> **Tasks:** \<completed frontend + cross-cutting tasks\>
+> **Expected behavior:** \<from specs\>
+>
+> Use `--session-name lens-www`.
+>
+> **IMPORTANT:** Long-running executions can take minutes — poll every 15–30s; do not fail after one snapshot.
+>
+> 1. Open `http://localhost:3000`, `wait --load networkidle`.
+> 2. Log in via GitHub OAuth if needed; preserve session.
+> 3. Navigate to the feature; verify each PR task item (happy path, empty/loading/error, refresh, navigation).
+> 4. `screenshot feature-<name>.png` for key states.
+>
+> Return: **PASS/FAIL**, per-task results, evidence paths, edge cases; on FAIL, detailed observations.
+
+For flow-specific testing, use subagents / docs under **`lens-www/.cursor/feature-flows`** when applicable.
+
+**Environment:** For true fullstack checks, run **Morph** (and any deps such as DB) so the UI hits real APIs when the spec requires it.
+
+#### If browser verification fails
+
+Same loop as the lens-www rule: diagnose → fix → commit → re-run agent-browser, up to **3** iterations; then stop and report with evidence.
+
+---
+
+## Step 5: Open Pull Requests (Both Repos)
+
+### lens-www
+
+Delegate to **`lens-www/.cursor/rules/make-lens-pr.mdc`** (or follow that template):
+
+- **Source branch:** `<branch-name>`
+- **Destination:** `main` (unless spec says otherwise)
+- Title/description: ticket ID, Linear link, summary of UI tasks, note browser verification.
+
+### Morph
+
+Push **`morph`** and open a PR against the spec base (usually `main`):
+
+- Title: `ENG-XXXX: …` (backend-focused summary).
+- Description: link ticket; list backend task items; document **`pytest`** / **`ruff`** runs and **`curl`** scenarios verified (no secrets).
+
+**GitHub CLI:** `morph/CLAUDE.md` notes GraphQL issues with **`gh pr edit`** for Projects Classic — use REST to patch body if needed:
+
+```bash
+gh api repos/<org>/<repo>/pulls/<PR_NUMBER> -X PATCH -F "body=@file.md"
+```
+
+Cross-link the two PRs in both descriptions when the work is coupled.
+
+---
+
+## Summary of Execution Order
+
+```
+Step 0: Parse specs → ticket, tasks (backend/frontend), contracts, ordering
+Step 1: Same branch name in morph/ and lens-www/
+Step 2: [PARALLEL] GitHub PRs (A) + Linear (B) + lens-www explore (C) + Morph explore (D)
+Step 3: Plan → implement Morph (tests, Ruff, commits) → implement lens-www (lints, commits)
+Step 4: Morph: ruff + pytest (+ integration) + curl; lens-www: browser verification (loop ≤3x on fail)
+Step 5: Open Morph PR + lens-www PR (make-lens-pr); cross-link
+```

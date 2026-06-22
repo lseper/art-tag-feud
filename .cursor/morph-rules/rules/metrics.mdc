@@ -1,0 +1,208 @@
+---
+description: How to add a new OpenTelemetry metric in morph (instruments, decorators, tenant attribution, init wiring)
+globs: src/morph/**/*.py
+alwaysApply: false
+---
+
+# Adding a new metric in morph
+
+Every metric in morph rides the global OpenTelemetry `MeterProvider`
+installed by `enable_metrics()` in
+[`src/morph/config/logging_config.py`](mdc:src/morph/config/logging_config.py).
+The provider exports metrics over OTLP.
+
+## Choose the right shape
+
+| Shape | When to use | Example |
+|---|---|---|
+| **Counter** | Count of events. Always non-negative, monotonic deltas. | `sandbox_create_total`, `chat_session_errors_total` |
+| **Histogram** | A value distribution (latency, size, etc.) where you need p50/p95/p99. | `sandbox_setup_duration_ms`, `chat_session_stream_duration_ms` |
+| **`@timed_histogram` decorator** | Wall-clock duration of a callable. Prefer this over a hand-rolled `time.monotonic()` block. | See below. |
+
+Don't introduce ObservableGauges / Up-Down counters without coordinating
+first — every existing morph metric is a counter or histogram.
+
+## Naming convention
+
+- `lower_snake_case`.
+- **Units in the name**: `_ms` for milliseconds, `_total` for counters,
+  `_count` for histograms whose unit is `{things}` rather than time.
+- Group by topic in the meter namespace (`morph.sandbox`, `morph.llm`,
+  `morph.execution`, `morph.chat_session`, `morph.polling`,
+  `morph.sandbox_job`, `morph.db`).
+
+## Where to put the code
+
+One module per topic in [`src/morph/metrics/`](mdc:src/morph/metrics/),
+named `<topic>_metrics.py`. Each module exposes:
+
+1. A module-level `init_<topic>_metrics()` function (idempotent — early-return if
+   the meter is already populated).
+2. One `record_<event>(...)` helper per call site. Always keyword-only args
+   (`*, job_type: str, result: str`) so call sites stay self-documenting.
+
+Wire the new `init_*` into `enable_metrics()` in
+[`src/morph/config/logging_config.py`](mdc:src/morph/config/logging_config.py)
+next to the existing `init_sandbox_metrics()` etc. and re-export from
+[`src/morph/metrics/__init__.py`](mdc:src/morph/metrics/__init__.py).
+
+## Tenant attribution is mandatory
+
+Every emitted metric must carry `tenant_id` from the `OtelAttributes`
+ContextVar. **Don't read `tenant_id` from request state or DB** — read it
+through the existing helper:
+
+```python
+from morph.metrics.tenant_context import tenant_attribute
+
+
+def _with_tenant(attrs: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(attrs)
+    for k, v in tenant_attribute().items():
+        merged.setdefault(k, v)
+    return merged
+```
+
+`tenant_attribute()` returns `{"tenant_id": "<n>"}` (or `"unknown"` when no
+context is in scope). Use `setdefault` so a caller-supplied attribute can
+override (rare, but synthetic / probe metrics need it).
+
+The `@timed_histogram` decorator already merges in `tenant_attribute()`
+automatically — you don't need to repeat the merge inside an `attribute_fn`.
+
+## Recipe — counter
+
+```python
+"""<topic> metrics.
+
+Exposes:
+
+- ``foo_event_total`` — counter; one increment per ... (attributes:
+  ``kind``, ``result``).
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from opentelemetry.metrics import get_meter
+
+from morph.metrics.tenant_context import tenant_attribute
+
+logger = logging.getLogger(__name__)
+
+
+def _with_tenant(attrs: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(attrs)
+    for k, v in tenant_attribute().items():
+        merged.setdefault(k, v)
+    return merged
+
+
+_meter: Any = None
+_foo_event_total: Any = None
+
+
+def init_foo_metrics() -> None:
+    """Register foo instruments. Idempotent."""
+    global _meter, _foo_event_total
+    if _meter is not None:
+        return
+    try:
+        _meter = get_meter("morph.foo", version="")
+        _foo_event_total = _meter.create_counter(
+            "foo_event_total",
+            description="Total foo events (attributes: kind, result)",
+            unit="1",
+        )
+    except Exception as e:
+        logger.warning("Failed to init foo metrics: %s", e)
+
+
+def record_foo_event(*, kind: str, result: str) -> None:
+    """``result`` is ``"success"`` or ``"failure"``."""
+    if _foo_event_total is None:
+        return
+    try:
+        _foo_event_total.add(1, _with_tenant({"kind": kind, "result": result}))
+    except Exception as e:
+        logger.debug("record_foo_event: %s", e)
+```
+
+## Recipe — histogram via decorator (preferred for latency)
+
+```python
+from morph.metrics.decorators import timed_histogram
+
+class FooService:
+    @timed_histogram(
+        "foo_operation_duration_ms",
+        meter_name="morph.foo",
+        description="Wall-clock latency of FooService.run_operation",
+        attribute_fn=lambda self, *_a, **_k: {"kind": self.kind},
+    )
+    async def run_operation(self) -> Result:
+        ...
+```
+
+The decorator:
+- Auto-attaches `result="success"|"failure"` based on whether the wrapped
+  callable raised.
+- Auto-attaches `tenant_id` from `tenant_attribute()`.
+- Caches the histogram per `(meter_name, instrument_name)` — first call
+  registers, subsequent calls reuse.
+- Re-raises any exception unchanged (transparent to callers).
+
+Use `unit="ms"` (default) for latency; the decorator converts the wrapped
+duration to ms automatically. Use `unit="s"` only if the values are already
+in seconds (rare).
+
+For histograms not driven by a decorator (e.g. a recorded count rather than
+an elapsed time), follow the counter recipe but use `create_histogram(...)`
+and call `_hist.record(value, _with_tenant({...}))`.
+
+## Cardinality discipline
+
+- **NEVER** emit unbounded labels: `chat_session_id`, `execution_id`,
+  `project_id`, free-form error messages, raw exception class names.
+  These explode storage and make queries crawl.
+- Bucket high-cardinality numerics: `attempt_bucket` ∈ `"1"`, `"2"`, `"3+"`
+  (see [`sandbox_job_metrics.py`](mdc:src/morph/metrics/sandbox_job_metrics.py)
+  `_attempt_bucket`).
+- Map exception types to a fixed taxonomy: `error_class` ∈ a small enum
+  (see `morph_agent`'s `classify_session_error` for the pattern).
+- `tenant_id` is allowlisted as a high-cardinality label; new
+  high-cardinality labels need an explicit decision.
+
+## Defensive recording
+
+Every `record_*` helper must:
+
+1. Early-return if the instrument is `None` (init failed silently / metrics
+   disabled in tests).
+2. Wrap the `.add()` / `.record()` call in `try/except Exception` and log at
+   `DEBUG`. **Never** let a metric recording crash a request handler.
+
+The init function follows the same shape — wrap `create_counter` /
+`create_histogram` in `try/except` and downgrade to `logger.warning`.
+
+## Wiring checklist
+
+1. Add `<topic>_metrics.py` under [`src/morph/metrics/`](mdc:src/morph/metrics/).
+2. Re-export `init_<topic>_metrics` and the `record_*` helpers from
+   [`src/morph/metrics/__init__.py`](mdc:src/morph/metrics/__init__.py).
+3. Call `init_<topic>_metrics()` from `enable_metrics()` in
+   [`src/morph/config/logging_config.py`](mdc:src/morph/config/logging_config.py).
+4. Wire the `record_*` helper at the recording site, or apply
+   `@timed_histogram` to the method whose latency you're measuring.
+
+## Cross-service metrics
+
+If the metric is also emitted by `model-daemon` or `morph-agent`, the
+record passes through the `daemon-metrics-via-morph` chain and is re-emitted
+by [`src/morph/daemon_metrics/daemon_metrics_service.py`](mdc:src/morph/daemon_metrics/daemon_metrics_service.py).
+The wire schema is in
+[`daemon_metrics_schemas.py`](mdc:src/morph/daemon_metrics/daemon_metrics_schemas.py)
+— don't bypass it; daemon/agent metrics carry `tenant_id` because the route
+auth-stamps it from `ServiceCtx.tenant_id`.

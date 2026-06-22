@@ -1,0 +1,550 @@
+---
+description: Implement a backend feature in the morph repo from spec files, with unit tests, endpoint verification (curl), DB verification (psql), and PR creation via gh CLI
+alwaysApply: false
+---
+
+# Implement Feature (Morph Backend)
+
+When invoked, you receive **1 spec file path** that describes the feature to implement.
+
+Your job is to understand the feature holistically, implement the tasks from the PR task list, verify everything works via automated tests and manual endpoint/DB checks, and open a PR — all without asking the user to do anything manually.
+
+---
+
+## Step 0: Parse the Specs
+
+1. Read all spec files in full.
+2. From the **PR task list**, extract:
+   - **Ticket ID** — the `ENG-XXXX` string (case-insensitive). Normalize to lowercase for branch naming.
+   - **Task items** — the discrete units of work to complete in this PR.
+3. From the **condensed summary**, extract:
+   - **Feature name** — a short name for the feature.
+   - **Key context** — important decisions, constraints, or gotchas.
+   - **Relevant PRs/issues** — any linked GitHub PRs or Linear tickets.
+4. From the **full design doc**, extract:
+   - **Architecture overview** — how this feature fits into the existing system.
+   - **Data models / API contracts** — schemas, endpoints, DB tables, or domain objects relevant to your tasks.
+   - **Implementation guidance** — any recommended patterns, utilities, or approaches.
+5. Determine the current OS user for the branch prefix by running `whoami`.
+6. Construct the **branch name**: `<whoami>-<ticket-id-lowercase>` (e.g. `lseper-eng-2100`).
+
+---
+
+## Step 1: Prepare the Branch
+
+Run these commands sequentially in the `morph` directory:
+
+```bash
+git fetch origin main
+git checkout -b <branch-name> origin/main
+```
+
+> NOTE: If a different base branch is specified, base the feature branch off of that instead of main.
+
+If the branch already exists locally, check it out and rebase onto `origin/main` instead:
+
+```bash
+git checkout <branch-name>
+git rebase origin/main
+```
+
+---
+
+## Step 2: Gather External Context
+
+Before writing any code, gather additional context from external sources referenced in the specs. Launch subagents **in parallel** as needed.
+
+### Subagent A — GitHub PR Research (if referenced PRs exist)
+
+Launch a **browser-use subagent** to read referenced GitHub PRs for implementation patterns and prior art.
+
+> You are researching GitHub pull requests for context on an upcoming feature implementation.
+>
+> **PRs to review:** <list of PR URLs from the specs>
+>
+> Use `--session-name infra` for all agent-browser commands.
+>
+> 1. For each referenced PR, open it:
+>    ```bash
+>    agent-browser --session-name infra open <PR URL>
+>    agent-browser --session-name infra wait --load networkidle
+>    ```
+> 2. Read the PR description, review the "Files changed" tab, and note:
+>    - What patterns were introduced (new modules, DB models, API routes, workers)
+>    - What naming conventions were used
+>    - How the feature integrates with existing code
+>    - Any reviewer feedback or follow-up items
+> 3. If a PR has many files, focus on the files most relevant to the tasks in this PR.
+>
+> Return a structured report:
+> - **Per-PR summary** — what was implemented, key patterns used
+> - **Relevant code patterns** — modules, utilities, DB patterns introduced
+> - **Integration points** — how the prior work connects to the current tasks
+> - **Open items** — any TODOs, follow-ups, or known issues from PR comments
+
+### Subagent B — Linear Ticket Research (if Linear URLs exist)
+
+Launch a **browser-use subagent** to read the Linear ticket for additional acceptance criteria or context.
+
+> You are reading a Linear ticket for context on a feature implementation.
+>
+> **Linear ticket:** <URL>
+>
+> Use `--session-name infra` for all agent-browser commands.
+>
+> 1. Open the Linear board:
+>    ```bash
+>    agent-browser --session-name infra open https://linear.app/modelcode/team/ENG/all
+>    agent-browser --session-name infra wait --load networkidle
+>    ```
+> 2. Find and open the specific ticket. Read:
+>    - Title and description
+>    - Acceptance criteria
+>    - Comments and discussion
+>    - Sub-issues or related issues
+>    - Attached files or links
+>
+> Return:
+> - **Ticket summary** — title, description, acceptance criteria
+> - **Additional context** — anything from comments or sub-issues not captured in the spec files
+> - **Dependencies** — any blockers or prerequisite work mentioned
+
+### Subagent C — Codebase Investigation
+
+Launch an **explore subagent** to understand the existing codebase areas relevant to the feature.
+
+> You are investigating the morph codebase to understand the existing architecture relevant to a new feature.
+>
+> **Feature:** <feature name>
+> **Architecture overview from design doc:** <relevant architecture section>
+> **Tasks to implement:** <task list>
+>
+> Your goal is to map the existing code that this feature will touch or extend. Do NOT make any changes.
+>
+> 1. Search for existing modules, DB models, API routes, workers, and utilities related to the feature area.
+> 2. Read each relevant file thoroughly. Pay attention to:
+>    - Domain module structure (model.py, _db.py, _api.py, _schemas.py)
+>    - Database patterns (BaseDB subclass, SQLModel models, Alembic migrations)
+>    - API route conventions (FastAPI routers, dependency injection, auth)
+>    - Worker/execution patterns (if feature touches the execution engine)
+>    - Existing tests for similar features (test structure, fixtures, mocking patterns)
+> 3. Identify **extension points** — where new code should be added vs. where existing code needs modification.
+> 4. Identify **shared utilities** that should be reused rather than duplicated.
+>
+> Return a structured report:
+> - **Relevant files** (with line ranges and purpose)
+> - **Existing patterns to follow** (with code examples)
+> - **Extension points** (where to add new code)
+> - **Shared code to reuse** (utilities, types, DB helpers)
+> - **Test patterns** (how existing tests are structured for similar features)
+> - **Risk areas** (modules or flows that might be affected by the changes)
+
+---
+
+## Step 3: Database Setup (if needed)
+
+If the feature requires a new or different local database:
+
+1. **Create the database** (if it doesn't already exist):
+   ```bash
+   PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE \"<db-name>\";" 2>/dev/null || true
+   ```
+
+2. **Update `override.toml`** — set the `DATABASE_URL` in `src/morph/config/override.toml`:
+   ```toml
+   [default]
+   DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/<db-name>"
+   ```
+
+3. **Update `launch.json`** — ensure the `DYNACONF_DATABASE_URL` env var in `.vscode/launch.json` matches:
+   ```json
+   "DYNACONF_DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/<db-name>"
+   ```
+
+4. **Run migrations** to bring the DB schema up to date:
+   ```bash
+   cd /Users/liamseper/Documents/git/lens-morph/morph
+   DYNACONF_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/<db-name>" \
+     alembic upgrade head
+   ```
+
+> NOTE: If the feature does NOT require a new database, skip this step entirely. The existing `override.toml` and `launch.json` already point to the correct DB.
+
+---
+
+## Step 4: Implement the Feature
+
+After all research subagents return, synthesize their findings and implement the feature task by task.
+
+1. **Create an implementation plan** — Map each task from the PR task list to specific files and changes needed. Order tasks by dependency (DB models/migrations first, then domain logic, then API routes, then tests).
+
+2. **Implement each task sequentially:**
+   - Follow the project conventions from `CLAUDE.md`:
+     - All imports at the top of the file (no inline imports)
+     - Double quotes, type hints on all function signatures
+     - `async/await` throughout — no blocking I/O
+     - Use `%s`-style lazy logging (never f-strings in logger calls)
+     - Custom exceptions from `morph.core.exceptions`
+     - Repository pattern: extend `BaseDB[T]` for DB access
+     - Multi-tenancy: every table has `tenant_id`
+   - Follow the patterns identified by the codebase investigation (Subagent C).
+   - Mirror conventions from referenced PRs (Subagent A) when extending prior work.
+   - If adding a new DB migration, follow the Alembic conventions (sequential numeric prefix in `alembic/versions/`).
+
+3. **Lint check** — After each logical group of edits, run:
+   ```bash
+   ruff check --fix .
+   ruff format .
+   ```
+   Fix any lint errors you introduced.
+
+4. **Commit incrementally** — After completing each distinct task item, commit:
+   ```bash
+   git add -A
+   git commit -m "<ticket-id>: <concise description of what was implemented>"
+   ```
+
+---
+
+## Step 5: Write Unit Tests
+
+For every piece of new functionality, write corresponding unit tests.
+
+1. **Test location:** Place tests in `tests/unit/` mirroring the source structure. For example, if you added `src/morph/analytics/_api.py`, create `tests/unit/analytics/test_api.py`.
+
+2. **Follow existing test patterns:**
+   - Use `pytest` with `pytest-asyncio` (asyncio_mode = auto)
+   - Mark tests with `@pytest.mark.unit`
+   - Use fixtures for DB sessions, mock dependencies, and test data
+   - Mock external dependencies (LLM calls, Docker, external APIs)
+   - Test both success paths and error/edge cases
+
+3. **Run the tests** to confirm they pass:
+   ```bash
+   pytest tests/unit/<path-to-new-tests> -v
+   ```
+
+4. **Run the full unit test suite** to confirm no regressions:
+   ```bash
+   pytest tests/unit -x --timeout=60
+   ```
+   > NOTE: Do NOT run the large regression test suite (`tests/integration` or regression runs) unless the user explicitly requests it — it is flaky and not a gating requirement for feature PRs.
+
+5. If tests fail, fix the implementation or tests and re-run. Commit test files:
+   ```bash
+   git add -A
+   git commit -m "<ticket-id>: add unit tests for <feature>"
+   ```
+
+---
+
+## Step 6: Verify the Implementation
+
+After implementation and tests pass, verify the feature works end-to-end against the local running server. Use **curl** for API verification and **psql** for database verification.
+
+### Local Dev Auth Context
+
+All curl commands to the local morph server use the following identity/context variables:
+
+| Variable | Value |
+|---|---|
+| `BASE_URL` | `http://localhost:8440` |
+| `TENANT_ID` | `1` |
+| `USER_EMAIL` | `lseper@modelcode.ai` |
+| `USER_ID` | `lseper@modelcode.ai` |
+| `REAL_USER_ID` | `lseper@modelcode.ai` |
+| `REAL_TENANT_ID` | `-1` |
+| `Content-Type` | `application/json` |
+
+Use these as shell variables at the top of verification scripts for consistency:
+
+```bash
+BASE_URL="http://localhost:8440"
+TENANT_ID=1
+USER_EMAIL="lseper@modelcode.ai"
+USER_ID="lseper@modelcode.ai"
+REAL_USER_ID="lseper@modelcode.ai"
+REAL_TENANT_ID="-1"
+```
+
+### 6a: Start the Server (if not already running)
+
+Check if the morph server is already running on port 8440:
+```bash
+curl -s $BASE_URL/health || echo "Server not running"
+```
+
+If not running, instruct the user to start it via the VS Code launch configuration, or start it in a background terminal:
+```bash
+cd /Users/liamseper/Documents/git/lens-morph/morph
+DYNACONF_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/<db-name>" \
+  python -m run_local
+```
+
+### 6b: API Endpoint Verification (curl)
+
+For each new or modified API endpoint, verify it responds correctly. Always include the auth/identity headers:
+
+```bash
+# Example: GET endpoint
+curl -s -X GET "$BASE_URL/v1/<endpoint>" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -H "X-User-Email: $USER_EMAIL" \
+  -H "X-User-Id: $USER_ID" \
+  -H "X-Real-User-Id: $REAL_USER_ID" \
+  -H "X-Real-Tenant-Id: $REAL_TENANT_ID" | python -m json.tool
+
+# Example: POST endpoint
+curl -s -X POST "$BASE_URL/v1/<endpoint>" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -H "X-User-Email: $USER_EMAIL" \
+  -H "X-User-Id: $USER_ID" \
+  -H "X-Real-User-Id: $REAL_USER_ID" \
+  -H "X-Real-Tenant-Id: $REAL_TENANT_ID" \
+  -d '{"field": "value"}' | python -m json.tool
+
+# Verify response status codes
+curl -s -o /dev/null -w "%{http_code}" -X GET "$BASE_URL/v1/<endpoint>" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -H "X-User-Email: $USER_EMAIL" \
+  -H "X-User-Id: $USER_ID" \
+  -H "X-Real-User-Id: $REAL_USER_ID" \
+  -H "X-Real-Tenant-Id: $REAL_TENANT_ID"
+```
+
+Verify:
+- Correct HTTP status codes (200, 201, 404, 422, etc.)
+- Response body matches expected schema
+- Error cases return proper error responses
+- Auth/permission requirements are enforced
+
+### 6c: Database Verification (psql)
+
+After POST/PUT/DELETE operations, verify the database state directly:
+
+```bash
+# Connect to the local DB
+PGPASSWORD=postgres psql -h localhost -U postgres -d <db-name>
+
+# Verify data was written correctly
+SELECT id, tenant_id, <relevant_columns> FROM <table_name> ORDER BY created_at DESC LIMIT 5;
+
+# Verify relationships
+SELECT t.id, t.name, r.related_field
+FROM <table> t
+JOIN <related_table> r ON r.fk_id = t.id
+WHERE t.tenant_id = <tenant_id>;
+
+# Verify constraints and indexes
+\d <table_name>
+```
+
+Verify:
+- Data created by POST requests exists in the DB with correct field values
+- Foreign key relationships are intact
+- Timestamps (created_at, updated_at) are set correctly
+- tenant_id is populated correctly
+- Soft deletes work (if applicable)
+- Unique constraints prevent duplicates
+
+### 6d: End-to-End Flow Verification
+
+For features that span multiple operations, verify the full flow (using the auth variables from above):
+
+```bash
+# 1. Create a resource
+RESPONSE=$(curl -s -X POST "$BASE_URL/v1/<endpoint>" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -H "X-User-Email: $USER_EMAIL" \
+  -H "X-User-Id: $USER_ID" \
+  -H "X-Real-User-Id: $REAL_USER_ID" \
+  -H "X-Real-Tenant-Id: $REAL_TENANT_ID" \
+  -d '{"name": "test-resource"}')
+RESOURCE_ID=$(echo $RESPONSE | python -c "import sys,json; print(json.load(sys.stdin)['id'])")
+
+# 2. Verify it was persisted
+PGPASSWORD=postgres psql -h localhost -U postgres -d <db-name> \
+  -c "SELECT * FROM <table> WHERE id = '$RESOURCE_ID';"
+
+# 3. Update it
+curl -s -X PATCH "$BASE_URL/v1/<endpoint>/$RESOURCE_ID" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -H "X-User-Email: $USER_EMAIL" \
+  -H "X-User-Id: $USER_ID" \
+  -H "X-Real-User-Id: $REAL_USER_ID" \
+  -H "X-Real-Tenant-Id: $REAL_TENANT_ID" \
+  -d '{"name": "updated-resource"}'
+
+# 4. Verify the update in DB
+PGPASSWORD=postgres psql -h localhost -U postgres -d <db-name> \
+  -c "SELECT name, updated_at FROM <table> WHERE id = '$RESOURCE_ID';"
+
+# 5. Delete it
+curl -s -X DELETE "$BASE_URL/v1/<endpoint>/$RESOURCE_ID" \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  -H "X-User-Email: $USER_EMAIL" \
+  -H "X-User-Id: $USER_ID" \
+  -H "X-Real-User-Id: $REAL_USER_ID" \
+  -H "X-Real-Tenant-Id: $REAL_TENANT_ID"
+
+# 6. Verify deletion
+PGPASSWORD=postgres psql -h localhost -U postgres -d <db-name> \
+  -c "SELECT id, deleted_at FROM <table> WHERE id = '$RESOURCE_ID';"
+```
+
+### 6e: Browser Verification (if feature has UI-facing impact)
+
+If the feature affects any UI behavior (e.g. new SSE events, webhook responses, API contracts consumed by the frontend), launch a browser subagent to verify:
+
+> Use `--session-name infra` for all agent-browser commands.
+
+### If verification fails:
+
+1. Identify which specific checks failed and why.
+2. Make corrective edits targeting the failing behavior.
+3. Re-run relevant tests:
+   ```bash
+   pytest tests/unit/<relevant-tests> -v
+   ```
+4. Commit the fixes:
+   ```bash
+   git add -A
+   git commit -m "<ticket-id>: fix <concise description of what was corrected>"
+   ```
+5. Re-verify (repeat Step 6b/6c/6d as appropriate).
+6. Iterate up to **3 times**. If checks still fail after 3 attempts, stop and report to the user with all evidence collected.
+
+---
+
+## Step 7: Final Checks
+
+Before opening the PR, run the full quality gauntlet:
+
+```bash
+# Format and lint
+ruff format .
+ruff check --fix .
+
+# Run all unit tests
+pytest tests/unit -x --timeout=60
+
+# Check for any uncommitted changes
+git status
+```
+
+If there are uncommitted changes (e.g. from lint fixes), commit them:
+```bash
+git add -A
+git commit -m "<ticket-id>: lint and format fixes"
+```
+
+---
+
+## Step 8: Open the PR
+
+Use the `gh` CLI to create the pull request.
+
+1. **Push the branch:**
+   ```bash
+   git push -u origin <branch-name>
+   ```
+
+2. **Read the PR template** and populate it:
+   ```bash
+   cat .github/pull_request_template.md
+   ```
+
+3. **Create the PR** with `gh`:
+   ```bash
+   gh pr create \
+     --title "<ticket-id>: <feature description>" \
+     --body "$(cat <<'EOF'
+   # Morph Pull Request
+
+   ## Description
+
+   <1-3 sentence summary of the feature, referencing the Linear ticket>
+
+   Linear: https://linear.app/modelcode/issue/<TICKET-ID>
+
+   ## Details
+
+   <Implementation approach, technical decisions, and any new dependencies>
+
+   - <Key change 1>
+   - <Key change 2>
+   - <Key change 3>
+
+   ## How did I test these changes?
+
+   - Ran full unit test suite (`pytest tests/unit`)
+   - Verified API endpoints via curl (correct status codes, response schemas)
+   - Verified DB state via psql after CRUD operations
+   - <Any additional verification steps taken>
+
+   ### Testing
+
+   - [x] Manual testing performed
+   - [x] Tests confirm expected behavior
+   - [ ] (Optional) This PR implements a fix and a regression test has been added
+
+   ### Regression Testing
+
+   - [ ] Ran regression run with caching enabled (only if explicitly requested — suite is flaky)
+   - [ ] New features that are part of the PR have been added to regression coverage (if required)
+
+   ### Security Considerations
+
+   - [x] Changes don't introduce new security risks
+   - [x] If a dependency has been added, it doesn't introduce security vulnerabilities.
+
+   ## SOC 2 Compliance Checklist
+
+   - [x] Code follows our coding standards and patterns
+   - [x] Authorization checks are implemented where necessary
+   - [x] Error handling follows our standards and properly logs errors
+   - [x] Input validation is implemented for user inputs
+   - [x] Secret management guidelines followed (no hardcoded credentials)
+   - [x] Logging properly implemented (no sensitive data in logs)
+   EOF
+   )"
+   ```
+
+4. **Return the PR URL** to the user.
+
+---
+
+## Summary of Execution Order
+
+```
+Step 0: Parse spec files → extract ticket, tasks, architecture, context
+Step 1: Create/checkout feature branch off main
+Step 2: [PARALLEL] Research GitHub PRs (A) + Read Linear ticket (B) + Investigate codebase (C)
+Step 3: Database setup (if needed) — create DB, update override.toml + launch.json, run migrations
+Step 4: Implement feature tasks sequentially (commit after each task)
+Step 5: Write unit tests, run them, fix failures
+Step 6: Verify implementation (curl for API, psql for DB, browser if UI-facing)
+Step 7: Final lint/format/test pass
+Step 8: Open PR via gh CLI
+```
+
+---
+
+## Key Conventions Reminder
+
+- **Imports:** All at the top of the file, no inline imports
+- **Logging:** `%s`-style lazy formatting, never f-strings
+- **DB sessions:** Use `get_worker_tenant_db_session` in workers, `get_tenant_db_session` in routes
+- **Prompts:** Pass `Renderable`, never rendered text
+- **Errors:** Custom exceptions from `morph.core.exceptions`
+- **Migrations:** Sequential numeric prefix in `alembic/versions/`
+- **Testing:** `pytest-asyncio`, `@pytest.mark.unit`, mock external deps
+- **PR titles:** Always prefix with `ENG-XXXX:`
+- **Browser automation:** Use `agent-browser --session-name infra` for any browser tasks
+- **GitHub operations:** Always use `gh` CLI (never manual browser GitHub workflows)

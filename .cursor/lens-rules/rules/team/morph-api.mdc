@@ -1,0 +1,57 @@
+---
+globs: app/api/morph/**/*.ts
+alwaysApply: false
+---
+
+````cursorrules
+# Morph API Route Patterns
+
+## Calling the Morph API
+
+Always use `morphApiFetch` (or `morphApiFetchWithServiceHeaders` for service routes). **Never use `fetch` directly.**
+
+### Required signature
+
+```typescript
+import { morphApiFetch } from '@/utils/tracedFetch';
+import { env } from '@/utils/env.server';
+
+const response = await morphApiFetch(
+  env.MORPH_URL,          // always first — required
+  '/v1/some/endpoint',    // path only, no base URL
+  { method: 'GET', headers: { ... } },
+  { 'hub.operation': 'describe_operation' }, // optional OTL attributes
+);
+```
+
+### Service routes (under `app/api/morph/service/`)
+
+```typescript
+import { morphApiFetchWithServiceHeaders } from '@/utils/tracedFetch';
+import { env } from '@/utils/env.server';
+
+const response = await morphApiFetchWithServiceHeaders(
+  env.MORPH_URL,
+  '/v1/morph/some/endpoint',
+  { method: 'POST', body: JSON.stringify(body) },
+  request,                // NextRequest — required for service auth headers
+  { 'hub.operation': 'describe_operation' },
+);
+```
+
+## Logging Headers in Morph Routes
+
+If you need to log request headers for diagnostics, do not log raw headers.
+
+- Prefer allowlist logging with `pickHeadersForLog(...)` from `utils/logHeaders.ts`
+- Use `redactSensitiveHeaders(...)` only when broad header objects are unavoidable
+- Never log cookie/auth/token header values
+
+## Common mistakes
+
+- ❌ Omitting `env.MORPH_URL` as the first argument — this is a **required** parameter
+- ❌ Constructing the full URL yourself and passing it as the endpoint — pass the path only
+- ❌ Forgetting `import { env } from '@/utils/env.server'` — always needed alongside `morphApiFetch`
+- ❌ Using `process.env.MORPH_URL` directly — always use `env.MORPH_URL` from `@/utils/env.server`
+- ❌ Logging raw request headers instead of using `utils/logHeaders.ts`
+````

@@ -1,0 +1,69 @@
+---
+description: Recurring review feedback from merged lens-www PRs — prevent the same mistakes
+globs: "**/*.{ts,tsx,css}"
+alwaysApply: true
+---
+# Merged PR review patterns (lens-www)
+
+Lessons synthesized from review threads on merged PRs (including #1326, #1310, #1272, #1204, #1190). These complement `security.mdc`, `tsx-rules.mdc`, `ui-core.mdc`, and `effect-alternatives.mdc`.
+
+## React state and effects
+
+- **Wire state or remove it.** If you add modals, guards, or `setShowX` flags, every path that should open them must call the setter. Dead handlers confuse reviewers and hide UX gaps (e.g. unsaved-changes never shown).
+- **Time-based UI needs a time dependency.** A label or countdown computed in `useMemo` from only “static” inputs will not tick as the clock advances. Subscribe to an explicit tick (or interval-driven state) and include it in dependencies, **or** render the ticking fragment in a small child so large trees do not re-render every second.
+- **Prefer explicit events over `useEffect` for user-driven sync.** If logic can run inside `onChange` / `onBlur` / callbacks alongside other state updates, do that instead of syncing with `useEffect` “only when you absolutely need to” (see `effect-alternatives.mdc`).
+- **Time-to-live cleanup must actually run over time.** A `useEffect` with `[]` that filters stale entries runs once on mount; entries can linger until unrelated renders. Use a per-entry timeout, an interval/timer in the dependency graph, or another pattern that fires when the TTL elapses.
+
+## Async, errors, and cancellation
+
+- **Use `try` / `finally` for cleanup** when cleanup must run whether or not an error occurred; avoid patterns where an early `return` skips cleanup.
+- **Do not swallow errors in `catch`.** After updating state for expected cases (e.g. abort/cancel), **rethrow** or propagate for unexpected failures so failures are visible in dev and logs.
+- **Server routes:** empty `catch` blocks without logging remove operational signal; at minimum log a redacted/safe message (see `security.mdc` on sensitive data).
+
+## Types, API envelopes, and BFF boundaries
+
+- **Avoid bare `as` on untrusted JSON.** If the backend shape is wrong, `as number` (etc.) propagates `undefined` and fails downstream silently. Narrow with `typeof` / guards at the boundary, or align with a single project-wide validation approach (do not introduce one-off heavy validation in one service if the rest of the app does not follow that pattern — stay consistent with team norms).
+- **Implicit BFF contracts:** forwarding `NextResponse.json(morphPayload)` while the client assumes `data.sessions` (or similar) yields empty UI with no error if the envelope changes. Prefer normalizing at the BFF to a stable shape **or** documenting and handling alternate shapes explicitly.
+
+## Permissions and API routes
+
+- **Map HTTP method to action** (see `security.mdc`): e.g. POST that creates a resource should use `create`, not `view`, when that permission exists in access-forge.
+- **Copy-paste route guards are dangerous.** A new `app/api/.../route.ts` must use the **correct resource** for that domain (e.g. tasks SSE must not reuse `executions` permission without intent).
+
+## Next.js: server graph vs client graph
+
+- **Do not pull client `.tsx` (or heavy client-only modules) into code imported by the Node server graph.** That can drag in JSX transforms via `tsconfig.server.json` and blur “server vs Next client” boundaries. Prefer shared **type-only** or neutral `.ts` modules for types/constants both sides need.
+
+## Data fetching placement
+
+- **Prefer `services/morph/<area>.ts` (or existing service modules)** for Morph/BFF `fetch` calls instead of scattering raw `fetch` inside large React components, unless the codebase already clearly does otherwise in that feature.
+
+## Realtime (SSE / `useLiveData`) and stores
+
+- **Avoid duplicate live connections** for the same collection and `projectId` in an ancestor and a descendant (double SSE → double store writes and duplicate side effects). Prefer a single subscriber or polling-only in the provider if Roadmap already owns SSE.
+- **Reconnect behavior:** after a dropped SSE reconnects, consider a catch-up refetch if events could have been missed during the outage (preserve behavior from the pre-refactor hook unless intentionally changed).
+- **Lifecycle races:** async “add client” / subscribe work should complete (or abort coherently) before disconnect/remove runs, so clients are not left registered after cleanup.
+- **Reset backoff state** on intentional `disconnect` / teardown so the next session does not inherit stale retry counts.
+- **Concurrent async store writes:** when multiple requests can finish out of order, merging into previous state is safer than assigning a single `next` snapshot that drops other in-flight updates.
+
+## Refactors and regressions
+
+- **When removing polling or mount effects, wire the replacement** in every place the old behavior applied (e.g. call the new `useLiveTasks` / `useLiveData('tasks', …)` where fetch used to run). Grep for deleted `fetch*` / `setInterval` and confirm the new path covers initial load and active runs.
+- **Public hook contracts:** if `useLiveMilestones` / `useLiveTasks` return `data: []` while only executions populate `data`, either populate from stores or narrow/document the type so future callers are not misled.
+
+## UI copy, naming, and codebase consistency
+
+- **Use current product vocabulary** in strings and comments (rename features in UI when the product name changed; remove references to deleted components).
+- **Do not invent new file conventions** (`*.types.ts`, new CSS file tiers, etc.) unless they already exist broadly — match existing patterns.
+
+## Docs, naming, and hygiene
+
+- **JSDoc and exported names must match behavior** (e.g. a function documented as HH:MM:SS must implement hours or the doc must say MM:SS only).
+- **Remove unused imports, variables, and refs** before merge; permission hooks that are never read suggest missing gating or dead code.
+- **Align redundant guards** when two values share the same type/invariant — avoid confusing mixed patterns (`x ? x.length : 0` vs `y.length` for the same guarantee).
+
+## Related rules
+
+- `team/security.mdc` — permissions, logging
+- `team/tsx-rules.mdc` / `team/ui-core.mdc` — inline styles, `cn()`, global CSS
+- `team/effect-alternatives.mdc` — reducing unnecessary effects

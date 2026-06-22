@@ -1,0 +1,40 @@
+---
+description: Python logging format conventions — use %s-style lazy formatting
+globs: **/*.py
+alwaysApply: false
+---
+
+# Python Logging Style
+
+Always use `%s`-style (lazy) formatting in logging calls. Never use f-strings, `.format()`, or string concatenation.
+
+```python
+# ❌ BAD — f-string (evaluated even if log level is disabled)
+logger.error(f"Failed for tenant {tenant_id}: {e}")
+
+# ❌ BAD — .format()
+logger.error("Failed for tenant {}: {}".format(tenant_id, e))
+
+# ❌ BAD — string concatenation
+logger.error("Failed for tenant " + str(tenant_id))
+
+# ✅ GOOD — %s-style lazy formatting
+logger.error("Failed for tenant %s: %s", tenant_id, e)
+```
+
+## Exception Logging
+
+Use `logger.exception()` instead of `logger.error(..., exc_info=True)`. The exception method automatically attaches the traceback.
+
+```python
+# ❌ BAD
+logger.error("Operation failed: %s", e, exc_info=True)
+
+# ✅ GOOD
+logger.exception("Operation failed: %s", e)
+```
+
+## Why
+
+- `%s`-style defers string interpolation until the log is actually emitted, avoiding wasted work when the log level is disabled.
+- Enforced by **ruff rule group `G`** (G003, G004, G201, G202) and **pylint rules E1205/E1206** (argument count mismatch) in CI.

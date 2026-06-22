@@ -1,0 +1,515 @@
+---
+description: Implement a feature in the access-forge repo from spec files, with unit tests, endpoint verification (curl), DB verification (psql), and PR creation via gh CLI
+alwaysApply: false
+---
+
+# Implement Feature (Access Forge)
+
+When invoked, you receive **1 spec file path** that describes the feature to implement.
+
+Your job is to understand the feature holistically, implement the tasks from the PR task list, verify everything works via automated tests and manual endpoint/DB checks, and open a PR — all without asking the user to do anything manually.
+
+---
+
+## Step 0: Parse the Specs
+
+1. Read all spec files in full.
+2. From the **PR task list**, extract:
+   - **Ticket ID** — the `ENG-XXXX` or `INFRA-XXXX` string (case-insensitive). Normalize to lowercase for branch naming.
+   - **Task items** — the discrete units of work to complete in this PR.
+3. From the **condensed summary**, extract:
+   - **Feature name** — a short name for the feature.
+   - **Key context** — important decisions, constraints, or gotchas.
+   - **Relevant PRs/issues** — any linked GitHub PRs or Linear tickets.
+4. From the **full design doc**, extract:
+   - **Architecture overview** — how this feature fits into the existing system.
+   - **Data models / API contracts** — schemas, endpoints, DB tables, or domain objects relevant to your tasks.
+   - **Implementation guidance** — any recommended patterns, utilities, or approaches.
+5. Determine the current OS user for the branch prefix by running `whoami`.
+6. Construct the **branch name**: `<whoami>-<ticket-id-lowercase>` (e.g. `lseper-eng-2100`).
+
+---
+
+## Step 1: Prepare the Branch
+
+Run these commands sequentially in the `access-forge` directory:
+
+```bash
+cd /Users/liamseper/Documents/git/lens-morph/access-forge
+git fetch origin main
+git checkout -b <branch-name> origin/main
+```
+
+> NOTE: If a different base branch is specified, base the feature branch off of that instead of main.
+
+If the branch already exists locally, check it out and rebase onto `origin/main` instead:
+
+```bash
+git checkout <branch-name>
+git rebase origin/main
+```
+
+---
+
+## Step 2: Gather External Context
+
+Before writing any code, gather additional context from external sources referenced in the specs. Launch subagents **in parallel** as needed.
+
+### Subagent A — GitHub PR Research (if referenced PRs exist)
+
+Launch a **browser-use subagent** to read referenced GitHub PRs for implementation patterns and prior art.
+
+> You are researching GitHub pull requests for context on an upcoming feature implementation.
+>
+> **PRs to review:** <list of PR URLs from the specs>
+>
+> Use `--session-name infra` for all agent-browser commands.
+>
+> 1. For each referenced PR, open it:
+>    ```bash
+>    agent-browser --session-name infra open <PR URL>
+>    agent-browser --session-name infra wait --load networkidle
+>    ```
+> 2. Read the PR description, review the "Files changed" tab, and note:
+>    - What patterns were introduced (new modules, DB models, API routes, services)
+>    - What naming conventions were used
+>    - How the feature integrates with existing code
+>    - Any reviewer feedback or follow-up items
+> 3. If a PR has many files, focus on the files most relevant to the tasks in this PR.
+>
+> Return a structured report:
+> - **Per-PR summary** — what was implemented, key patterns used
+> - **Relevant code patterns** — modules, utilities, DB patterns introduced
+> - **Integration points** — how the prior work connects to the current tasks
+> - **Open items** — any TODOs, follow-ups, or known issues from PR comments
+
+### Subagent B — Linear Ticket Research (if Linear URLs exist)
+
+Launch a **browser-use subagent** to read the Linear ticket for additional acceptance criteria or context.
+
+> You are reading a Linear ticket for context on a feature implementation.
+>
+> **Linear ticket:** <URL>
+>
+> Use `--session-name infra` for all agent-browser commands.
+>
+> 1. Open the Linear board:
+>    ```bash
+>    agent-browser --session-name infra open https://linear.app/modelcode/team/ENG/all
+>    agent-browser --session-name infra wait --load networkidle
+>    ```
+> 2. Find and open the specific ticket. Read:
+>    - Title and description
+>    - Acceptance criteria
+>    - Comments and discussion
+>    - Sub-issues or related issues
+>    - Attached files or links
+>
+> Return:
+> - **Ticket summary** — title, description, acceptance criteria
+> - **Additional context** — anything from comments or sub-issues not captured in the spec files
+> - **Dependencies** — any blockers or prerequisite work mentioned
+
+### Subagent C — Codebase Investigation
+
+Launch an **explore subagent** to understand the existing codebase areas relevant to the feature.
+
+> You are investigating the access-forge codebase to understand the existing architecture relevant to a new feature.
+>
+> **Feature:** <feature name>
+> **Architecture overview from design doc:** <relevant architecture section>
+> **Tasks to implement:** <task list>
+>
+> Your goal is to map the existing code that this feature will touch or extend. Do NOT make any changes.
+>
+> 1. Search for existing modules, DB models, API routes, services, and utilities related to the feature area.
+> 2. Read each relevant file thoroughly. Pay attention to:
+>    - Domain module structure (`app/<domain>/` — typically contains API routes, DB access, service logic, models/schemas)
+>    - Database patterns (SQLModel models, async sessions, Alembic migrations in `alembic/versions/`)
+>    - API route conventions (FastAPI routers, dependency injection, `require_permissions`)
+>    - Seed data patterns (`seed-data/` JSON files, `app/seeder.py`)
+>    - Auth patterns (`app/auth/` — JWT, Stytch, permission dependencies)
+>    - Existing tests for similar features (test structure, fixtures, mocking patterns)
+> 3. Identify **extension points** — where new code should be added vs. where existing code needs modification.
+> 4. Identify **shared utilities** that should be reused rather than duplicated.
+>
+> Return a structured report:
+> - **Relevant files** (with line ranges and purpose)
+> - **Existing patterns to follow** (with code examples)
+> - **Extension points** (where to add new code)
+> - **Shared code to reuse** (utilities, types, DB helpers)
+> - **Test patterns** (how existing tests are structured for similar features)
+> - **Risk areas** (modules or flows that might be affected by the changes)
+
+---
+
+## Step 3: Database Setup (if needed)
+
+If the feature requires a new Alembic migration or DB changes:
+
+1. **Verify PostgreSQL is running** on localhost:
+   ```bash
+   PGPASSWORD=postgres psql -h localhost -U postgres -c "SELECT 1;" 2>/dev/null || echo "Postgres not running"
+   ```
+
+2. **Verify the `access_forge` database exists:**
+   ```bash
+   PGPASSWORD=postgres psql -h localhost -U postgres -c "SELECT 1 FROM pg_database WHERE datname='access_forge';" 2>/dev/null
+   ```
+   If it doesn't exist, the app auto-creates it on startup — no manual step needed.
+
+3. **Run migrations** after creating new migration files:
+   ```bash
+   cd /Users/liamseper/Documents/git/lens-morph/access-forge
+   alembic upgrade head
+   ```
+
+> NOTE: The access-forge app auto-creates the database and runs Alembic `upgrade head` + seeds on startup (when `ENVIRONMENT != test`). For local dev, just starting the server is usually sufficient.
+
+---
+
+## Step 4: Implement the Feature
+
+After all research subagents return, synthesize their findings and implement the feature task by task.
+
+1. **Create an implementation plan** — Map each task from the PR task list to specific files and changes needed. Order tasks by dependency (DB models/migrations first, then domain logic, then services, then API routes, then seed data, then tests).
+
+2. **Implement each task sequentially:**
+   - Follow the project conventions:
+     - All imports at the top of the file (no inline imports)
+     - Double quotes, type hints on all function signatures
+     - `async/await` throughout — no blocking I/O
+     - Use `%s`-style lazy logging (never f-strings in logger calls); use `logger.exception()` for errors
+     - Configuration via Pydantic `Settings` in `app/settings.py`
+     - SQLModel for ORM models, async SQLAlchemy sessions
+     - Permission IDs use `{resource}_{action}` format (e.g. `project_view`)
+   - Follow the patterns identified by the codebase investigation (Subagent C).
+   - Mirror conventions from referenced PRs (Subagent A) when extending prior work.
+   - If adding a new Alembic migration, follow existing naming conventions in `alembic/versions/`.
+
+3. **Seed data updates** — If the feature adds new permissions, roles, or other seed data:
+   - Use `scripts/add_permission.py` for adding permissions:
+     ```bash
+     python scripts/add_permission.py <resource> <action>
+     # optional: --add-to-all-roles-but-freemium
+     ```
+   - Or manually update `seed-data/permissions.json`, `seed-data/roles.json`, and/or `seed-data/tenant_role_templates.json`.
+   - Verify seed data is valid JSON after edits.
+
+4. **Settings updates** — If the feature introduces new environment variables:
+   - Add the field to `app/settings.py` (`Settings` class).
+   - Update the **Environment variables** table in `README.md` (keep alphabetically sorted).
+   - Update `.env.example` if applicable.
+   - Update relevant `config/silos/*.toml` files if the variable needs silo-level configuration.
+
+5. **Lint check** — After each logical group of edits, run:
+   ```bash
+   ruff check --fix .
+   ruff format .
+   ```
+   Fix any lint errors you introduced.
+
+6. **Commit incrementally** — After completing each distinct task item, commit:
+   ```bash
+   git add -A
+   git commit -m "<ticket-id>: <concise description of what was implemented>"
+   ```
+
+---
+
+## Step 5: Write Unit Tests
+
+For every piece of new functionality, write corresponding unit tests.
+
+1. **Test location:** Place tests in `tests/unit/`. Access-forge uses a flat test structure — name files descriptively (e.g. `test_billing_service.py`, `test_oauth_api.py`).
+
+2. **Follow existing test patterns:**
+   - Use `pytest` with `pytest-asyncio` (asyncio_mode = auto)
+   - Mark tests with `@pytest.mark.unit`
+   - Use `unittest.mock` (`AsyncMock`, `MagicMock`, `patch`) for mocking
+   - Create helper factories (e.g. `_make_tenant(**overrides)`) for test data
+   - Test both success paths and error/edge cases
+   - Mock external dependencies (Stytch, Stripe, SendGrid, PostHog)
+
+3. **Run the tests** to confirm they pass:
+   ```bash
+   pytest tests/unit/<path-to-new-tests> -v
+   ```
+
+4. **Run the full unit test suite** to confirm no regressions:
+   ```bash
+   pytest tests/unit -x --timeout=60
+   ```
+
+5. If tests fail, fix the implementation or tests and re-run. Commit test files:
+   ```bash
+   git add -A
+   git commit -m "<ticket-id>: add unit tests for <feature>"
+   ```
+
+---
+
+## Step 6: Verify the Implementation
+
+After implementation and tests pass, verify the feature works end-to-end against the local running server. Use **curl** for API verification and **psql** for database verification.
+
+### Local Dev Auth Context
+
+Access-forge runs on port **9966** and uses JWT authentication. For local verification:
+
+| Variable | Value |
+|---|---|
+| `BASE_URL` | `http://localhost:9966` |
+
+```bash
+BASE_URL="http://localhost:9966"
+```
+
+To obtain a JWT for testing, use the helper script or the Stytch auth flow:
+```bash
+python scripts/test_auth_helper.py
+```
+
+Alternatively, for endpoints that don't require auth, or if you have a token:
+```bash
+AUTH_TOKEN="<your-jwt-token>"
+```
+
+### 6a: Start the Server (if not already running)
+
+Check if the access-forge server is already running on port 9966:
+```bash
+curl -s $BASE_URL/health || echo "Server not running"
+```
+
+If not running, start it:
+```bash
+cd /Users/liamseper/Documents/git/lens-morph/access-forge
+python run_local.py
+```
+
+### 6b: API Endpoint Verification (curl)
+
+For each new or modified API endpoint, verify it responds correctly:
+
+```bash
+# Example: GET endpoint
+curl -s -X GET "$BASE_URL/api/<endpoint>" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $AUTH_TOKEN" | python -m json.tool
+
+# Example: POST endpoint
+curl -s -X POST "$BASE_URL/api/<endpoint>" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $AUTH_TOKEN" \
+  -d '{"field": "value"}' | python -m json.tool
+
+# Verify response status codes
+curl -s -o /dev/null -w "%{http_code}" -X GET "$BASE_URL/api/<endpoint>" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $AUTH_TOKEN"
+```
+
+Verify:
+- Correct HTTP status codes (200, 201, 404, 422, etc.)
+- Response body matches expected schema
+- Error cases return proper error responses
+- Auth/permission requirements are enforced
+
+### 6c: Database Verification (psql)
+
+After POST/PUT/DELETE operations, verify the database state directly:
+
+```bash
+PGPASSWORD=postgres psql -h localhost -U postgres -d access_forge
+
+# Verify data was written correctly
+SELECT id, <relevant_columns> FROM <table_name> ORDER BY created_at DESC LIMIT 5;
+
+# Verify seed data was applied
+SELECT id, name, action, resource FROM permissions WHERE resource = '<resource>';
+
+# Verify role-permission assignments
+SELECT r.id, r.name, r.permissions FROM roles r WHERE '<permission_id>' = ANY(r.permissions);
+```
+
+Verify:
+- Data created by POST requests exists in the DB with correct field values
+- Timestamps (created_at, updated_at) are set correctly
+- Seed data (permissions, roles) was correctly loaded
+- Unique constraints prevent duplicates
+
+### 6d: End-to-End Flow Verification
+
+For features that span multiple operations, verify the full flow:
+
+```bash
+# 1. Create a resource
+RESPONSE=$(curl -s -X POST "$BASE_URL/api/<endpoint>" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $AUTH_TOKEN" \
+  -d '{"field": "value"}')
+RESOURCE_ID=$(echo $RESPONSE | python -c "import sys,json; print(json.load(sys.stdin)['id'])")
+
+# 2. Verify it was persisted
+PGPASSWORD=postgres psql -h localhost -U postgres -d access_forge \
+  -c "SELECT * FROM <table> WHERE id = '$RESOURCE_ID';"
+
+# 3. Update it
+curl -s -X PUT "$BASE_URL/api/<endpoint>/$RESOURCE_ID" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $AUTH_TOKEN" \
+  -d '{"field": "updated-value"}'
+
+# 4. Verify the update in DB
+PGPASSWORD=postgres psql -h localhost -U postgres -d access_forge \
+  -c "SELECT * FROM <table> WHERE id = '$RESOURCE_ID';"
+
+# 5. Delete it
+curl -s -X DELETE "$BASE_URL/api/<endpoint>/$RESOURCE_ID" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $AUTH_TOKEN"
+```
+
+### If verification fails:
+
+1. Identify which specific checks failed and why.
+2. Make corrective edits targeting the failing behavior.
+3. Re-run relevant tests:
+   ```bash
+   pytest tests/unit/<relevant-tests> -v
+   ```
+4. Commit the fixes:
+   ```bash
+   git add -A
+   git commit -m "<ticket-id>: fix <concise description of what was corrected>"
+   ```
+5. Re-verify (repeat Step 6b/6c/6d as appropriate).
+6. Iterate up to **3 times**. If checks still fail after 3 attempts, stop and report to the user with all evidence collected.
+
+---
+
+## Step 7: Final Checks
+
+Before opening the PR, run the full quality gauntlet:
+
+```bash
+# Format and lint
+ruff format .
+ruff check --fix .
+
+# Run all unit tests
+pytest tests/unit -x --timeout=60
+
+# Check for any uncommitted changes
+git status
+```
+
+If there are uncommitted changes (e.g. from lint fixes), commit them:
+```bash
+git add -A
+git commit -m "<ticket-id>: lint and format fixes"
+```
+
+---
+
+## Step 8: Open the PR
+
+Use the `gh` CLI to create the pull request.
+
+1. **Push the branch:**
+   ```bash
+   git push -u origin <branch-name>
+   ```
+
+2. **Read the PR template** and populate it:
+   ```bash
+   cat .github/pull_request_template.md
+   ```
+
+3. **Create the PR** with `gh`:
+   ```bash
+   gh pr create \
+     --title "<ticket-id>: <feature description>" \
+     --body "$(cat <<'EOF'
+   # AccessForge Pull Request
+
+   ## Description
+
+   <1-3 sentence summary of the feature, referencing the Linear ticket>
+
+   Linear: https://linear.app/modelcode/issue/<TICKET-ID>
+
+   ## Details
+
+   <Implementation approach, technical decisions, and any new dependencies>
+
+   - <Key change 1>
+   - <Key change 2>
+   - <Key change 3>
+
+   ## How did I test these changes?
+
+   - Ran full unit test suite (`pytest tests/unit`)
+   - Verified API endpoints via curl (correct status codes, response schemas)
+   - Verified DB state via psql after operations
+   - <Any additional verification steps taken>
+
+   ### Testing
+
+   - [x] Manual testing performed
+   - [x] Tests confirm expected behavior
+   - [ ] (Optional) This PR implements a fix and a regression test has been added
+
+   ### Security Considerations
+
+   - [x] Changes don't introduce new security risks
+   - [x] If a dependency has been added, it doesn't introduce security vulnerabilities.
+
+   ## SOC 2 Compliance Checklist
+
+   - [x] Code follows our coding standards and patterns
+   - [x] Authorization checks are implemented where necessary
+   - [x] Error handling follows our standards and properly logs errors
+   - [x] Input validation is implemented for user inputs
+   - [x] Secret management guidelines followed (no hardcoded credentials)
+   - [x] Logging properly implemented (no sensitive data in logs)
+   EOF
+   )"
+   ```
+
+4. **Return the PR URL** to the user.
+
+---
+
+## Summary of Execution Order
+
+```
+Step 0: Parse spec files → extract ticket, tasks, architecture, context
+Step 1: Create/checkout feature branch off main
+Step 2: [PARALLEL] Research GitHub PRs (A) + Read Linear ticket (B) + Investigate codebase (C)
+Step 3: Database setup (if needed) — verify Postgres, run migrations
+Step 4: Implement feature tasks sequentially (commit after each task)
+Step 5: Write unit tests, run them, fix failures
+Step 6: Verify implementation (curl for API, psql for DB)
+Step 7: Final lint/format/test pass
+Step 8: Open PR via gh CLI
+```
+
+---
+
+## Key Conventions Reminder
+
+- **Imports:** All at the top of the file, no inline imports
+- **Logging:** `%s`-style lazy formatting, never f-strings; use `logger.exception()` for errors
+- **Config:** Pydantic `Settings` in `app/settings.py` — update README + `.env.example` + silos when adding new env vars
+- **DB:** Async SQLModel/SQLAlchemy sessions; database name is `access_forge` (or `access_forge_test` for tests)
+- **Permissions:** ID format `{resource}_{action}` (e.g. `project_view`); use `scripts/add_permission.py` to add
+- **Seed data:** JSON files in `seed-data/` — `permissions.json`, `roles.json`, `tenant_role_templates.json`
+- **Auth:** JWT + Stytch SSO; permission enforcement via `require_permissions` dependency
+- **Migrations:** Alembic in `alembic/versions/`
+- **Testing:** `pytest-asyncio`, `@pytest.mark.unit`, flat structure in `tests/unit/`, mock external deps
+- **PR titles:** Always prefix with `ENG-XXXX:` or `INFRA-XXXX:`
+- **Server port:** 9966 (default)
+- **Browser automation:** Use `agent-browser --session-name infra` for any browser tasks
+- **GitHub operations:** Always use `gh` CLI (never manual browser GitHub workflows)

@@ -1,0 +1,66 @@
+---
+globs: app/**/*.{ts,tsx},components/**/*.{ts,tsx},hooks/**/*.{ts,tsx},services/**/*.{ts,tsx},stores/**/*.{ts,tsx},utils/i18n/**/*.{ts,tsx},utils/timeUtils.ts,messages/**/*.json
+alwaysApply: false
+---
+
+````cursorrules
+# I18n Standards
+
+Use `next-intl` + shared i18n primitives for all new user-facing copy and formatting logic.
+
+## Required APIs
+
+- **Client UI**: use `useTranslations(...)` for labels, titles, tooltips, placeholders, empty states, and button text.
+- **Server/API routes**: use `t(request, ...)` for user-facing response messages (`NextResponse.json`, error bodies, etc.).
+- **Never** add new hardcoded user-visible English in `app/`, `components/`, `hooks/`, `services/`, or API routes.
+- Locale and timezone resolution must stay in shared helpers/cookie flow; do not add ad-hoc parsing.
+
+## Lint enforcement workflow
+
+- The i18n ESLint rule (`no-restricted-syntax` in `.eslintrc.cjs`) is the source of truth for blocking raw JSX strings.
+- Existing debt is tracked in `.eslint-i18n-grandfather.json`.
+- When you fully migrate a grandfathered file, remove that file from `.eslint-i18n-grandfather.json` in the same change.
+
+## ICU and message shape
+
+- For counts, use ICU plural messages in catalog JSON (`{count, plural, one {...} other {...}}`), not inline ternaries.
+- For mixed formatting/inline elements where word order may vary by locale, use a single message with `t.rich(...)` instead of prefix/suffix key splitting.
+- Keep message keys feature-scoped (`shared.*`, `projects.detail.*`, `knowledge.*`, etc.); do not invent one-off key trees.
+- Do not change existing English copy while migrating; only move copy into message catalogs and reference keys.
+
+## Formatting primitives
+
+Prefer shared formatter primitives over ad-hoc `toLocale*` calls:
+
+- Relative time in React: `FormatRelativeTime`
+- Date in React: `FormatDate`
+- Date+time in React: `FormatDateTime`
+- Duration in React: `FormatDuration`
+
+Use formatter functions directly when component wrappers are unnecessary:
+
+- `formatNumber(...)`
+- `formatCurrency(...)`
+- `formatDate(...)`
+- `formatRelativeTime(...)`
+- `formatDurationShort(...)`
+
+## Timezone and SSR behavior
+
+- `i18n/request.ts` must return both `locale` and `timeZone` from shared server helpers.
+- Persist client timezone in `TIMEZONE_COOKIE_NAME` via `TimeZoneCookieSync`; cookie max age should remain one year.
+- `FormatDate` / `FormatDateTime` / `FormatRelativeTime` should use `useTimeZone()` (from Next Intl provider), not ad-hoc browser timezone logic in each callsite.
+
+## Navigation and layout enforcement
+
+- Shared app navigation labels (sidebar/header/user menu) must come from `shared.*` translation keys.
+- New layout-level text should default to `shared.navigation.*` / `shared.sidebar.*` unless clearly feature-specific.
+
+## Practical guidance
+
+- Use `FormatRelativeTime` for timestamps that should update while a view is open.
+- Use `FormatDate` / `FormatDateTime` for static date rendering in JSX.
+- Avoid introducing `toLocaleDateString()` / `toLocaleString()` directly in components.
+- Keep namespaces semantic and stable (for example `projects.detail.codeQualityAnalysisDrawer` rather than implementation-specific naming).
+- If a new shared display pattern emerges for numbers/currency, add a primitive intentionally (do not create one-offs).
+````

@@ -1,0 +1,112 @@
+# Adding Analytics Events in lens-www
+
+Two patterns: **client-side** (React hook) and **server-side** (Next.js API routes).
+
+## Decision: Client vs Server
+
+| Pattern | When to Use |
+|---------|------------|
+| Client-side (`useAnalytics`) | UI interactions: clicks, hovers, drawer opens, navigation, form submissions |
+| Server-side (`trackServerEvent`) | Proxied service responses in API routes: OAuth callbacks, external service completions |
+
+## Client-Side Analytics
+
+### Step 1: Add the event constant
+
+In `constants/analyticsEvents.ts`, add to the appropriate category (or create a new one):
+
+```typescript
+export const ANALYTICS_EVENTS = {
+  MY_FEATURE: {
+    ACTION_TAKEN: 'my_feature:action_taken',
+    ACTION_COMPLETED: 'my_feature:action_completed',
+  },
+} as const;
+```
+
+### Step 2: Add the type to `AnyAnalyticsEvent`
+
+At the bottom of `constants/analyticsEvents.ts`:
+
+```typescript
+export type AnyAnalyticsEvent =
+  // ... existing types ...
+  | (typeof ANALYTICS_EVENTS.MY_FEATURE)[keyof typeof ANALYTICS_EVENTS.MY_FEATURE];
+```
+
+### Step 3: Use in components
+
+```typescript
+import useAnalytics from '@/hooks/useAnalytics';
+
+function MyComponent() {
+  const { track, EVENTS } = useAnalytics();
+
+  const handleAction = () => {
+    track(EVENTS.MY_FEATURE.ACTION_TAKEN, { feature_id: 'abc' });
+  };
+
+  return <button onClick={handleAction}>Do Thing</button>;
+}
+```
+
+### Options
+
+- `sendInstantly: true` — Use before page redirects (e.g., OAuth flows, `sendInstantly` skips the batch queue)
+- `trackPageView(pageName)` — For page-level tracking
+- `trackApiError(endpoint, statusCode, errorMessage?)` — For API error tracking
+
+## Server-Side Analytics
+
+### When to use
+
+Events that fire from Next.js API route handlers (the BFF layer), particularly for:
+- OAuth callback completions
+- External service integration results
+- Any event where client-side tracking is unreliable (adblockers, tab closures)
+
+### Usage
+
+```typescript
+import { trackServerEvent } from '@/services/analytics/serverTrack';
+import { getAccessForgeUserInfo } from '@/utils/getServerUserContext';
+
+export async function POST(request: NextRequest) {
+  // ... handle request logic ...
+  const result = await externalService();
+
+  if (result.success) {
+    const { userUuid, tenantId } = await getAccessForgeUserInfo();
+    await trackServerEvent('my_feature:completed', {
+      userUuid,
+      tenantId,
+      properties: { result_type: result.type },
+    });
+  }
+
+  return NextResponse.json(result);
+}
+```
+
+### Rules
+
+- `trackServerEvent` **never throws** — wrapped in try/catch internally
+- Always await it (flushes immediately for serverless correctness)
+- Get `userUuid` and `tenantId` via `getAccessForgeUserInfo()`
+- Properties must not contain PII
+
+## Event Naming Convention
+
+Format: `category:action` — lowercase, underscores for multi-word categories/actions.
+
+Examples: `auth:login`, `project:click`, `milestone:expanded`, `github:app_install_completed`
+
+## Do NOT Track Here
+
+- Data CRUD operations (project create, spec approve) → track in **morph**
+- Auth/billing lifecycle (signup, login, payment) → track in **access-forge**
+
+## Register in PostHog
+
+After adding the event in code, register it at:
+https://us.posthog.com/project/295145/data-management/events → Create event

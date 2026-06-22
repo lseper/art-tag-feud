@@ -1,0 +1,282 @@
+---
+description: Implement a new feature from a set of spec files (design doc, condensed summary, and PR task list)
+alwaysApply: false
+---
+
+# Implement Feature
+
+When invoked, you receive **1 spec file path** that describes the feature to implement:
+
+Your job is to understand the feature holistically, implement the tasks from the PR task list, verify everything works in the browser, and open a PR — all without asking the user to do anything manually.
+
+---
+
+## Step 0: Parse the Specs
+
+1. Read all three spec files in full.
+2. From the **PR task list**, extract:
+   - **Ticket ID** — the `ENG-XXXX` string (case-insensitive). Normalize to lowercase for branch naming.
+   - **Task items** — the discrete units of work to complete in this PR.
+3. From the **condensed summary**, extract:
+   - **Feature name** — a short name for the feature.
+   - **Key context** — important decisions, constraints, or gotchas.
+   - **Relevant PRs/issues** — any linked GitHub PRs or Linear tickets.
+4. From the **full design doc**, extract:
+   - **Architecture overview** — how this feature fits into the existing system.
+   - **Data models / API contracts** — schemas, endpoints, event types, or hooks relevant to your tasks.
+   - **Implementation guidance** — any recommended patterns, hooks, components, or approaches.
+5. Determine the current OS user for the branch prefix by running `whoami`.
+6. Construct the **branch name**: `<whoami>-<ticket-id-lowercase>` (e.g. `lseper-eng-2100`).
+
+---
+
+## Step 1: Prepare the Branch
+
+Run these commands sequentially in the `lens-www` directory:
+
+```bash
+git fetch origin main
+git checkout -b <branch-name> origin/main
+```
+
+> NOTE: If a different base branch is, base the feature branch off of that different branch, instead of main. e.g.
+```bash
+git fetch origin main
+git checkout -b different-branch origin/main
+```
+
+If the branch already exists locally, check it out and rebase onto `origin/main` instead:
+
+```bash
+git checkout <branch-name>
+git rebase origin/main
+```
+
+---
+
+## Step 2: Gather External Context
+
+Before writing any code, gather additional context from external sources referenced in the specs. Launch subagents **in parallel** as needed.
+
+### Subagent A — GitHub PR Research (if referenced PRs exist)
+
+Launch a **browser-use subagent** to read referenced GitHub PRs for implementation patterns and prior art.
+
+> You are researching GitHub pull requests for context on an upcoming feature implementation.
+>
+> **PRs to review:** <list of PR URLs from the specs>
+>
+> Use `--session-name github` for all agent-browser commands.
+>
+> 1. For each referenced PR, open it:
+>    ```bash
+>    agent-browser --session-name github open <PR URL>
+>    agent-browser --session-name github wait --load networkidle
+>    ```
+> 2. Read the PR description, review the "Files changed" tab, and note:
+>    - What patterns were introduced (hooks, components, API routes, state management)
+>    - What naming conventions were used
+>    - How the feature integrates with existing code
+>    - Any reviewer feedback or follow-up items
+> 3. If a PR has many files, focus on the files most relevant to the tasks in this PR.
+>
+> Return a structured report:
+> - **Per-PR summary** — what was implemented, key patterns used
+> - **Relevant code patterns** — hooks, components, utilities introduced
+> - **Integration points** — how the prior work connects to the current tasks
+> - **Open items** — any TODOs, follow-ups, or known issues from PR comments
+
+### Subagent B — Linear Ticket Research (if Linear URLs exist)
+
+Launch a **browser-use subagent** to read the Linear ticket for additional acceptance criteria or context.
+
+> You are reading a Linear ticket for context on a feature implementation.
+>
+> **Linear ticket:** <URL>
+>
+> Use `--session-name linear` for all agent-browser commands.
+>
+> 1. Open the Linear board:
+>    ```bash
+>    agent-browser --session-name linear open https://linear.app/modelcode/team/ENG/all
+>    agent-browser --session-name linear wait --load networkidle
+>    ```
+> 2. Find and open the specific ticket. Read:
+>    - Title and description
+>    - Acceptance criteria
+>    - Comments and discussion
+>    - Sub-issues or related issues
+>    - Attached files or links
+>
+> Return:
+> - **Ticket summary** — title, description, acceptance criteria
+> - **Additional context** — anything from comments or sub-issues not captured in the spec files
+> - **Dependencies** — any blockers or prerequisite work mentioned
+
+### Subagent C — Codebase Investigation
+
+Launch an **explore subagent** to understand the existing codebase areas relevant to the feature.
+
+> You are investigating the codebase to understand the existing architecture relevant to a new feature.
+>
+> **Feature:** <feature name>
+> **Architecture overview from design doc:** <relevant architecture section>
+> **Tasks to implement:** <task list>
+>
+> Your goal is to map the existing code that this feature will touch or extend. Do NOT make any changes.
+>
+> 1. Search for existing components, hooks, API routes, stores, and utilities related to the feature area.
+> 2. Read each relevant file thoroughly. Pay attention to:
+>    - Existing patterns for similar features (how are other real-time updates handled? how are similar UI components structured?)
+>    - State management patterns (Zustand stores, React Query, context)
+>    - API route conventions and data fetching patterns
+>    - Component composition and prop patterns
+>    - Type definitions and shared interfaces
+> 3. Identify **extension points** — where new code should be added vs. where existing code needs modification.
+> 4. Identify **shared utilities** that should be reused rather than duplicated.
+>
+> Return a structured report:
+> - **Relevant files** (with line ranges and purpose)
+> - **Existing patterns to follow** (with code examples)
+> - **Extension points** (where to add new code)
+> - **Shared code to reuse** (utilities, types, hooks)
+> - **Risk areas** (components or flows that might be affected by the changes)
+
+---
+
+## Step 3: Implement the Feature
+
+After all research subagents return, synthesize their findings and implement the feature task by task.
+
+1. **Create an implementation plan** — Map each task from the PR task list to specific files and changes needed. Order tasks by dependency (foundational pieces first, UI last).
+2. **Implement each task sequentially:**
+   - Follow the patterns identified by the codebase investigation (Subagent C).
+   - Mirror conventions from referenced PRs (Subagent A) when extending prior work.
+   - Follow the project's existing patterns:
+     - Use `cn()` from `clsx` for conditional classNames
+     - No inline styles for visual state — use className toggles
+     - CSS changes go in `workshop.css`
+     - Follow existing component/hook/store patterns in the file
+   - Adhere to the architecture from the design doc — don't deviate without good reason.
+3. **Lint check** — After each logical group of edits, run lints on all changed files. Fix any lint errors you introduced.
+4. **Commit incrementally** — After completing each distinct task item, commit:
+   ```bash
+   git add -A
+   git commit -m "<ticket-id>: <concise description of what was implemented>"
+   ```
+
+---
+
+## Step 4: Rule Adherence Review
+
+Before verifying in the browser, review all changed files against the project's cursor rules in `.cursor/rules/team/`. This catches structural and convention violations early so they don't leak into the PR.
+
+### 4a. Audit changed files against rules
+
+For **every file you created or modified**, check the following (referencing the specific rule file):
+
+| Area | Rule file | What to check |
+|---|---|---|
+| **React effects** | `effect-alternatives.mdc` | No `useEffect` for derived state, prop-to-state sync, or event logic. Derive in render, use event handlers, or keyed resets. Every remaining `useEffect` must synchronize with an external system. |
+| **UI structure** | `ui-core.mdc`, `tsx-rules.mdc` | Every element has a className, `cn()` from clsx for conditionals, no inline styles for visual state, no CSS imports in components. |
+| **CSS conventions** | `css-rules.mdc`, `css-organization.mdc`, `css-variables.mdc` | New CSS in `workshop.css` with dramatic block comments, selectors in DOM order, CSS variables only (no hardcoded px/colors), max 2-level nesting, class selectors only. |
+| **Collision check** | `collision-management.mdc` | Every new className searched globally — zero collisions. |
+| **Design system** | `design-system-components.mdc` | Existing shared components used where applicable (check `components/morph/` and Ladle stories). |
+| **Security** | `security.mdc` | `requirePermission` in every new API route, `PermissionGate` for page-level gating, permissions exist in access-forge, no raw header/cookie logging. |
+| **Server env** | `server-env.mdc` | Server-side env access via `env` from `@/utils/env.server`, never `process.env` directly. |
+| **Effect alternatives** | `effect-alternatives.mdc` | Decision order followed (derive → event handler → server load → query hook → key reset → external store → useEffect). |
+
+### 4b. Fix violations
+
+If any violations are found:
+1. Fix them in the relevant files.
+2. Run lints on the fixed files.
+3. Commit the fixes:
+   ```bash
+   git add -A
+   git commit -m "<ticket-id>: align with project conventions"
+   ```
+
+---
+
+## Step 5: Verify the Implementation (agent-browser)
+
+Launch a **browser-use subagent** to verify the feature works in the running application.
+
+> You are verifying that a new feature has been correctly implemented in the running application.
+>
+> **Feature:** <feature name>
+> **Tasks implemented:** <list of completed tasks>
+> **Expected behavior:** <expected behavior derived from specs>
+>
+> Use `--session-name lens-www` for all agent-browser commands.
+>
+> **IMPORTANT:** Executions within this application can take upwards of multiple minutes to resolve. Be patient. When waiting for an execution or async operation, poll by re-snapshotting every 15-30 seconds to monitor progress. Do NOT give up after a single check.
+>
+> 1. The dev server should hot-reload with the changes. If not, wait a few seconds and refresh:
+>    ```bash
+>    agent-browser --session-name lens-www open http://localhost:3000
+>    agent-browser --session-name lens-www wait --load networkidle
+>    ```
+> 2. If you need to log in, use the GitHub OAuth flow. The `lens-www` session should preserve auth. If redirected to login, snapshot, find the GitHub button, and click it.
+> 3. Navigate to the area of the app where the feature was implemented.
+> 4. **Verify each task item:**
+>    - Walk through each task from the PR task list and confirm it works as specified.
+>    - Test the happy path for each piece of functionality.
+>    - Test edge cases: empty states, loading states, error states, rapid interactions.
+>    - Test page refresh persistence — does state survive a reload where expected?
+>    - Test navigation — does navigating away and back preserve expected state?
+> 5. Take **screenshots** of key states:
+>    ```bash
+>    agent-browser --session-name lens-www screenshot feature-<name>.png
+>    ```
+> 6. If any task is **NOT working**, return a detailed report of what you observe, including snapshots and screenshots.
+> 7. If all tasks **ARE working**, confirm success with evidence.
+>
+> Return:
+> - **Status:** PASS or FAIL
+> - **Per-task verification:** each task item and whether it passed
+> - **Evidence:** screenshot paths, what you observed
+> - **Edge cases tested** and results
+> - If FAIL: detailed description of each failing task and observed behavior
+
+For detailed instructions on how to test specific feature flows with test example data, delegate to subagents in `lens-www/.cursor/feature-flows`
+
+### If verification fails (FAIL):
+
+1. Re-read the subagent's report carefully.
+2. Identify which specific tasks failed and why.
+3. Make corrective edits targeting the failing tasks.
+4. Commit the fixes:
+   ```bash
+   git add -A
+   git commit -m "<ticket-id>: fix <concise description of what was corrected>"
+   ```
+5. Re-launch the verification subagent (repeat Step 5).
+6. Iterate up to **3 times**. If tasks still fail after 3 attempts, stop and report to the user with all evidence collected.
+
+---
+
+## Step 6: Open the PR
+
+Delegate to the **make-lens-pr** rule (`.cursor/rules/make-lens-pr.mdc`).
+
+Invoke the PR rule with:
+- **Source branch:** `<branch-name>`
+- **Destination branch:** `main`
+
+The PR title should start with the ticket ID and summarize the feature (e.g. `ENG-2100: Add SSE event listeners for milestone updates`). The description should reference the Linear ticket URL and summarize what was implemented from the PR task list.
+
+---
+
+## Summary of Execution Order
+
+```
+Step 0: Parse all three spec files → extract ticket, tasks, architecture, context
+Step 1: Create/checkout feature branch off main
+Step 2: [PARALLEL] Research GitHub PRs (A) + Read Linear ticket (B) + Investigate codebase (C)
+Step 3: Implement feature tasks sequentially (commit after each task)
+Step 4: Review changed files against .cursor/rules/team/ conventions → fix violations
+Step 5: Verify implementation in browser (loop up to 3x if failing)
+Step 6: Delegate → make-lens-pr rule
+```

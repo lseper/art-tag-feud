@@ -1,0 +1,29 @@
+---
+description: Use env.server.ts for server environment variables
+alwaysApply: true
+---
+
+````cursorrules
+# Server Environment Variable Access
+
+When writing or updating server-side code, always access environment variables through
+`env` from `@/utils/env.server`.
+
+## Required pattern
+
+```typescript
+import { env } from '@/utils/env.server';
+
+const morphUrl = env.MORPH_URL;
+```
+
+## Avoid
+
+- `process.env.*` directly in server routes, server actions, utilities, and services
+- duplicating ad-hoc env parsing logic when `env.server.ts` already defines it
+
+## Notes
+
+- Client components should never import `@/utils/env.server`.
+- If a needed variable is missing from `env.server.ts`, add it there first, then consume via `env`.
+````
