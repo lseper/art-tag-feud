@@ -83,7 +83,7 @@ const IconPicker: React.FC<Props> = ({allIcons} : Props) => {
                 }
                 return <li className={buttonClass}>
                   <CharacterName>{gameIcon.character}</CharacterName>
-                  <button onClick={() => selectIcon(gameIcon.file)}>{buildUIIconImg(false, 'profile_icons/', gameIcon.file)}</button>
+                  <button onClick={() => selectIcon(gameIcon.file)}>{buildUIIconImg(false, 'profile_icons/sfw', gameIcon.file)}</button>
                   <IconArtist href={gameIcon.source}>
                     <span style={{color: '#b4c7d9'}}>art by </span>
                     {gameIcon.artist}
