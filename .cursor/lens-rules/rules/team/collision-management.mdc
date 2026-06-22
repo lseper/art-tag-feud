@@ -1,0 +1,230 @@
+---
+globs: *.css, *.tsx
+alwaysApply: true
+---
+
+````cursorrules
+# ClassName Collision Management
+
+## 🚨 CRITICAL: Global CSS Requires Unique ClassNames
+
+**Since you're using GLOBAL CSS, className collisions will silently break components.** You MUST check for collisions and unused CSS EVERY time.
+
+A duplicate className will override styles from other components - this is UNFORGIVABLE.
+
+## Before Creating ANY New ClassName
+
+### STEP 1: Search for collisions
+
+```bash
+# In your IDE, use Cmd+F (global search) for EACH new className
+# Example: Before adding "task-card-header"
+Search: "task-card-header"
+# If ANY results appear (in CSS or TSX), choose a DIFFERENT name
+```
+
+**You MUST do this for EVERY className before using it.**
+
+### STEP 2: Make it unique
+
+```tsx
+// ❌ COLLISION - Already exists elsewhere
+<div className="card-header">
+
+// ✅ UNIQUE - Component-specific prefix
+<div className="task-card-header">
+
+// ✅ UNIQUE - Creative but descriptive (if namespace crowded)
+<div className="task-card-summit">  // "summit" = top of card
+```
+
+### STEP 3: Document the check (optional but recommended)
+
+```tsx
+// Checked: 'task-card-*' namespace clear as of 2025-10-08
+export default function TaskCard() {
+  /* ... */
+}
+```
+
+## Choosing Unique ClassNames
+
+### ❌ BAD - Too generic, likely to collide
+
+```tsx
+<div className="container">
+<div className="header">
+<button className="button">
+<div className="wrapper">
+<div className="box">
+```
+
+### ✅ GOOD - Specific to component, unlikely to collide
+
+```tsx
+<div className="sidebar-container">
+<div className="sidebar-header">
+<button className="sidebar-toggle-button">
+<div className="modal-wrapper">
+<div className="task-card-box">
+```
+
+## After Editing ANY Component
+
+### STEP 1: Find all classNames in CSS file
+
+```bash
+# List all selectors in your CSS
+# Example: styles/workshop.css contains:
+.task-card
+.task-card-header
+.task-card-title
+.task-card-body
+.task-card-footer-old  # ← Is this still used?
+```
+
+### STEP 2: Search for usage in TSX
+
+```bash
+# For EACH className in CSS, search across all components
+Search in components/: "task-card-footer-old"
+# If NO results → DELETE from CSS immediately
+```
+
+### STEP 3: Remove dead CSS
+
+```css
+/* styles/workshop.css - BEFORE cleanup */
+.task-card {}
+.task-card-header {}
+.task-card-footer-old {} /* ❌ UNUSED - DELETE */
+.task-card-deprecated {} /* ❌ UNUSED - DELETE */
+
+/* styles/workshop.css - AFTER cleanup */
+.task-card {}
+.task-card-header {}
+/* All classes verified in use ✅ */
+```
+
+## Automated Checks
+
+### Check for duplicate classNames across codebase
+
+```bash
+# Find all className declarations
+grep -r 'className=' --include="*.tsx" | cut -d'"' -f2 | sort | uniq -d
+# Any output = COLLISION → Fix immediately
+```
+
+### Check for unused CSS in a stylesheet
+
+```bash
+# For a specific stylesheet (example: workshop.css)
+# 1. Extract CSS classNames
+grep -o '\.[a-z-]*' styles/workshop.css | sort -u > css-classes.txt
+
+# 2. Check each against all TSX files
+while read class; do
+  grep -q "$class" components/**/*.tsx || echo "UNUSED: $class"
+done < css-classes.txt
+```
+
+## Creative Naming When Namespace Gets Crowded
+
+If you have many similar components (e.g., multiple card types), use creative but clear names:
+
+```tsx
+// ❌ COLLISION RISK - Too generic
+<div className="card-header">
+<div className="card-body">
+
+// ✅ UNIQUE - Descriptive prefix
+<div className="profile-card-header">
+<div className="settings-card-header">
+<div className="dashboard-card-header">
+
+// ✅ UNIQUE - Creative synonyms (when namespace is very crowded)
+<div className="profile-card-summit">      // summit = top
+<div className="profile-card-foundation">  // foundation = bottom
+<div className="profile-card-spine">       // spine = main content
+<div className="profile-card-wings">       // wings = side panels
+
+// The creativity helps avoid collisions while staying memorable
+```
+
+## Collision Prevention Strategies
+
+### 1. Component prefix
+
+Start every className with component name:
+
+```css
+.user-profile-header {}
+.user-profile-body {}
+.user-profile-footer {}
+```
+
+### 2. Feature prefix
+
+For shared UI, use feature name:
+
+```css
+.auth-form-field {}
+.auth-form-button {}
+.auth-form-error {}
+```
+
+### 3. Hybrid approach
+
+Component + feature + element:
+
+```css
+.sidebar-nav-list {}
+.sidebar-nav-item {}
+.sidebar-nav-link {}
+```
+
+### 4. Creative descriptors
+
+When namespace is crowded, use synonyms:
+
+```css
+/* All mean "background overlay" */
+.modal-backdrop {}
+.modal-scrim {}
+.modal-veil {}
+
+/* All mean "top section" */
+.card-header {}
+.card-summit {}
+.card-crown {}
+```
+
+## ClassNames Enable Cmd+F Workflow
+
+Every className must be easily findable via search. Use descriptive names that appear NOWHERE else.
+
+**The workflow should be:**
+1. Inspect element in browser
+2. See className
+3. Cmd+F in editor
+4. Find code instantly
+
+**If this fails, your naming failed.**
+
+## REMEMBER
+
+**Uniqueness > Brevity.** A longer, unique className is infinitely better than a short, colliding one.
+
+**ALWAYS:**
+- Search (Cmd+F) before creating a new className
+- Make classNames component-specific
+- Remove unused CSS classes
+- Check for collisions regularly
+
+**NEVER:**
+- Reuse generic classNames (`container`, `wrapper`, `button`, `header`)
+- Skip the collision check (it takes 2 seconds, saves hours of debugging)
+- Leave unused CSS in stylesheets
+- Create global utility classes (only humans create those)
+````

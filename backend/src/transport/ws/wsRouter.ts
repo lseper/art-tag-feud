@@ -1,0 +1,464 @@
+import type { RawData, WebSocket, WebSocketServer } from 'ws';
+import {
+    EventType,
+    GuessTagEventData,
+    SetUsernameEventData,
+    SetUserIconEventData,
+    GetSelectedIconsEventData,
+    CreateRoomEventData,
+    AllRoomsEventData,
+    JoinRoomEventData,
+    LeaveRoomEventData,
+    RequestPostEventData,
+    ReadyUpEventData,
+    StartGameEventData,
+    UpdateBlacklistEventData,
+    UpdatePreferlistEventData,
+    UpdateRoomSettingsEventData,
+    RequestBotFillEventData,
+    RouletteVoteSkipEventData,
+    PuzzlePlacePieceEventData,
+} from '../../domain/contracts';
+import type {
+    AllRoomsEventDataToClientType,
+    EndGameEventDataToClientType,
+    GetSelectedIconsEventDataToClientType,
+    JoinRoomEventDataToClientType,
+    LeaveRoomEventDataToClientType,
+    ReadyUpEventDataToClientType,
+    RequestPostEventDataToClientType,
+    SetUserIconEventDataToClientType,
+    SetUsernameEventDataToClientType,
+    ShowLeaderboardEventDataToClientType,
+    SyncRoundStateEventDataToClientType,
+    UpdateBlacklistEventDataToClientType,
+    UpdatePreferlistEventDataToClientType,
+    UpdateRoomSettingsEventDataToClientType,
+    RouletteSkipUpdateEventDataToClientType,
+    RouletteAllTagsGuessedEventDataToClientType,
+    PuzzlePlacePieceEventDataToClientType,
+} from '../../domain/contracts';
+import { convertServerRoomToClientRoom } from '../../domain/roomUtils';
+import { activeGames, users } from '../../state/store';
+import { broadcast, broadcastToRoom, reply } from './wsBroadcast';
+import { getOrCreateUser, setUserIcon, setUsername } from '../../services/userService';
+import { getAllRooms, getRoom, getSelectedIcons, createOrUpdateRoom, joinRoom, leaveRoom, updateRoomReadyState, updateRoomBlacklist, updateRoomPreferlist, updateRoomSettings } from '../../services/roomService';
+import { handleGuessTag } from '../../services/guessService';
+import { handleRequestPost } from '../../services/postService';
+import { ensureActiveGame } from '../../services/gameService';
+import { createBotsForRoom } from '../../services/botService';
+import { handleVoteSkip } from '../../services/rouletteService';
+import { handlePuzzlePlacePiece, handlePuzzleComplete } from '../../services/puzzleService';
+
+const handleMessage = async (server: WebSocketServer, response: WebSocket, data: RawData) => {
+    const dataJSON = JSON.parse(data.toString());
+    const messageType = dataJSON.type;
+
+    switch (messageType) {
+        case EventType.enum.GUESS_TAG: {
+            const result = GuessTagEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const guessResult = await handleGuessTag(data.roomID, data.user.id, data.tag);
+            if (!guessResult) break;
+
+            const room = getRoom(data.roomID);
+            if (!room) break;
+
+            if (room.gameMode === 'Roulette') {
+                const rr = guessResult.rouletteResult;
+                if (!rr) break;
+                if (rr.kind === 'correct' || rr.kind === 'all_tags_guessed') {
+                    broadcastToRoom(room, { type: EventType.enum.GUESS_TAG, tag: guessResult.tag, user: guessResult.user });
+                }
+                if (rr.kind === 'all_tags_guessed') {
+                    broadcastToRoom<RouletteAllTagsGuessedEventDataToClientType>(room, { type: EventType.enum.ROULETTE_ALL_TAGS_GUESSED });
+                    // Auto-advance to next post
+                    const postResult = await handleRequestPost(data.roomID, data.user.id);
+                    if (postResult.kind === 'send_post') {
+                        broadcastToRoom<RequestPostEventDataToClientType>(room, {
+                            type: EventType.enum.REQUEST_POST,
+                            post: postResult.post,
+                            botActionSequence: postResult.botActionSequence ?? undefined,
+                        });
+                    }
+                }
+                break;
+            }
+
+            const guessTagData = { type: EventType.enum.GUESS_TAG, tag: guessResult.tag, user: guessResult.user };
+            broadcastToRoom(guessResult.room, guessTagData);
+            break;
+        }
+        case EventType.enum.SET_USERNAME: {
+            const result = SetUsernameEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const userID = getOrCreateUser(response, data.userID);
+            const user = await setUsername(userID, data.username);
+            if (user) {
+                const userToChangeResponseData: SetUsernameEventDataToClientType = { type: EventType.enum.SET_USERNAME, user };
+                reply(response, userToChangeResponseData);
+            }
+            break;
+        }
+        case EventType.enum.SET_ICON: {
+            const result = SetUserIconEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const userID = getOrCreateUser(response, data.userID);
+            const room = getRoom(data.roomID);
+            if (room) {
+                const iconResult = await setUserIcon(userID, room.id, data.icon);
+                if (iconResult) {
+                    const responseData: SetUserIconEventDataToClientType = iconResult.pastIcon
+                        ? { type: EventType.enum.SET_ICON, userID, icon: iconResult.user.icon, pastIcon: iconResult.pastIcon }
+                        : { type: EventType.enum.SET_ICON, userID, icon: iconResult.user.icon };
+                    broadcastToRoom(room, responseData);
+                }
+            } else {
+                const roomId = (room ?? { id: 'NULL'}).id;
+                console.error(`user ${userID} or room ${roomId}} does not exist`);
+            }
+            break;
+        }
+        case EventType.enum.GET_SELECTED_ICONS: {
+            const result = GetSelectedIconsEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const { roomID } = result.data;
+            const selectedIcons = getSelectedIcons(roomID);
+            if (!selectedIcons) {
+                break;
+            }
+            const responseData: GetSelectedIconsEventDataToClientType = { type: EventType.enum.GET_SELECTED_ICONS, selectedIcons };
+            reply(response, responseData);
+            break;
+        }
+        case EventType.enum.CREATE_ROOM: {
+            const result = CreateRoomEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const userID = getOrCreateUser(response, data.userID);
+            const createResult = await createOrUpdateRoom(
+                userID,
+                data.roomName,
+                data.postsPerRound,
+                data.roundsPerGame,
+                data.roomID,
+                data.gameMode,
+                data.rating,
+                data.isPrivate,
+                data.botCount,
+                data.botDifficulties,
+                data.startingLives,
+                data.turnTimeMs,
+                data.puzzleTimerSeconds,
+            );
+            if (createResult) {
+                const roomToClient = createResult.roomToClient;
+                broadcast<JoinRoomEventDataToClientType>(server, { type: EventType.enum.JOIN_ROOM, user: createResult.user, room: roomToClient });
+            }
+            break;
+        }
+        case EventType.enum.ALL_ROOMS: {
+            const roomsToSend = getAllRooms();
+            reply<AllRoomsEventDataToClientType>(response, { type: EventType.enum.ALL_ROOMS, rooms: roomsToSend });
+            break;
+        }
+        case EventType.enum.JOIN_ROOM: {
+            const result = JoinRoomEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const { roomID, roomCode } = result.data;
+            const userID = getOrCreateUser(response, result.data.userID);
+            const joinResult = await joinRoom(roomID, roomCode, userID);
+            if (joinResult) {
+                broadcastToRoom<JoinRoomEventDataToClientType>(joinResult.room, { type: EventType.enum.JOIN_ROOM, user: joinResult.user, room: joinResult.roomToClient });
+                const activeGame = activeGames.get(joinResult.room.id);
+                const currentPost = activeGame?.currentPost;
+                if (currentPost) {
+                    const guessedTags = [...(activeGame?.currentRoundGuesses?.entries() ?? [])].flatMap(([tagName, guesserId]) => {
+                        const tag = currentPost.tags.find(existing => existing.name === tagName);
+                        const user = users.get(guesserId);
+                        if (!tag || !user) {
+                            return [];
+                        }
+                        return [{ tag, user }];
+                    });
+                    const roundStateData: SyncRoundStateEventDataToClientType = {
+                        type: EventType.enum.SYNC_ROUND_STATE,
+                        post: currentPost,
+                        guessedTags,
+                    };
+                    reply(response, roundStateData);
+                }
+            }
+            break;
+        }
+        case EventType.enum.LEAVE_ROOM: {
+            const result = LeaveRoomEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const { userID, roomID } = result.data;
+            const leaveResult = await leaveRoom(roomID, userID);
+            if (!leaveResult) {
+                break;
+            }
+            const iconData: SetUserIconEventDataToClientType = { type: EventType.enum.SET_ICON, userID, pastIcon: leaveResult.pastIcon };
+            broadcastToRoom(leaveResult.room, iconData);
+            if (leaveResult.shouldDeleteRoom) {
+                const newRooms = getAllRooms();
+                const data: AllRoomsEventDataToClientType = { type: EventType.enum.ALL_ROOMS, rooms: newRooms };
+                broadcast(server, data);
+                break;
+            }
+            const leaveData: LeaveRoomEventDataToClientType = { type: EventType.enum.LEAVE_ROOM, room: leaveResult.roomToClient! };
+            broadcastToRoom(leaveResult.room, leaveData);
+            break;
+        }
+        case EventType.enum.REQUEST_POST: {
+            const result = RequestPostEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const requestResult = await handleRequestPost(data.roomID, data.userID);
+            const room = getRoom(data.roomID);
+            if (!room) {
+                break;
+            }
+            if (requestResult.kind === 'end_game') {
+                broadcastToRoom<EndGameEventDataToClientType>(room, { type: EventType.enum.END_GAME });
+                break;
+            }
+            if (requestResult.kind === 'show_leaderboard') {
+                broadcastToRoom<ShowLeaderboardEventDataToClientType>(room, { type: EventType.enum.SHOW_LEADERBOARD });
+                break;
+            }
+            if (requestResult.kind === 'send_post') {
+                broadcastToRoom<RequestPostEventDataToClientType>(room, {
+                    type: EventType.enum.REQUEST_POST,
+                    post: requestResult.post,
+                    botActionSequence: requestResult.botActionSequence ?? undefined,
+                });
+                break;
+            }
+            broadcastToRoom<RequestPostEventDataToClientType>(room, { type: EventType.enum.REQUEST_POST });
+            break;
+        }
+        case EventType.enum.READY_UP: {
+            const result = ReadyUpEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const readyResult = await updateRoomReadyState(data.roomID, data.userID, data.ready);
+            if (readyResult) {
+                broadcastToRoom<ReadyUpEventDataToClientType>(readyResult.room, {
+                    type: EventType.enum.READY_UP,
+                    roomID: readyResult.room.id,
+                    room: readyResult.roomToClient,
+                });
+            }
+            break;
+        }
+        case EventType.enum.START_GAME: {
+            const result = StartGameEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const room = getRoom(data.roomID);
+            if (room) {
+                await ensureActiveGame(room, room.owner.id);
+                broadcastToRoom(room, { type: EventType.enum.START_GAME });
+            } else {
+                console.error(`room ${data.roomID} does not exist, so a game cannot be started in it`);
+            }
+            break;
+        }
+        case EventType.enum.UPDATE_BLACKLIST: {
+            const result = UpdateBlacklistEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const updateResult = await updateRoomBlacklist(data.roomID, data.tag, data.action);
+            if (!updateResult) {
+                break;
+            }
+            const responseData: UpdateBlacklistEventDataToClientType = {
+                type: EventType.enum.UPDATE_BLACKLIST,
+                roomID: updateResult.room.id,
+                blacklist: updateResult.room.blacklist,
+            };
+            broadcastToRoom(updateResult.room, responseData);
+            break;
+        }
+        case EventType.enum.UPDATE_PREFERLIST: {
+            const result = UpdatePreferlistEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const updateResult = await updateRoomPreferlist(data.roomID, data.tag, data.action, data.frequency);
+            if (!updateResult) {
+                break;
+            }
+            const responseData: UpdatePreferlistEventDataToClientType = {
+                type: EventType.enum.UPDATE_PREFERLIST,
+                roomID: updateResult.room.id,
+                preferlist: updateResult.room.preferlist,
+            };
+            broadcastToRoom(updateResult.room, responseData);
+            if (updateResult.removedFromBlacklist) {
+                const blacklistResponse: UpdateBlacklistEventDataToClientType = {
+                    type: EventType.enum.UPDATE_BLACKLIST,
+                    roomID: updateResult.room.id,
+                    blacklist: updateResult.room.blacklist,
+                };
+                broadcastToRoom(updateResult.room, blacklistResponse);
+            }
+            break;
+        }
+        case EventType.enum.UPDATE_ROOM_SETTINGS: {
+            const result = UpdateRoomSettingsEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const room = getRoom(data.roomID);
+            if (!room || room.owner.id !== data.userID) {
+                break;
+            }
+            const updateResult = await updateRoomSettings(
+                data.roomID,
+                data.roomName,
+                data.postsPerRound,
+                data.roundsPerGame,
+                data.botCount,
+                data.botDifficulties,
+                data.gameMode,
+                data.rating,
+                data.isPrivate,
+                data.startingLives,
+                data.turnTimeMs,
+                data.puzzleTimerSeconds,
+            );
+            if (!updateResult) {
+                break;
+            }
+            const responseData: UpdateRoomSettingsEventDataToClientType = {
+                type: EventType.enum.UPDATE_ROOM_SETTINGS,
+                roomID: updateResult.room.id,
+                roomName: updateResult.room.name,
+                postsPerRound: updateResult.room.postsPerRound,
+                roundsPerGame: updateResult.room.roundsPerGame,
+                botCount: updateResult.room.botCount,
+                botDifficulties: updateResult.room.botDifficulties,
+                gameMode: updateResult.room.gameMode,
+                rating: updateResult.room.rating,
+                roomCode: updateResult.room.roomCode,
+                isPrivate: updateResult.room.isPrivate,
+                startingLives: updateResult.room.startingLives,
+                turnTimeMs: updateResult.room.turnTimeMs,
+                puzzleTimerSeconds: updateResult.room.puzzleTimerSeconds,
+            };
+            broadcastToRoom(updateResult.room, responseData);
+            break;
+        }
+        case EventType.enum.ROULETTE_VOTE_SKIP: {
+            const result = RouletteVoteSkipEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const room = getRoom(data.roomID);
+            if (!room) break;
+            const skipResult = handleVoteSkip(data.roomID, data.userID, data.vote);
+            if (!skipResult) break;
+            const skipUpdateData: RouletteSkipUpdateEventDataToClientType = {
+                type: EventType.enum.ROULETTE_SKIP_UPDATE,
+                skipVotes: skipResult.skipVotes,
+                totalPlayers: skipResult.totalPlayers,
+                threshold: skipResult.threshold,
+            };
+            broadcastToRoom(room, skipUpdateData);
+            if (skipResult.shouldSkip) {
+                broadcastToRoom<RouletteAllTagsGuessedEventDataToClientType>(room, { type: EventType.enum.ROULETTE_ALL_TAGS_GUESSED });
+                const postResult = await handleRequestPost(data.roomID, data.userID);
+                if (postResult.kind === 'send_post') {
+                    broadcastToRoom<RequestPostEventDataToClientType>(room, {
+                        type: EventType.enum.REQUEST_POST,
+                        post: postResult.post,
+                        botActionSequence: postResult.botActionSequence ?? undefined,
+                    });
+                }
+            }
+            break;
+        }
+        case EventType.enum.REQUEST_BOT_FILL: {
+            const result = RequestBotFillEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const room = getRoom(data.roomID);
+            if (!room || room.owner.id !== data.userID) {
+                break;
+            }
+            const profileNames = data.botProfileName
+                ? data.botNames.map(() => data.botProfileName)
+                : undefined;
+            const createdBots = await createBotsForRoom(room.id, data.botNames, profileNames);
+            if (createdBots.length === 0) {
+                break;
+            }
+            const roomToClient = convertServerRoomToClientRoom(room, users);
+            createdBots.forEach(bot => {
+                broadcastToRoom<JoinRoomEventDataToClientType>(room, { type: EventType.enum.JOIN_ROOM, user: bot, room: roomToClient });
+            });
+            break;
+        }
+        case EventType.enum.PUZZLE_PLACE_PIECE: {
+            const result = PuzzlePlacePieceEventData.safeParse(dataJSON);
+            if (!result.success) {
+                break;
+            }
+            const data = result.data;
+            const room = getRoom(data.roomID);
+            if (!room) break;
+
+            const placeResult = handlePuzzlePlacePiece(data.roomID, data.userID, data.pieceIndex);
+            if (!placeResult) break;
+
+            const placePieceData: PuzzlePlacePieceEventDataToClientType = {
+                type: EventType.enum.PUZZLE_PLACE_PIECE,
+                pieceIndex: data.pieceIndex,
+                userID: data.userID,
+            };
+            broadcastToRoom(room, placePieceData);
+
+            if (placeResult.completed) {
+                handlePuzzleComplete(data.roomID);
+            }
+            break;
+        }
+        default:
+            break;
+    }
+};
+
+export { handleMessage };

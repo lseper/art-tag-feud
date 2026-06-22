@@ -1,0 +1,522 @@
+// @ts-nocheck
+import { z } from 'zod';
+
+// shared
+export const EventType = z.enum(['DEFAULT',
+    'CREATE_ROOM',
+    'ALL_ROOMS',
+    'GUESS_TAG',
+    'READY_UP',
+    'START_GAME',
+    'END_GAME',
+    'SET_USERNAME',
+    'SET_ICON',
+    'GET_SELECTED_ICONS',
+    'JOIN_ROOM',
+    'LEAVE_ROOM',
+    'REQUEST_POST',
+    'SHOW_LEADERBOARD',
+    'UPDATE_BLACKLIST',
+    'UPDATE_PREFERLIST',
+    'UPDATE_ROOM_SETTINGS',
+    'REQUEST_BOT_FILL',
+    'SYNC_ROUND_STATE',
+    'ROULETTE_TURN_START',
+    'ROULETTE_LIFE_LOST',
+    'ROULETTE_VOTE_SKIP',
+    'ROULETTE_SKIP_UPDATE',
+    'ROULETTE_PLAYER_ELIMINATED',
+    'ROULETTE_ALL_TAGS_GUESSED',
+    'PUZZLE_ROUND_START',
+    'PUZZLE_PLACE_PIECE',
+    'PUZZLE_ROUND_END']);
+
+/**
+ * Server-Only Types
+ */
+export const TagType = z.enum(["general", "species", "character", "artist"]);
+
+export const PostTag = z.object({
+    name: z.string(),
+    type: TagType,
+    score: z.number(),
+})
+
+export const Post = z.object({
+    id: z.number(),
+    url: z.string(),
+    tags: z.array(PostTag)
+})
+
+export const PreferlistFrequency = z.enum(['most', 'all']);
+
+export const GameMode = z.enum(['Blitz', 'Roulette', 'Imposter', 'Puzzle']);
+export const RoomRating = z.enum(['Safe', 'Questionable', 'Explicit']);
+export const BotDifficulty = z.enum(['Saint', 'Sinner', 'Succubus']);
+
+export const PreferlistTag = z.object({
+    tag: z.string(),
+    frequency: PreferlistFrequency,
+})
+
+export const User = z.object({
+    username: z.string(),
+    id: z.string(),
+    score: z.number(),
+    icon: z.optional(z.string()),
+    isBot: z.optional(z.boolean()),
+    botProfileId: z.optional(z.string()),
+    roomID: z.optional(z.string())
+})
+
+export const GuessedTagEntry = z.object({
+    tag: PostTag,
+    user: z.optional(User),
+})
+
+export const ServerRoom = z.object({
+    id: z.string(),
+    name: z.string(),
+    postsPerRound: z.number(),
+    roundsPerGame: z.number(),
+    botCount: z.number(),
+    botDifficulties: z.array(BotDifficulty),
+    gameMode: GameMode,
+    rating: RoomRating,
+    roomCode: z.string(),
+    isPrivate: z.boolean(),
+    owner: User,
+    members: z.array(User),
+    blacklist: z.array(z.string()),
+    preferlist: z.array(PreferlistTag),
+    postQueue: z.array(Post),
+    curRound: z.number(),
+    postsViewedThisRound: z.number(),
+    allUsersReady: z.map(z.string(), z.boolean()),
+    gameStarted: z.boolean(),
+    startingLives: z.optional(z.number()),
+    turnTimeMs: z.optional(z.number()),
+    puzzleTimerSeconds: z.optional(z.number()),
+})
+
+export const CreateRoomEventData = z.object({
+    roomID: z.optional(z.string()),
+    userID: z.string(),
+    roomName: z.string(),
+    postsPerRound: z.number(),
+    roundsPerGame: z.number(),
+    botCount: z.optional(z.number()),
+    botDifficulties: z.optional(z.array(BotDifficulty)),
+    gameMode: z.optional(GameMode),
+    rating: z.optional(RoomRating),
+    isPrivate: z.optional(z.boolean()),
+    startingLives: z.optional(z.number()),
+    turnTimeMs: z.optional(z.number()),
+    puzzleTimerSeconds: z.optional(z.number()),
+    type: z.literal(EventType.enum.CREATE_ROOM)
+});
+export const JoinRoomEventData = z.object({
+    userID: z.optional(z.string()),
+    roomID: z.optional(z.string()),
+    roomCode: z.optional(z.string()),
+    type: z.literal(EventType.enum.JOIN_ROOM)
+}).refine((data) => data.roomID || data.roomCode, {
+    message: 'roomID or roomCode is required',
+});
+export const LeaveRoomEventData = z.object({
+    userID: z.string(),
+    roomID: z.string(),
+    type: z.literal(EventType.enum.LEAVE_ROOM)
+});
+export const GuessTagEventData = z.object({
+    user: User,
+    tag: PostTag,
+    roomID: z.string(),
+    type: z.literal(EventType.enum.GUESS_TAG)
+});
+export const SetUsernameEventData = z.object({
+    username: z.string(),
+    userID: z.optional(z.string()),
+    type: z.literal(EventType.enum.SET_USERNAME)
+});
+export const SetUserIconEventData = z.object({
+    icon: z.string(),
+    userID: z.string(),
+    roomID: z.string(),
+    type: z.literal(EventType.enum.SET_ICON)
+});
+export const GetSelectedIconsEventData = z.object({
+    roomID: z.string(),
+    type: z.literal(EventType.enum.GET_SELECTED_ICONS)
+});
+export const RequestPostEventData = z.object({
+    roomID: z.string(),
+    userID: z.string(),
+    type: z.literal(EventType.enum.REQUEST_POST)
+});
+export const ReadyUpEventData = z.object({
+    userID: z.string(),
+    roomID: z.string(),
+    ready: z.boolean(),
+    type: z.literal(EventType.enum.READY_UP)
+});
+export const StartGameEventData = z.object({
+    roomID: z.string(),
+    type: z.literal(EventType.enum.START_GAME)
+})
+export const AllRoomsEventData = z.object({
+    type: z.literal(EventType.enum.ALL_ROOMS)
+})
+export const UpdateBlacklistEventData = z.object({
+    roomID: z.string(),
+    tag: z.string(),
+    action: z.enum(['add', 'remove']),
+    type: z.literal(EventType.enum.UPDATE_BLACKLIST)
+})
+export const UpdatePreferlistEventData = z.object({
+    roomID: z.string(),
+    tag: z.string(),
+    action: z.enum(['add', 'remove', 'set_frequency']),
+    frequency: z.optional(PreferlistFrequency),
+    type: z.literal(EventType.enum.UPDATE_PREFERLIST)
+})
+export const UpdateRoomSettingsEventData = z.object({
+    roomID: z.string(),
+    userID: z.string(),
+    roomName: z.string(),
+    postsPerRound: z.number(),
+    roundsPerGame: z.number(),
+    botCount: z.number(),
+    botDifficulties: z.array(BotDifficulty),
+    gameMode: GameMode,
+    rating: RoomRating,
+    isPrivate: z.boolean(),
+    startingLives: z.optional(z.number()),
+    turnTimeMs: z.optional(z.number()),
+    puzzleTimerSeconds: z.optional(z.number()),
+    type: z.literal(EventType.enum.UPDATE_ROOM_SETTINGS)
+})
+
+export const BotAction = z.object({
+    type: z.enum(['guess_tag', 'ready_up']),
+    delayMs: z.number(),
+    tag: z.optional(PostTag),
+});
+
+export const BotActionSequence = z.object({
+    roundPostId: z.string(),
+    botProfileId: z.optional(z.string()),
+    gameMode: GameMode,
+    bots: z.array(z.object({
+        botId: z.string(),
+        actions: z.array(BotAction),
+    })),
+});
+
+export const RequestBotFillEventData = z.object({
+    roomID: z.string(),
+    userID: z.string(),
+    botNames: z.array(z.string()),
+    botProfileName: z.optional(z.string()),
+    type: z.literal(EventType.enum.REQUEST_BOT_FILL)
+});
+
+/**
+ * Client Types
+ */
+export const UserReadyState = z.object({
+    user: User,
+    ready: z.boolean(),
+    icon: z.optional(z.string()),
+})
+
+export const ClientRoom = z.object({
+    roomID: z.string(),
+    roomName: z.string(),
+    postsPerRound: z.number(),
+    roundsPerGame: z.number(),
+    botCount: z.number(),
+    botDifficulties: z.array(BotDifficulty),
+    gameMode: GameMode,
+    rating: RoomRating,
+    roomCode: z.string(),
+    isPrivate: z.boolean(),
+    owner: User,
+    readyStates: z.array(UserReadyState),
+    blacklist: z.array(z.string()),
+    preferlist: z.array(PreferlistTag),
+    startingLives: z.optional(z.number()),
+    turnTimeMs: z.optional(z.number()),
+    puzzleTimerSeconds: z.optional(z.number()),
+})
+
+export const CreateRoomEventDataToClient = z.object({
+    roomID: z.string(),
+    readyStates: z.array(z.boolean()),
+    userID: z.optional(z.string()),
+    type: z.literal(EventType.enum.CREATE_ROOM)
+});
+
+export const JoinRoomEventDataToClient = z.object({
+    user: User,
+    room: ClientRoom,
+    type: z.literal(EventType.enum.JOIN_ROOM)
+});
+
+export const LeaveRoomEventDataToClient = z.object({
+    room: ClientRoom,
+    type: z.literal(EventType.enum.LEAVE_ROOM)
+});
+
+export const AllRoomsEventDataToClient = z.object({
+    rooms: z.array(ClientRoom),
+    type: z.literal(EventType.enum.ALL_ROOMS)
+});
+
+export const GuessTagEventDataToClient = z.object({
+    tag: PostTag,
+    user: User,
+    type: z.literal(EventType.enum.GUESS_TAG)
+});
+
+export const SyncRoundStateEventDataToClient = z.object({
+    post: z.optional(Post),
+    guessedTags: z.array(GuessedTagEntry),
+    type: z.literal(EventType.enum.SYNC_ROUND_STATE)
+});
+
+export const SetUsernameEventDataToClient = z.object({
+    user: User,
+    type: z.literal(EventType.enum.SET_USERNAME)
+})
+
+export const SetUserIconEventDataToClient = z.object({
+    userID: z.string(),
+    icon: z.optional(z.string()),
+    pastIcon: z.optional(z.string()),
+    type: z.literal(EventType.enum.SET_ICON)
+})
+
+export const GetSelectedIconsEventDataToClient = z.object({
+    selectedIcons: z.array(z.string()),
+    type: z.literal(EventType.enum.GET_SELECTED_ICONS)
+})
+
+export const RequestPostEventDataToClient = z.object({
+    post: z.optional(Post),
+    botActionSequence: z.optional(BotActionSequence),
+    type: z.literal(EventType.enum.REQUEST_POST)
+})
+
+export const ReadyUpEventDataToClient = z.object({
+    roomID: z.string(),
+    room: ClientRoom,
+    type: z.literal(EventType.enum.READY_UP)
+});
+
+export const StartGameEventDataToClient = z.object({
+    type: z.literal(EventType.enum.START_GAME)
+});
+
+export const EndGameEventDataToClient = z.object({
+    type: z.literal(EventType.enum.END_GAME)
+});
+
+export const ShowLeaderboardEventDataToClient = z.object({
+    type: z.literal(EventType.enum.SHOW_LEADERBOARD)
+});
+export const UpdateBlacklistEventDataToClient = z.object({
+    roomID: z.string(),
+    blacklist: z.array(z.string()),
+    type: z.literal(EventType.enum.UPDATE_BLACKLIST)
+})
+export const UpdatePreferlistEventDataToClient = z.object({
+    roomID: z.string(),
+    preferlist: z.array(PreferlistTag),
+    type: z.literal(EventType.enum.UPDATE_PREFERLIST)
+})
+export const UpdateRoomSettingsEventDataToClient = z.object({
+    roomID: z.string(),
+    roomName: z.string(),
+    postsPerRound: z.number(),
+    roundsPerGame: z.number(),
+    botCount: z.number(),
+    botDifficulties: z.array(BotDifficulty),
+    gameMode: GameMode,
+    rating: RoomRating,
+    roomCode: z.string(),
+    isPrivate: z.boolean(),
+    startingLives: z.optional(z.number()),
+    turnTimeMs: z.optional(z.number()),
+    puzzleTimerSeconds: z.optional(z.number()),
+    type: z.literal(EventType.enum.UPDATE_ROOM_SETTINGS)
+})
+
+// Puzzle Schemas
+export const PuzzlePieceDefinition = z.object({
+    index: z.number(),
+    vertices: z.array(z.tuple([z.number(), z.number()])),
+    centroid: z.tuple([z.number(), z.number()]),
+});
+
+export const PuzzlePieceAssignment = z.object({
+    userId: z.string(),
+    pieceIndices: z.array(z.number()),
+});
+
+export const PuzzleRoundStartEventDataToClient = z.object({
+    type: z.literal(EventType.enum.PUZZLE_ROUND_START),
+    postUrl: z.string(),
+    postId: z.number(),
+    pieces: z.array(PuzzlePieceDefinition),
+    assignments: z.array(PuzzlePieceAssignment),
+    timerDurationMs: z.number(),
+    roundNumber: z.number(),
+    totalRounds: z.number(),
+});
+
+export const PuzzlePlacePieceEventData = z.object({
+    type: z.literal(EventType.enum.PUZZLE_PLACE_PIECE),
+    roomID: z.string(),
+    userID: z.string(),
+    pieceIndex: z.number(),
+});
+
+export const PuzzlePlacePieceEventDataToClient = z.object({
+    type: z.literal(EventType.enum.PUZZLE_PLACE_PIECE),
+    pieceIndex: z.number(),
+    userID: z.string(),
+});
+
+export const PuzzleRoundEndEventDataToClient = z.object({
+    type: z.literal(EventType.enum.PUZZLE_ROUND_END),
+    completed: z.boolean(),
+    placedPieces: z.array(z.number()),
+    totalPieces: z.number(),
+});
+
+export const SyncRoundStateEventDataToClientWithPuzzle = z.object({
+    post: z.optional(Post),
+    guessedTags: z.array(GuessedTagEntry),
+    puzzlePlacedPieces: z.optional(z.array(z.number())),
+    type: z.literal(EventType.enum.SYNC_ROUND_STATE)
+});
+
+// Roulette Client → Server
+export const RouletteVoteSkipEventData = z.object({
+    roomID: z.string(),
+    userID: z.string(),
+    vote: z.boolean(),
+    type: z.literal(EventType.enum.ROULETTE_VOTE_SKIP)
+})
+
+// Roulette Server → Client
+export const RouletteTurnStartEventDataToClient = z.object({
+    activePlayerID: z.string(),
+    turnTimeMs: z.number(),
+    turnOrder: z.array(z.string()),
+    playerLives: z.record(z.string(), z.number()),
+    type: z.literal(EventType.enum.ROULETTE_TURN_START)
+})
+
+export const RouletteLifeLostEventDataToClient = z.object({
+    playerID: z.string(),
+    livesRemaining: z.number(),
+    reason: z.enum(['wrong_guess', 'timeout']),
+    type: z.literal(EventType.enum.ROULETTE_LIFE_LOST)
+})
+
+export const RouletteSkipUpdateEventDataToClient = z.object({
+    skipVotes: z.number(),
+    totalPlayers: z.number(),
+    threshold: z.number(),
+    type: z.literal(EventType.enum.ROULETTE_SKIP_UPDATE)
+})
+
+export const RoulettePlayerEliminatedEventDataToClient = z.object({
+    playerID: z.string(),
+    placement: z.number(),
+    type: z.literal(EventType.enum.ROULETTE_PLAYER_ELIMINATED)
+})
+
+export const RouletteAllTagsGuessedEventDataToClient = z.object({
+    type: z.literal(EventType.enum.ROULETTE_ALL_TAGS_GUESSED)
+})
+
+/**
+ * Server-Only Object Types
+ */
+export type ServerRoomType = z.infer<typeof ServerRoom>;
+
+/**
+ * Server-Only Types
+ */
+export type CreateRoomEventDataType = z.infer<typeof CreateRoomEventData>
+export type JoinRoomEventDataType = z.infer<typeof JoinRoomEventData>
+export type LeaveRoomEventDataType = z.infer<typeof LeaveRoomEventData>
+export type RequestPostEventDataType = z.infer<typeof RequestPostEventData>
+export type GuessTagEventDataType = z.infer<typeof GuessTagEventData>
+export type SetUsernameEventDataType = z.infer<typeof SetUsernameEventData>
+export type SetUserIconEventDataType = z.infer<typeof SetUserIconEventData>
+export type GetSelectedIconsEventDataType = z.infer<typeof GetSelectedIconsEventData>
+export type StartGameEventDataType = z.infer<typeof StartGameEventData>
+export type ReadyUpEventDataType = z.infer<typeof ReadyUpEventData>
+export type AllRoomsEventDataType = z.infer<typeof AllRoomsEventData>
+export type UpdateBlacklistEventDataType = z.infer<typeof UpdateBlacklistEventData>
+export type UpdatePreferlistEventDataType = z.infer<typeof UpdatePreferlistEventData>
+export type UpdateRoomSettingsEventDataType = z.infer<typeof UpdateRoomSettingsEventData>
+export type RequestBotFillEventDataType = z.infer<typeof RequestBotFillEventData>
+export type BotActionType = z.infer<typeof BotAction>
+export type BotActionSequenceType = z.infer<typeof BotActionSequence>
+
+/**
+ * Client-Only Types
+ */
+export type CreateRoomEventDataToClientType = z.infer<typeof CreateRoomEventDataToClient>
+export type JoinRoomEventDataToClientType = z.infer<typeof JoinRoomEventDataToClient>
+export type LeaveRoomEventDataToClientType = z.infer<typeof LeaveRoomEventDataToClient>
+export type AllRoomsEventDataToClientType = z.infer<typeof AllRoomsEventDataToClient>
+export type GuessTagEventDataToClientType = z.infer<typeof GuessTagEventDataToClient>
+export type RequestPostEventDataToClientType = z.infer<typeof RequestPostEventDataToClient>
+export type SetUsernameEventDataToClientType = z.infer<typeof SetUsernameEventDataToClient>
+export type SetUserIconEventDataToClientType = z.infer<typeof SetUserIconEventDataToClient>
+export type GetSelectedIconsEventDataToClientType = z.infer<typeof GetSelectedIconsEventDataToClient>
+export type ReadyUpEventDataToClientType = z.infer<typeof ReadyUpEventDataToClient>
+export type StartGameEventDataToClientType = z.infer<typeof StartGameEventDataToClient>
+export type EndGameEventDataToClientType = z.infer<typeof EndGameEventDataToClient>
+export type ShowLeaderboardEventDataToClientType = z.infer<typeof ShowLeaderboardEventDataToClient>
+export type UpdateBlacklistEventDataToClientType = z.infer<typeof UpdateBlacklistEventDataToClient>
+export type UpdatePreferlistEventDataToClientType = z.infer<typeof UpdatePreferlistEventDataToClient>
+export type UpdateRoomSettingsEventDataToClientType = z.infer<typeof UpdateRoomSettingsEventDataToClient>
+export type SyncRoundStateEventDataToClientType = z.infer<typeof SyncRoundStateEventDataToClient>
+export type RouletteVoteSkipEventDataType = z.infer<typeof RouletteVoteSkipEventData>
+export type RouletteTurnStartEventDataToClientType = z.infer<typeof RouletteTurnStartEventDataToClient>
+export type RouletteLifeLostEventDataToClientType = z.infer<typeof RouletteLifeLostEventDataToClient>
+export type RouletteSkipUpdateEventDataToClientType = z.infer<typeof RouletteSkipUpdateEventDataToClient>
+export type RoulettePlayerEliminatedEventDataToClientType = z.infer<typeof RoulettePlayerEliminatedEventDataToClient>
+export type RouletteAllTagsGuessedEventDataToClientType = z.infer<typeof RouletteAllTagsGuessedEventDataToClient>
+
+export type PuzzlePieceDefinitionType = z.infer<typeof PuzzlePieceDefinition>
+export type PuzzlePieceAssignmentType = z.infer<typeof PuzzlePieceAssignment>
+export type PuzzleRoundStartEventDataToClientType = z.infer<typeof PuzzleRoundStartEventDataToClient>
+export type PuzzlePlacePieceEventDataType = z.infer<typeof PuzzlePlacePieceEventData>
+export type PuzzlePlacePieceEventDataToClientType = z.infer<typeof PuzzlePlacePieceEventDataToClient>
+export type PuzzleRoundEndEventDataToClientType = z.infer<typeof PuzzleRoundEndEventDataToClient>
+
+export type ClientRoomType = z.infer<typeof ClientRoom>;
+
+/**
+ * Shared Types
+ */
+export type TagTypeType = z.infer<typeof TagType>
+export type PostTagType = z.infer<typeof PostTag>;
+export type GuessedTagEntryType = z.infer<typeof GuessedTagEntry>;
+export type PostType = z.infer<typeof Post>;
+export type PreferlistTagType = z.infer<typeof PreferlistTag>;
+export type PreferlistFrequencyType = z.infer<typeof PreferlistFrequency>;
+export type GameModeType = z.infer<typeof GameMode>;
+export type RoomRatingType = z.infer<typeof RoomRating>;
+export type BotDifficultyType = z.infer<typeof BotDifficulty>;
+export type UserType = z.infer<typeof User>;
+export type EventTypeType = z.infer<typeof EventType>;
+export type UserReadyStateType = z.infer<typeof UserReadyState>;

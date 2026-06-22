@@ -130,126 +130,133 @@ export const icons : {nsfw: IconData[], sfw: IconData[]} = {nsfw: [
 sfw: [
     {
         character: "Anubis",
-        file: 'anubis.png',
-        source: "https://e926.net/posts/2810228",
+        file: 'anubis.jpg',
+        source: "https://e621.net/posts/2810228",
         artist: "gaby-t",
     },
     {
         character: "Asriel",
-        file: 'asriel.png',
-        source: "https://e926.net/posts/1444028",
+        file: 'asriel.jpg',
+        source: "https://e621.net/posts/1444028",
         artist: "skeleion",
     },
     {
         character: "Bowser",
-        file: 'bowser.jpeg',
-        source: "https://e926.net/posts/771912",
+        file: 'bowser.jpg',
+        source: "https://e621.net/posts/771912",
         artist: "1boshi",
     },
     {
         character: "Charizard",
-        file: 'charizard.jpeg',
-        source: "https://e926.net/posts/174401",
+        file: 'charizard.jpg',
+        source: "https://e621.net/posts/174401",
         artist: "enon",
     },
     {
         character: "Falco",
-        file: 'falco.jpeg',
-        source: "https://e926.net/posts/713069",
+        file: 'falco.jpg',
+        source: "https://e621.net/posts/713069",
         artist: "haychel",
     },
     {
         character: "Fox",
-        file: 'fox.jpeg',
-        source: "https://e926.net/posts/1120207",
+        file: 'fox.jpg',
+        source: "https://e621.net/posts/1120207",
         artist: "kenket",
     },
     {
         character: "Isabelle",
-        file: 'isabelle.png',
-        source: "https://e926.net/posts/2190270",
+        file: 'isabelle.jpg',
+        source: "https://e621.net/posts/2190270",
         artist: "fluff-kevlar",
     },
     {
         character: "Judy Hops",
-        file: 'judy hops.png',
-        source: "https://e926.net/posts/1144805",
+        file: 'judy hops.jpg',
+        source: "https://e621.net/posts/1144805",
         artist: "kurokuma824",
     },
     {
         character: "Krystal",
-        file: 'krystal.png',
-        source: "https://e926.net/posts/2311103",
+        file: 'krystal.jpg',
+        source: "https://e621.net/posts/2311103",
         artist: "teranen",
     },
     {
         character: "Legosi",
         file: 'legosi.png',
-        source: "https://e926.net/posts/2165306",
+        source: "https://e621.net/posts/2165306",
         artist: "granitemcgee",
     },
     {
         character: "Loona",
-        file: 'loona.png',
-        source: "https://e926.net/posts/2893533",
+        file: 'loona.jpg',
+        source: "https://e621.net/posts/2893533",
         artist: "soulcentinel",
     },
     {
         character: "Louis",
-        file: 'louis.jpeg',
-        source: "https://e926.net/posts/2220564",
+        file: 'louis.jpg',
+        source: "https://e621.net/posts/2220564",
         artist: "hazakyaracely",
     },
     {
         character: "Lucario",
-        file: 'lucario.jpeg',
-        source: "https://e926.net/posts/2116120",
+        file: 'lucario.jpg',
+        source: "https://e621.net/posts/2116120",
         artist: "dark ishihara",
     },
     {
         character: "Nick",
-        file: 'nick wilde.jpeg',
-        source: "https://e926.net/posts/2033563",
+        file: 'nick wilde.jpg',
+        source: "https://e621.net/posts/2033563",
         artist: "letodoesart",
     },
     {
         character: "Renamon",
-        file: 'renamon.png',
-        source: "https://e926.net/posts/939765",
+        file: 'renamon.jpg',
+        source: "https://e621.net/posts/939765",
         artist: "doomthewolf",
     },
     {
         character: "Rocket",
-        file: 'rocket.jpeg',
-        source: "https://e926.net/posts/1250186",
+        file: 'rocket.jpg',
+        source: "https://e621.net/posts/1250186",
         artist: "ovopack",
     },
     {
         character: "Spyro",
-        file: 'spyro.jpeg',
-        source: "https://e926.net/posts/3326876",
+        file: 'spyro.jpg',
+        source: "https://e621.net/posts/3326876",
         artist: "daniel tibana",
     },
     {
         character: "Toriel",
-        file: 'toriel.png',
-        source: "https://e926.net/posts/742249",
+        file: 'toriel.jpg',
+        source: "https://e621.net/posts/742249",
         artist: "joyfulinsanity",
     },
     {
         character: "Umbreon",
-        file: 'umbreon.png',
-        source: "https://e926.net/posts/1538994",
+        file: 'umbreon.jpg',
+        source: "https://e621.net/posts/1538994",
         artist: "salanchu",
     },
     {
         character: 'Wolf',
-        file: 'wolf.png',
-        source: "https://e926.net/posts/2198373",
+        file: 'wolf.jpg',
+        source: "https://e621.net/posts/2198373",
         artist: "teranen",
     },
 ]}
 
 export const buildUIIconImg = (sfw: boolean, path: string, icon: string, className?: string) => {
-    return <img src={`${path}${icon}`} alt={`${icon}`} className={className ?? ''} />;
+    const src = `${path}${icon}`;
+    return (
+      <img
+        src={src}
+        alt={`${icon}`}
+        className={className ?? ''}
+      />
+    );
 }

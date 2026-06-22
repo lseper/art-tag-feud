@@ -1,0 +1,44 @@
+---
+description: Create a pull request in the lens-www repo using the standard PR template
+alwaysApply: false
+---
+
+# Creating a Pull Request
+
+When asked to create a PR, you will be given a **source branch** and a **destination (base) branch**.
+
+## Steps
+
+1. **Gather context**: Run `git log <base>...<source> --oneline` and `git diff <base>...HEAD` to understand all commits and changes included in the PR.
+2. **Read the PR template** at `.cursor/assets/pr-template.md`.
+3. **Fill out the template** by analyzing the diff and commit history:
+   - **Description**: Write a concise summary of what the PR accomplishes.
+   - **Details**: Explain the implementation approach, link relevant issues, and note any new dependencies.
+   - **Testing / Security / SOC 2 checklists**: Leave the checkboxes unchecked — the author will confirm these manually.
+4. **Create the PR** using the GitHub CLI:
+
+```bash
+git push -u origin <source>
+
+gh pr create \
+  --base <destination> \
+  --head <source> \
+  --title "<concise PR title>" \
+  --body "$(cat <<'EOF'
+<filled-in template content>
+EOF
+)"
+```
+
+5. **Return the PR URL** to the user after creation.
+
+## Formatting Rules
+
+- The PR title should ALWAYS start with the Linear issue identifier (e.g. ENG-2023) 
+- The PR title should be a short, imperative sentence (e.g., "Add roadmap filtering by status").
+- Directly below the Description, include an "Illustrations" section, which includes a visual demo (image/video) of a before and after of each fix. If it is adding an entirely new feature, subtitle the feature image/video accordingly. Prefer using a video of length 10 - 20 seconds to showcase the entire feature.
+- Keep the Description section to 1-3 sentences.
+- In Details, use bullet points for multiple items.
+- Preserve all checklist sections from the template exactly as they appear.
+- Use GitHub-flavored markdown throughout.
+- REMOVE the final "Made with Cursor" text at the bottom of the PR description. This should be removed.

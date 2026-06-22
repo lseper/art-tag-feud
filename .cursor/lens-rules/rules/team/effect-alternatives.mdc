@@ -1,0 +1,108 @@
+---
+description: Prefer alternatives to unnecessary useEffect usage in React/Next.js code
+globs: "{app/**,components/**,hooks/**,providers/**}"
+---
+
+# Effect Alternatives
+
+Treat `useEffect` as an escape hatch, not a default pattern.
+
+## Decision Order
+
+Before adding `useEffect`, use the first valid option:
+
+1. Derive values during render (`const derived = ...`, `useMemo`).
+2. Put action-specific logic in event handlers.
+3. Prefer server-side loading first in Next.js (`RSC`/route handlers) when feasible.
+4. If server-first is not practical yet (auth/provider coupling), use client query hooks (for example `useQuery`).
+5. Use `key` remounting for local state resets tied to identity.
+6. Use `useSyncExternalStore` for external subscriptions.
+7. Use `useEffect` only for true external synchronization.
+
+## Common Replacements
+
+- Derived state effect -> derive in render.
+- Fetch-on-mount effect -> server-side load first where feasible; otherwise query hooks.
+- Prop-to-state sync effect -> controlled props, reducer, or keyed reset.
+- Event watcher effect -> execute in the event handler.
+- Subscription effect -> `useSyncExternalStore`.
+
+## Valid useEffect Cases
+
+`useEffect` is appropriate for:
+
+- Browser API setup/cleanup (`addEventListener`, observers, media APIs)
+- Imperative third-party integrations
+- Timers/intervals with cleanup
+- Synchronizing with non-React systems
+
+When adding an effect, include brief rationale:
+
+- Which external system is being synchronized?
+- Why alternatives were insufficient?
+- Why dependencies and cleanup are correct?
+
+## Example: Prop-to-State Sync → Derived State with Inverted Tracking
+
+A common anti-pattern is using `useEffect` to initialize multiple pieces of state from props/data:
+
+**Wrong (useEffect syncs props to state, needs eslint suppression):**
+
+```tsx
+const [expandedRepos, setExpandedRepos] = useState<Set<string>>(new Set());
+const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+const [selectedRef, setSelectedRef] = useState<SelectedTestRef | null>(null);
+
+useEffect(() => {
+  if (!repoGroups || repoGroups.length === 0) return;
+  setExpandedRepos(new Set(repoGroups.map((r) => r.repoName)));
+  // ... build groupKeys, find firstRef ...
+  setExpandedFiles(groupKeys);
+  if (firstRef) setSelectedRef(firstRef);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [milestoneData]);
+```
+
+Problems: extra render pass from batched `setState`-in-effect, stale state risk if dependencies drift, eslint suppression hiding real bugs, state not automatically resetting when data changes shape.
+
+**Better (derive defaults, track user deviations):**
+
+```tsx
+// Track what the user has collapsed (default = all expanded, no init needed)
+const [collapsedRepos, setCollapsedRepos] = useState<Set<string>>(new Set());
+const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(new Set());
+// undefined = use default, null = user deselected, ref = user selected
+const [userSelectedRef, setUserSelectedRef] = useState<SelectedTestRef | null | undefined>(undefined);
+
+// Derive default selection from data
+const defaultSelectedRef = useMemo((): SelectedTestRef | null => {
+  if (!repoGroups || repoGroups.length === 0) return null;
+  for (const repo of repoGroups) {
+    for (const dg of repo.describeGroups) {
+      if (dg.tests.length > 0) {
+        return { repoName: repo.repoName, milestoneId: dg.tests[0].milestoneId, ... };
+      }
+    }
+  }
+  return null;
+}, [repoGroups]);
+
+// Resolve effective selection: validate user choice against current data, fall back to default
+const selectedRef = useMemo((): SelectedTestRef | null => {
+  if (userSelectedRef === null) return null;
+  if (userSelectedRef !== undefined && repoGroups) {
+    // ... validate userSelectedRef exists in current data ...
+    if (found) return userSelectedRef;
+  }
+  return defaultSelectedRef;
+}, [userSelectedRef, repoGroups, defaultSelectedRef]);
+```
+
+Key techniques:
+- **Inverted tracking:** instead of storing "what's expanded" (requires init), store "what the user collapsed" (starts empty = all expanded).
+- **Derived default + user override:** `useMemo` computes the default; user interactions set an override; stale overrides auto-fallback to the default when data changes.
+- **No useEffect, no eslint suppression, no extra render pass.**
+
+## Adoption Stance
+
+Apply this incrementally. Do not force large foundational rewrites solely to remove client-side fetching.

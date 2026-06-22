@@ -1,0 +1,33 @@
+# Analytics — Cross-Repo Decision Guide
+
+PostHog project: https://us.posthog.com/project/295145/data-management/events
+
+## Where to Add a New Event
+
+| Event Type | Repository | Module |
+|-----------|-----------|--------|
+| UI interactions (clicks, hovers, navigation) | **lens-www** | `hooks/useAnalytics.ts` + `constants/analyticsEvents.ts` |
+| Proxied service responses in Next.js API routes | **lens-www** | `services/analytics/serverTrack.ts` |
+| Data CRUD (project, execution, milestone, spec, task) | **morph** | `src/morph/analytics/` |
+| Auth & billing lifecycle (signup, login, payment) | **access-forge** | `app/analytics/` |
+
+## Naming Convention
+
+All events: `category:action` — lowercase, underscores for multi-word.
+
+## Identity Rules (All Repos)
+
+- **distinct_id** = access-forge user UUID (CUID2). NEVER email.
+- **Always attach** `SiloName` and `TenantID` as event properties.
+- **Always attach** `$groups` with `silo:tenant` group key.
+
+## Adding a New Event (Any Repo)
+
+1. Register in PostHog UI: https://us.posthog.com/project/295145/data-management/events → Create event
+2. Add event constant to the repo's event registry
+3. Call the tracking function at the appropriate location
+4. Write a unit test mocking the track call
+
+## Full Documentation
+
+See `morph/docs/User-Analytics-In-Morph.md` for comprehensive documentation including architecture diagrams, code examples, and the PostHog UI walkthrough.

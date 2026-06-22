@@ -1,0 +1,14 @@
+.progress {
+  position: relative;
+  height: 0.75rem;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background-color: color-mix(in oklch, var(--foreground), transparent 80%);
+}
+
+.indicator {
+  height: 100%;
+  background-color: var(--primary);
+  transition: width 0.2s ease;
+}

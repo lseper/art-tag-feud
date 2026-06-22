@@ -1,0 +1,193 @@
+---
+globs: *.css, *.tsx
+alwaysApply: true
+---
+
+````cursorrules
+# UI Architecture - Core Workflow
+
+You are an expert in TypeScript, React, and vanilla CSS architecture focused on maintainability and clarity.
+
+**CRITICAL:** This project uses GLOBAL CSS, NOT CSS modules. All classNames must be globally unique.
+
+## 🎯 BEFORE YOU START - Answer These Questions
+
+**Creating a NEW component or editing EXISTING?**
+- **NEW** → Follow the NEW component workflow below (Section: 🔨 Workflow)
+- **EXISTING** → Keep CSS where it is, leave deep nesting as-is, check for unused classes when done
+
+**For NEW Components - MANDATORY Pre-Flight:**
+
+1. **Collision Check:** Have I searched (Cmd+F) for EVERY className I plan to use?
+   - Search globally in CSS and TSX files
+   - If ANY match found → choose different name
+   - This is MANDATORY before writing any code
+
+2. **Naming Strategy:** Does my component follow `component-descriptor-variant`?
+   - First word = component name (e.g., `task-card`, `user-profile`, `modal-overlay`)
+   - Max 4 words, prefer 3 (e.g., `task-card-header`, not `taskCardHeaderWrapper`)
+   - Dash-separated ONLY (never camelCase or underscores)
+
+3. **CSS Location:** Will my CSS go in `workshop.css` with block comments?
+   - YES → Proceed
+   - NO → STOP, read css-organization.mdc
+
+4. **Design System:** Will I use CSS variables for ALL values?
+   - NO hardcoded pixels (use `var(--padding)` or `calc(var(--xs) * 2)`)
+   - NO hardcoded colors (use `var(--color-blue-500)`)
+   - See css-variables.mdc for available variables
+
+## 🔨 NEW Component Creation Workflow
+
+### Step 1: Plan Your Structure (TSX First)
+
+Write clean JSX:
+- Import: `import cn from 'clsx';`
+- Every element gets a className (except rare `<h1>`, `<p>` cases)
+- Use `cn()` for conditional classes: `cn('card', { active: isActive })`
+- NO complex ternaries outside cn
+- NO inline styles for visual state
+- Structure reads like HTML, not JavaScript
+
+### Step 2: Check Collisions (CRITICAL - Do NOT Skip)
+
+For EVERY className you wrote in Step 1:
+```bash
+# Search globally - must return ZERO results
+Cmd+F: "your-class-name"
+````
+
+- Found in CSS or TSX? → Pick different name → Try `[feature]-[component]-[element]`
+- No results? → Safe to use
+- **You MUST do this for ALL classNames before Step 3**
+
+### Step 3: Write CSS in workshop.css
+
+Add to `styles/workshop.css`:
+
+```css
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                        COMPONENT: Your Component                          *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+.your-component {
+  /* Selectors in EXACT DOM order */
+}
+
+.your-component-header {
+  /* Use CSS variables only */
+  padding: var(--padding);
+}
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ *                            END Your Component                             *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+```
+
+Rules for Step 3:
+
+- Dramatic block comments (MANDATORY)
+- Selectors in EXACT DOM order (top-to-bottom, left-to-right from JSX)
+- Every JSX element → CSS selector or `/* .element */` comment placeholder
+- Use CSS variables ONLY (no `16px`, no `#ffffff`)
+- Max 2-level nesting (modifiers like `&.active` and state cascades only)
+- NEVER multiple selectors on one line - ALWAYS use nesting
+- Classes only (never `div {}` or `p {}`)
+
+### Step 4: Validate Before Completing
+
+Before marking complete, verify:
+
+- [ ] All classNames globally unique (searched each one in Step 2)
+- [ ] CSS in workshop.css with dramatic block comments
+- [ ] CSS selectors match DOM order exactly
+- [ ] No hardcoded pixels or colors (all CSS variables)
+- [ ] No element selectors (only `.class` selectors)
+- [ ] Every element has className or comment placeholder
+- [ ] Max 2-level nesting in NEW code
+- [ ] No multiple selectors on one line (always use nesting)
+- [ ] No CSS imports in components
+
+## 🚨 FIVE CSS COMMANDMENTS
+
+Apply during Step 3 (Writing CSS):
+
+1. **CLASS NAMING:** `component-descriptor-variant` format (dash-separated, max 4 words)
+2. **DOM ORDER:** CSS selectors in EXACT order elements appear in JSX (top-to-bottom)
+3. **EVERY ELEMENT:** CSS selector or `/* .element */` placeholder for ALL JSX elements
+4. **CLASSES ONLY:** Never `div {}` - always `.class {}` (exception: `:root` for variables)
+5. **NESTING RESTRICTED:** Max 2 levels for NEW code (modifiers & state cascades only). NEVER multiple selectors on one line - ALWAYS use proper nesting syntax
+
+## 🚨 SIX TSX PRINCIPLES
+
+Apply during Step 1 (Planning Structure):
+
+1. **JSX IS CANVAS:** Clean markup - extract complex logic before return statement
+2. **EVERY CLASSNAME:** Every element gets one (rare exceptions: `<h1>`, `<p>`)
+3. **GLOBAL & UNIQUE:** Check collisions in Step 2 BEFORE using
+4. **STATE IN CSS:** Use `cn()` className toggles, NOT inline styles
+5. **CMD+F WORKFLOW:** Names instantly findable - descriptive, unique
+6. **RESPECT ORGANIZATION:** NEW CSS → workshop.css (NEVER move CSS between files)
+
+## ⛔ STOP IMMEDIATELY IF YOU WRITE:
+
+**CSS Red Flags:**
+
+- camelCase/underscore names (`.myButton`, `.my_button`)
+- Element selectors (`div {}`, `ul {}`, `p {}`)
+- Classes out of DOM order
+- `.parent .child {}` on one line (use nesting instead)
+- Hardcoded colors (`#ffffff`, `rgb()`) or pixels (`16px`)
+- Z-index outside -1, 0, 1
+- Nesting beyond 2 levels in NEW code
+
+**TSX Red Flags:**
+
+- `import './Component.css'` (NO CSS imports in components)
+- `className={\`card ${active}\`}`(use`cn()` instead)
+- `style={{ display: isOpen ? 'block' : 'none' }}` (use className toggles)
+- Naked `<div>` without className
+- Moving CSS between files
+- Creating CSS outside workshop.css
+- Not using `cn` from clsx for conditional classes
+
+**If you see any above → STOP → Review workflow → Rewrite**
+
+## 🎯 Quick Decision Tree
+
+**"I need to create a button component"**
+→ NEW component → Follow Step 1-4 workflow → CSS in workshop.css
+
+**"I need to edit an existing button's style"**
+→ EXISTING → Keep CSS where it is → Don't move files → Check for unused classes when done
+
+**"I see deep nesting (3+ levels) in existing CSS"**
+→ EXISTING → Leave it alone unless explicitly asked to refactor
+
+**"I want to add a new feature to existing component"**
+→ Check if CSS is in workshop or dedicated file → Add to same location → Follow naming patterns
+
+**"A className already exists elsewhere"**
+→ STOP → Choose different name → Try: `[feature]-[component]-[element]`
+
+**"Should I use a hardcoded value?"**
+→ NO → Use CSS variables from css-variables.mdc
+
+## 📚 Related Rules (Deep Dive)
+
+- **css-rules.mdc** - Detailed CSS structure, property ordering, z-index discipline
+- **tsx-rules.mdc** - React patterns, cn usage examples, complete component examples
+- **css-variables.mdc** - Full design system reference, spacing/color variables
+- **collision-management.mdc** - Advanced collision prevention, creative naming strategies
+- **css-organization.mdc** - Two-tier system details, anti-patterns
+- **patterns-examples.mdc** - Complete Modal/Button examples, animations
+
+## Remember
+
+**Goal:** Instant lookup - find any CSS selector in under 3 seconds by scanning in DOM order.
+
+**If you violate these rules, you have failed. Fix immediately before proceeding.**
+
+```
+
+```

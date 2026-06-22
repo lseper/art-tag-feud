@@ -1,0 +1,229 @@
+.iconList {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 32px;
+  gap: 8px;
+}
+
+@media (min-width: 800px) {
+  .iconList {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 360px) {
+  .iconList {
+    margin-top: 16px;
+  }
+}
+
+.item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin: 4px;
+  transition: filter 0.2s, transform 0.2s;
+}
+
+.disabled {
+  filter: brightness(40%);
+}
+
+.selected {
+  filter: brightness(115%);
+  transform: scale(1.25);
+  z-index: 3;
+}
+
+.selectable {
+  filter: brightness(75%);
+  vertical-align: middle;
+  border-radius: 50%;
+}
+
+.selectable:hover {
+  transform: scale(1.1);
+  filter: brightness(115%);
+  z-index: 99;
+}
+
+.selectable:focus {
+  transform: scale(1.1);
+  filter: brightness(115%);
+}
+
+.iconButton {
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  text-shadow: none;
+  padding: 0;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.iconButton img {
+  width: 100%;
+  height: 100%;
+  border: 5px solid var(--card);
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+@media (min-width: 440px) {
+  .iconButton img {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+@media (min-width: 800px) {
+  .iconButton img {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+@media (min-width: 900px) {
+  .iconButton img {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+@media (min-width: 1000px) {
+  .iconButton img {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.characterName {
+  font-size: 1rem;
+  color: var(--c-tag-general);
+  z-index: 4;
+  max-width: 105%;
+}
+
+@media (max-width: 600px) {
+  .characterName {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 490px) {
+  .characterName {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .characterName {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .characterName {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .characterName {
+    font-size: 0.7rem;
+  }
+}
+
+.iconArtist {
+  opacity: 0;
+  transition: opacity 0.2s;
+  text-decoration: none;
+  font-size: 0.5rem;
+  max-width: 105%;
+}
+
+.iconArtist:hover {
+  opacity: 1;
+}
+
+.iconArtist:focus {
+  opacity: 0.5;
+}
+
+@media (min-width: 350px) {
+  .iconArtist {
+    font-size: 0.75rem;
+  }
+}
+
+@media (min-width: 500px) {
+  .iconArtist {
+    font-size: 1rem;
+  }
+}
+
+.item:hover .iconArtist {
+  opacity: 1;
+}
+
+.item:hover .iconArtist,
+.item:focus .iconArtist {
+  opacity: 1;
+}
+
+@media (max-width: 600px) {
+  .iconButton {
+    width: 60px;
+    height: 60px;
+  }
+
+  .iconButton img {
+    border-width: 4px;
+  }
+}
+
+@media (max-width: 490px) {
+  .iconButton {
+    width: 54px;
+    height: 54px;
+  }
+}
+
+@media (max-width: 430px) {
+  .iconButton {
+    width: 48px;
+    height: 48px;
+  }
+
+  .iconButton img {
+    border-width: 3px;
+  }
+}
+
+@media (max-width: 390px) {
+  .iconButton {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 360px) {
+  .iconButton {
+    width: 40px;
+    height: 40px;
+  }
+
+  .iconButton img {
+    border-width: 2px;
+  }
+}

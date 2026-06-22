@@ -1,0 +1,120 @@
+---
+description: TypeScript logging conventions — static message + structured metadata
+globs: "**/*.{ts,tsx}"
+---
+
+# TypeScript Logging Style
+
+Use `logger` from `@/utils/logger` for all server-side logging. Always separate the **static message** from **dynamic data**.
+
+```typescript
+// ❌ BAD — template literal (not searchable, can't group in SigNoz)
+console.log(`User ${userId} logged in from ${ip}`);
+console.error(`Failed to fetch project ${projectId}: ${error}`);
+
+// ❌ BAD — string concatenation
+console.log('GET response: ' + JSON.stringify(data));
+
+// ✅ GOOD — static message + structured metadata (preferred)
+logger.info("User logged in", { userId, ip });
+logger.error("Failed to fetch project", { projectId }, error);
+logger.info("GET response", { data });
+
+// ✅ GOOD — console.log with static message + separate args (API routes)
+console.log('POST project-specs/approve body:', body);
+console.log('POST project-specs/approve response:', { status: response.status });
+
+// ✅ GOOD — use <param> placeholders for dynamic path segments
+console.log('GET project-specs/<project_id>/versions', 'project_id=', projectId);
+console.log('POST milestones/<milestone_id>/versions/<version>/set-default', 'milestone_id=', milestoneId, 'version=', version);
+```
+
+## Import
+
+```typescript
+import logger from '@/utils/logger';
+```
+
+## API
+
+```typescript
+logger.debug(message: string, meta?: Record<string, any>)
+logger.info(message: string, meta?: Record<string, any>)
+logger.warn(message: string, meta?: Record<string, any>)
+logger.error(message: string, meta?: Record<string, any>, error?: Error)
+```
+
+- **First argument:** A static string literal. No template literals with `${}`, no concatenation.
+- **Second argument:** A metadata object with all dynamic values.
+- **Third argument (error only):** The `Error` object, so the stack trace is captured.
+
+## Log Levels
+
+| Level | When to use |
+|-------|-------------|
+| `debug` | Development-only details, verbose tracing |
+| `info` | Normal application flow — API calls, state transitions, startup |
+| `warn` | Unexpected but non-breaking — missing optional config, retries, deprecations |
+| `error` | Actual failures needing attention — always pass the `Error` object |
+
+## API Route Logging
+
+For API route handlers, `console.log` with static messages is acceptable. When the route has dynamic path segments, use `<param_name>` placeholders in the static message and pass the actual values as separate arguments with `key=` labels:
+
+```typescript
+// Route: /api/morph/project-specs/[project_id]/versions/[version]/set-default
+console.log('POST project-specs/<project_id>/versions/<version>/set-default', 'project_id=', project_id, 'version=', version);
+
+// Route: /api/morph/milestones/[milestone_id]/versions
+console.log('GET milestones/<milestone_id>/versions', 'milestone_id=', milestone_id);
+
+// Route without dynamic segments — just use a static message
+console.log('POST project-specs/approve body:', body);
+```
+
+This keeps the static message human-readable (showing the URL structure) while the `log_message` property in SigNoz remains groupable.
+
+## Error Logging
+
+Always pass the `Error` object as the third argument so the stack trace is captured by OpenTelemetry:
+
+```typescript
+// ❌ BAD — error message only, stack trace lost
+logger.error("Database query failed", { query: sql, message: error.message });
+
+// ✅ GOOD — Error object preserved
+logger.error("Database query failed", { query: sql }, error);
+```
+
+## Client-Side Code (React Components)
+
+`logger` is server-only (uses OpenTelemetry Node APIs). In client-side React components, `console.error` in catch blocks is acceptable. Still prefer static messages:
+
+```typescript
+// Acceptable in client components
+try {
+  await submitForm(data);
+} catch (error) {
+  console.error("Form submission failed", error);
+}
+```
+
+## ESLint Enforcement
+
+Two patterns are enforced by `no-restricted-syntax` in `.eslintrc.json`:
+
+1. **No template literals** as the first argument to `console.*` or `logger.*` calls
+2. **No string concatenation** (`+`) as the first argument to `console.*` or `logger.*` calls
+
+Both rules ensure the first argument is always a static string literal, keeping `log_message` groupable in SigNoz.
+
+## No Sensitive Data
+
+Never log tokens, passwords, API keys, or credentials. If you need to log a request, redact sensitive headers.
+
+## Why
+
+- **Searchability:** Static messages can be searched and grouped in SigNoz / log aggregation. `"User logged in"` matches every occurrence; `` `User ${userId} logged in` `` produces a unique string each time.
+- **Structured data:** Metadata objects are indexed as separate fields, enabling filtering (`userId=123`) without parsing strings.
+- **OTel correlation:** `logger` automatically attaches trace/span IDs and emits to OpenTelemetry. `console.*` calls are intercepted but lose the structured metadata.
+- **Consistency:** Aligns with the Python backend convention of `%s`-style lazy formatting where the message template and parameters are separate.

@@ -1,0 +1,249 @@
+---
+globs: *.css, *.tsx
+alwaysApply: true
+---
+
+````cursorrules
+# CSS Variables & Design System
+
+## CRITICAL: Use CSS Variables for All Values
+
+**NEVER use hardcoded pixel values.** Your project has a comprehensive design system in `styles/variables.css` with predefined spacing, sizing, and color values.
+
+## Global Variables
+
+- ALL CSS variables are defined in `styles/variables.css`
+- **NEVER define new root-level variables - use existing ones or calc()**
+- Define at `:root` level only
+
+## Your Project's CSS Variables
+
+### Spacing/Sizing
+
+```css
+--xxs: 0.25rem;           /* Tiny spacing */
+--xs: 1rem;               /* Extra small */
+--padding: calc(var(--xs) * var(--font-height));  /* Standard padding */
+--margin: calc(var(--xs) * var(--font-height));   /* Standard margin */
+--tile: 4rem;             /* Large unit */
+--xl: 16rem;              /* Extra large */
+--xxl: 64rem;             /* Double extra large */
+```
+
+### Colors
+
+```css
+--color-white: #ffffff;
+--color-black: #000000;
+--color-neutral-50: oklch(99% 0 0deg);
+--color-neutral-100: oklch(96.9% 0 0deg);
+--color-neutral-200: oklch(93.4% 0 0deg);
+--color-neutral-300: oklch(88.1% 0 0deg);
+--color-neutral-400: oklch(70.8% 0 0deg);
+--color-neutral-500: oklch(55.6% 0 0deg);
+--color-neutral-600: oklch(43.9% 0 0deg);
+--color-neutral-700: oklch(37.1% 0 0deg);
+--color-neutral-800: oklch(26.9% 0 0deg);
+--color-neutral-900: oklch(23.5% 0 0deg);
+--color-neutral-950: oklch(14.5% 0 0deg);  /* darkest */
+
+--color-red-500: oklch(63.7% 0.237 25.331deg);
+--color-blue-500: oklch(63.2% 0.229 252.445deg);
+--color-green-500: oklch(73.1% 0.168 152.819deg);
+/* ... and more color variants */
+```
+
+### Typography
+
+```css
+--font-sans: var(--font-geist-sans);
+--font-mono: var(--font-geist-mono);
+--font-size: 16px;
+--font-tiny: 13px;
+--font-height: 1.5;
+--font-color: var(--color-primary);
+```
+
+### Borders
+
+```css
+--border-width: 1px;
+--border-style: solid;
+--border-color: var(--color-neutral-700);
+--border-radius: calc(var(--xxs) * 1.5);
+--border: var(--border-width) var(--border-style) var(--border-color);
+```
+
+### Timing
+
+```css
+--run: 250ms;
+--fadein: cubic-bezier(0.445, 0.05, 0.55, 0.95);
+```
+
+## When to Use Each Approach
+
+### 1. Use existing variables directly (preferred)
+
+```css
+.card {
+  padding: var(--padding);
+  margin: var(--margin);
+  gap: var(--xxs);
+  border-radius: var(--border-radius);
+  border: var(--border);
+}
+```
+
+### 2. Use calc() with variables (for custom sizes)
+
+```css
+.special-card {
+  padding: calc(var(--padding) * 2);
+  width: calc(var(--xl) * 1.5);
+  gap: calc(var(--xxs) * 3);
+  border-radius: calc(var(--border-radius) * 2);
+}
+```
+
+### 3. Hardcoded values (ONLY with explicit justification)
+
+```css
+.icon {
+  /* Rare exception: Icon assets are exactly 24px and can't scale */
+  width: 24px;
+  height: 24px;
+}
+```
+
+## ❌ WRONG - Don't do this
+
+```css
+.card {
+  padding: 16px;        /* ❌ Use var(--padding) */
+  margin: 24px;         /* ❌ Use var(--margin) */
+  gap: 8px;             /* ❌ Use var(--xxs) or calc(var(--xxs) * 2) */
+  border-radius: 12px;  /* ❌ Use var(--border-radius) */
+  width: 400px;         /* ❌ Use var(--xl) or calc() */
+}
+```
+
+## ✅ RIGHT - Do this
+
+```css
+.card {
+  padding: var(--padding);
+  margin: var(--margin);
+  gap: calc(var(--xxs) * 2);
+  border-radius: var(--border-radius);
+  width: var(--xl);
+}
+```
+
+## Color Variables
+
+**ALL colors must use CSS variables from `styles/variables.css`:**
+
+- Never use hex codes (#ffffff), rgb(), or rgba() directly
+- Use semantic color variables: `--color-white`, `--color-neutral-*`, `--color-blue-*`, `--color-red-*`, `--color-green-*`, etc.
+
+**❌ WRONG:**
+
+```css
+.button {
+  background: #069bfa;
+  color: #ffffff;
+  border: 1px solid #424242;
+}
+```
+
+**✅ RIGHT:**
+
+```css
+.button {
+  background: var(--color-blue-500);
+  color: var(--color-white);
+  border: var(--border-width) var(--border-style) var(--color-neutral-800);
+}
+```
+
+## Component-Scoped Variables
+
+Allow component-scoped variables for complex calculations:
+
+```css
+.progress-bar {
+  --progress-width: 0%;
+  --progress-color: var(--color-primary);
+
+  width: 100%;
+  height: 8px;
+  background: var(--color-background);
+  border-radius: var(--border-radius);
+}
+
+.progress-bar-fill {
+  width: var(--progress-width);
+  height: 100%;
+  background: var(--progress-color);
+  border-radius: var(--border-radius);
+  transition: width var(--run) var(--fadein);
+}
+```
+
+**Component:**
+
+```tsx
+<div className="progress-bar">
+  <div
+    className="progress-bar-fill"
+    style={{ '--progress-width': `${progress}%` } as React.CSSProperties}
+  />
+</div>
+```
+
+## Quick Reference
+
+### Spacing Scale
+
+- `--xxs` → 0.25rem (4px)
+- `--xs` → 1rem (16px)
+- `--padding` → calculated from xs
+- `--margin` → calculated from xs
+- `--tile` → 4rem (64px)
+- `--xl` → 16rem (256px)
+- `--xxl` → 64rem (1024px)
+
+### Common Patterns
+
+```css
+/* Spacing */
+padding: var(--padding);
+margin: var(--margin);
+gap: var(--xxs);
+
+/* Doubled/Tripled */
+padding: calc(var(--padding) * 2);
+gap: calc(var(--xxs) * 3);
+
+/* Borders */
+border: var(--border);
+border-radius: var(--border-radius);
+
+/* Colors */
+color: var(--color-neutral-900);
+background: var(--background);
+border-color: var(--border-color);
+
+/* Transitions */
+transition: all var(--run) var(--fadein);
+transition: opacity var(--run) var(--fadein);
+```
+
+## Remember
+
+- **Spacing/Sizing:** Use CSS variables or calc() - NEVER hardcoded pixels
+- **Colors:** Use CSS variables - NEVER hex codes or rgb()
+- **Consistency:** Using the design system creates visual harmony
+- **Maintainability:** Variables can be updated globally in one place
+````

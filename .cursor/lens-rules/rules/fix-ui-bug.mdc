@@ -1,0 +1,223 @@
+---
+description: Fix a UI bug from a spec file containing a Linear ticket and bug description
+alwaysApply: false
+---
+
+# Fix UI Bug
+
+When invoked, you receive a **spec file path** (e.g. `specs/eng-2042.md`). That file contains a bug title, a Linear issue URL, and a description of the expected vs. actual behavior. Your job is to understand the bug, implement a fix, verify it in the browser, clean up the branch, and open a PR — all without asking the user to do anything manually.
+
+---
+
+## Step 0: Parse the Spec
+
+1. Read the spec file in full.
+2. Extract:
+   - **Ticket ID** — the `ENG-XXXX` string (case-insensitive). Normalize to lowercase for branch naming.
+   - **Linear URL** — the `https://linear.app/...` link.
+   - **Bug title** — the markdown heading.
+   - **Description** — everything under `**Description**`.
+3. Determine the current OS user for the branch prefix by running `whoami`.
+4. Construct the **branch name**: `<whoami>-<ticket-id-lowercase>` (e.g. `lseper-eng-2042`).
+
+---
+
+## Step 1: Prepare the Branch
+
+Run these commands sequentially in the `lens-www` directory:
+
+```bash
+git fetch origin main
+git checkout -b <branch-name> origin/main
+```
+
+If the branch already exists locally, check it out and rebase onto `origin/main` instead:
+
+```bash
+git checkout <branch-name>
+git rebase origin/main
+```
+
+---
+
+## Step 2: Investigate the Bug
+
+Launch **two parallel subagents** to build a full picture of the bug before writing any code.
+
+### Subagent A — Codebase Investigation
+
+> You are investigating a UI bug in a Next.js / React / TypeScript application.
+>
+> **Bug title:** <title>
+> **Bug description:** <description>
+> **Linear ticket:** <url>
+>
+> Your goal is to find the relevant source files, understand the current behavior, and identify the root cause. Do NOT make any changes.
+>
+> 1. Search the codebase for components, hooks, API routes, and state management related to the bug description. Use semantic search, grep, and glob to find all relevant files.
+> 2. Read each relevant file thoroughly. Pay attention to:
+>    - Component state and effects that control the described behavior
+>    - Event handlers (onClick, onSubmit, onChange, etc.)
+>    - API calls and their response handling
+>    - Conditional rendering logic
+>    - CSS classes that control visibility/layout relevant to the bug
+> 3. Trace the data flow end-to-end: from user action → event handler → state change → re-render → visible outcome.
+> 4. Identify the **root cause** — the specific line(s) or logic that produce the wrong behavior.
+>
+> Return a structured report:
+> - **Relevant files** (with line ranges)
+> - **Root cause** (specific code + explanation)
+> - **Suggested fix** (what to change and why)
+> - **Risk areas** (other components or flows that might be affected)
+
+### Subagent B — Visual Baseline (agent-browser)
+
+> You are capturing a visual baseline of the bug in the running application using agent-browser.
+>
+> **Bug title:** <title>
+> **Bug description:** <description>
+>
+> Use `--session-name lens-www` for all agent-browser commands so the user's existing GitHub auth session is preserved.
+>
+> 1. Open the app at `http://localhost:3000` (or whatever port the dev server is running on — check the terminal).
+>    ```bash
+>    agent-browser --session-name lens-www open http://localhost:3000
+>    agent-browser --session-name lens-www wait --load networkidle
+>    ```
+> 2. If you are redirected to a login page, authenticate via GitHub OAuth:
+>    ```bash
+>    agent-browser --session-name lens-www snapshot -i
+>    ```
+>    Look for a GitHub login/OAuth button and click it. The `lens-www` session should have stored credentials. If prompted for GitHub credentials, use the session's saved state. Wait for redirect back to the app.
+> 3. Navigate to the area of the app described in the bug. Use snapshot + click to navigate through the UI.
+> 4. **Reproduce the bug** — follow the steps implied by the description to trigger the incorrect behavior.
+> 5. Take a **screenshot** of the buggy state:
+>    ```bash
+>    agent-browser --session-name lens-www screenshot bug-baseline.png
+>    ```
+> 6. Take a **snapshot** of the accessibility tree in the buggy state to capture element structure.
+>
+> Return:
+> - The navigation path you took (clicks, URLs)
+> - The screenshot file path
+> - The accessibility tree snapshot of the buggy area
+> - Confirmation of whether the bug was reproduced, and what you observed
+
+---
+
+## Step 3: Implement the Fix
+
+After both investigation subagents return, synthesize their findings and implement the fix.
+
+1. **Plan the change** — Based on Subagent A's root cause analysis and Subagent B's visual confirmation, determine the minimal set of changes needed. Prefer the smallest diff that fully resolves the bug.
+2. **Make the edits** — Edit the relevant files directly. Follow the project's existing patterns:
+   - Use `cn()` from `clsx` for conditional classNames
+   - No inline styles for visual state — use className toggles
+   - No bare elements without classNames
+   - CSS changes go in `workshop.css`
+   - Follow the existing component/hook patterns in the file
+3. **Lint check** — After editing, run lints on all changed files. Fix any lint errors you introduced.
+
+---
+
+## Step 4: Verify the Fix (agent-browser)
+
+Launch a **browser-use subagent** to verify the fix in the running application.
+
+> You are verifying that a UI bug has been fixed in the running application.
+>
+> **Bug title:** <title>
+> **Bug description:** <description>
+> **What was changed:** <summary of code changes>
+> **Expected behavior after fix:** <expected behavior from the spec>
+>
+> Use `--session-name lens-www` for all agent-browser commands.
+>
+> **IMPORTANT:** Executions within this application can take upwards of multiple minutes to resolve. Be patient. When waiting for an execution or async operation, poll by re-snapshotting every 15-30 seconds to monitor progress. Do NOT give up after a single check.
+>
+> 1. The dev server should hot-reload with the changes. If not, wait a few seconds and refresh:
+>    ```bash
+>    agent-browser --session-name lens-www open http://localhost:3000
+>    agent-browser --session-name lens-www wait --load networkidle
+>    ```
+> 2. If you need to log in, use the GitHub OAuth flow. The `lens-www` session should preserve auth. If redirected to login, snapshot, find the GitHub button, and click it.
+> 3. Navigate to the area of the app where the bug was present (same path as the baseline).
+> 4. **Verify the fix:**
+>    - Confirm the described bug is no longer present.
+>    - Confirm the expected behavior from the spec is now correct.
+>    - Test edge cases: refresh the page, navigate away and back, try related workflows.
+> 5. Take a **screenshot** of the fixed state:
+>    ```bash
+>    agent-browser --session-name lens-www screenshot bug-fixed.png
+>    ```
+> 6. If the bug is **NOT fixed**, return a detailed report of what you still observe, including snapshots and screenshots.
+> 7. If the bug **IS fixed**, confirm success with evidence (screenshot path, snapshot diff, observed behavior).
+>
+> Return:
+> - **Status:** FIXED or NOT_FIXED
+> - **Evidence:** screenshot path, what you observed
+> - **Edge cases tested** and results
+> - If NOT_FIXED: detailed description of remaining issue
+
+### If verification fails (NOT_FIXED):
+
+1. Re-read the subagent's report carefully.
+2. Re-examine the code changes and the root cause analysis.
+3. Make corrective edits.
+4. Re-launch the verification subagent (repeat Step 4).
+5. Iterate up to **3 times**. If the bug persists after 3 attempts, stop and report to the user with all evidence collected.
+
+---
+
+## Step 5: Commit the Fix
+
+Once verification passes:
+
+```bash
+git add -A
+git commit -m "<ticket-id>: <concise description of the fix>"
+```
+
+Use the ticket ID as the commit message prefix (e.g. `ENG-2042: hide floating controls until first edit`).
+
+---
+
+## Step 6: Clean the Branch
+
+Delegate to the **clean** rule (`.cursor/rules/clean.mdc`).
+
+Invoke the clean rule against the current branch. It will review all changed files compared to `main` for structural and engineering quality issues and fix them without altering functionality. After it completes, review its summary and commit any cleanup changes:
+
+```bash
+git add -A
+git commit -m "<ticket-id>: clean up structural issues"
+```
+
+If clean reports no issues, skip this commit.
+
+---
+
+## Step 7: Open the PR
+
+Delegate to the **make-lens-pr** rule (`.cursor/rules/make-lens-pr.mdc`).
+
+Invoke the PR rule with:
+- **Source branch:** `<branch-name>`
+- **Destination branch:** `main`
+
+The PR title should be the bug title from the spec. The description should reference the Linear ticket URL and summarize the fix.
+
+---
+
+## Summary of Execution Order
+
+```
+Step 0: Parse spec → extract ticket, description, branch name
+Step 1: Create/checkout feature branch off main
+Step 2: [PARALLEL] Investigate codebase (Subagent A) + Capture visual baseline (Subagent B)
+Step 3: Implement the fix
+Step 4: Verify fix in browser (loop up to 3x if failing)
+Step 5: Commit the fix
+Step 6: Delegate → clean rule
+Step 7: Delegate → make-lens-pr rule
+```

@@ -1,27 +1,32 @@
-import ReadyUp from './pages/ReadyUp';
 import { UserContext } from './contexts/UserContext';
-import type { UserType, UserReadyStateType } from './types';
-import { useState } from 'react';
+import type { GameModeType, PreferlistTagType, UserType, UserReadyStateType } from './types';
+import { useEffect, useState } from 'react';
 import { ConnectionManager } from './util/ConnectionManager';
 import { Routes, Route } from 'react-router-dom';
 import { Lobby } from './pages/Lobby';
-import Create from './pages/Create';
 import Finish from './pages/Finish';
-import { ThemeProvider } from 'styled-components';
-import theme from './styles/theme/Theme';
-import GlobalStyles from './styles/theme/GlobalTheme';
+import GameSetup from './pages/GameSetup';
 
 const connectionManager = ConnectionManager.getInstance();
 
 function App(): JSX.Element {
   const [username, setUsername] = useState<string | undefined>();
-  const [userID, setUserID] = useState<string | undefined>();
+  const [userID, setUserID] = useState<string | undefined>(() => {
+    const stored = window.localStorage.getItem('artFeudUserId');
+    return stored || undefined;
+  });
   const [score, setScore] = useState(0);
   const [roomID, setRoomID] = useState<string | undefined>();
   const [roomName, setRoomName] = useState<string | undefined>();
+  const [roomCode, setRoomCode] = useState<string | undefined>();
+  const [isPrivate, setIsPrivate] = useState(true);
   const [readyStates, setReadyStates] = useState<UserReadyStateType[]>([]);
   const [icon, setIcon] = useState<string | undefined>();
   const [owner, setOwner] = useState<UserType | undefined>();
+  const [blacklist, setBlacklist] = useState<string[]>([]);
+  const [preferlist, setPreferlist] = useState<PreferlistTagType[]>([]);
+  const [gameMode, setGameMode] = useState<GameModeType>('Blitz');
+  const [rouletteEliminationOrder, setRouletteEliminationOrder] = useState<string[]>([]);
 
   const leaveRoomCleanup = () => {
     setRoomID(undefined);
@@ -29,41 +34,61 @@ function App(): JSX.Element {
     setReadyStates([]);
     setIcon(undefined);
     setOwner(undefined);
+    setRoomCode(undefined);
+    setIsPrivate(true);
+    setBlacklist([]);
+    setPreferlist([]);
+    setRouletteEliminationOrder([]);
   }
 
+  useEffect(() => {
+    if (userID) {
+      window.localStorage.setItem('artFeudUserId', userID);
+    }
+  }, [userID]);
+
   const value = {
-    username, 
-    userID, 
-    score, 
-    roomID, 
+    username,
+    userID,
+    score,
+    roomID,
     roomName,
-    icon, 
-    readyStates, 
-    owner, 
-    setUsername, 
-    setUserID, 
-    setScore, 
-    setRoomID, 
+    roomCode,
+    isPrivate,
+    icon,
+    readyStates,
+    owner,
+    blacklist,
+    preferlist,
+    gameMode,
+    rouletteEliminationOrder,
+    setUsername,
+    setUserID,
+    setScore,
+    setRoomID,
     setRoomName,
-    setIcon, 
-    setReadyStates, 
-    setOwner, 
-    leaveRoomCleanup, 
+    setRoomCode,
+    setIsPrivate,
+    setIcon,
+    setReadyStates,
+    setOwner,
+    setBlacklist,
+    setPreferlist,
+    setGameMode,
+    setRouletteEliminationOrder,
+    leaveRoomCleanup,
     connectionManager
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <UserContext.Provider value={value}>
-        <GlobalStyles theme={theme} />
-        <Routes>
-          <Route path="/" element={<Lobby />} />
-          <Route path="/play" element={<ReadyUp />} />
-          <Route path="/create" element={<Create />} />
-          <Route path="/finish" element={<Finish />} />
-        </Routes>
-      </UserContext.Provider>
-    </ThemeProvider>
+    <UserContext.Provider value={value}>
+      <Routes>
+        <Route path="/" element={<Lobby />} />
+        <Route path="/play" element={<GameSetup />} />
+        <Route path="/create" element={<GameSetup />} />
+        <Route path="/finish" element={<Finish />} />
+      </Routes>
+    </UserContext.Provider>
   )
 }
 // comment

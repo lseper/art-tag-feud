@@ -1,0 +1,289 @@
+---
+globs: *.tsx, *.ts
+alwaysApply: true
+---
+
+````cursorrules
+# Security & Permissions
+
+This guide covers permission handling for UI components and API routes.
+
+## CRITICAL: Permissions Must Exist in access-forge
+
+**Do NOT invent new permissions.** All permissions must be defined in `access-forge/seed-data/permissions.json` before they can be used. Using a non-existent permission will silently fail (always denied).
+
+**Before using any permission, verify it exists:**
+1. Check `access-forge/seed-data/permissions.json` for the `resource:action` combination
+2. If the permission doesn't exist, **FLAG THE USER** - they must add it to access-forge first
+
+**If you're unsure whether a permission exists:**
+- STOP and ask the user to confirm
+- Tell them: "This requires the `{resource}:{action}` permission. Please verify it exists in access-forge, or add it if needed."
+
+**Common existing permissions (non-exhaustive):** `project:view`, `project:create`, `project:delete`, `task:view`, `task:create`, `task:update`, `task:delete`, `milestone:view`, `milestone:update`, `executions:view`, `instruction:view`, `instruction:create`, `instruction:update`, `wiki:view`, `wiki:create`, `wiki:update`, `wiki:delete`
+
+## UI Component Visibility
+
+### Prefer PermissionGate Over useResourcePermission
+
+When hiding entire sections or page content based on permissions, use `PermissionGate` instead of `useResourcePermission` with conditional rendering.
+
+**✅ GOOD - PermissionGate wrapper:**
+
+```tsx
+import PermissionGate from '@/components/PermissionGate';
+
+export default function Projects() {
+  return (
+    <PermissionGate resource="project" action="view">
+      <ProjectsContent />
+    </PermissionGate>
+  );
+}
+```
+
+**❌ BAD - useResourcePermission for entire sections:**
+
+```tsx
+import { useResourcePermission } from '@/providers/CurrentUserProvider';
+
+export default function Projects() {
+  const canView = useResourcePermission('project', 'view');
+  
+  if (!canView) return <AccessDenied />;
+  
+  return <ProjectsContent />;
+}
+```
+
+### When to Use useResourcePermission
+
+Use `useResourcePermission` only for conditional elements **within already-gated content**:
+
+```tsx
+function ProjectsContent() {
+  // Parent is already wrapped in PermissionGate
+  const canDelete = useResourcePermission('project', 'delete');
+  const canCreate = useResourcePermission('project', 'create');
+
+  return (
+    <div className="projects">
+      {canCreate && <Button onClick={handleCreate}>New Project</Button>}
+      {projects.map((p) => (
+        <ProjectCard key={p.id} canDelete={canDelete} />
+      ))}
+    </div>
+  );
+}
+```
+
+### Multiple Permissions
+
+Use PermissionGate's multi-permission mode with `mode` prop:
+
+```tsx
+// Require ALL permissions (default behavior)
+<PermissionGate
+  permissions={[
+    { resource: 'executions', action: 'view' },
+    { resource: 'project', action: 'view' },
+  ]}
+>
+  <ExecutionsContent />
+</PermissionGate>
+
+// Require ANY permission
+<PermissionGate
+  permissions={[
+    { resource: 'admin', action: 'view' },
+    { resource: 'manager', action: 'view' },
+  ]}
+  mode="any"
+>
+  <AdminOrManagerContent />
+</PermissionGate>
+```
+
+### Never Rely on UI Hiding Alone
+
+UI permission checks are for UX only. **Always enforce permissions server-side.**
+
+- Hiding a button doesn't prevent API calls
+- Users can bypass UI restrictions
+- All security-sensitive operations must check permissions in the API route
+
+## API Route Protection
+
+### Every Morph API Route MUST Use requirePermission
+
+Call `requirePermission` at the start of every handler:
+
+```typescript
+import { requirePermission } from '@/utils/requirePermission';
+
+export async function GET(request: NextRequest) {
+  // Check permission FIRST
+  const permResult = await requirePermission('project', 'view');
+  if (!permResult.authorized) return permResult.response;
+
+  // ... rest of handler
+}
+
+export async function POST(request: NextRequest) {
+  const permResult = await requirePermission('project', 'create');
+  if (!permResult.authorized) return permResult.response;
+
+  // ... rest of handler
+}
+
+export async function DELETE(request: NextRequest) {
+  const permResult = await requirePermission('project', 'delete');
+  if (!permResult.authorized) return permResult.response;
+
+  // ... rest of handler
+}
+```
+
+## Request-Driven Endpoint and Query Safety
+
+### If Endpoint Comes From Request Input, Validate It
+
+Dynamic endpoint forwarding (proxy patterns) is risky unless constrained.
+
+- Prefer hardcoded upstream endpoints when possible
+- If endpoint must be request-driven, validate with `isSafeRelativeEndpoint(...)`
+- Keep endpoint scope narrow (default: must start with `/api/`)
+- Reject protocol, traversal, and header-injection patterns
+
+```typescript
+import { isSafeRelativeEndpoint } from '@/utils/isSafeRelativeEndpoint';
+
+if (!isSafeRelativeEndpoint(endpoint)) {
+  return NextResponse.json({ error: 'Invalid endpoint format' }, { status: 400 });
+}
+```
+
+### Sanitize Query Params Before Forwarding Upstream
+
+Do not forward raw `searchParams.toString()` for backend calls.
+
+- Use `sanitizeQueryParams(searchParams, endpointPath)` with an endpoint whitelist
+- Add missing endpoint schemas to `utils/sanitizeQueryParams.ts`
+- Return `400` for `QueryParamValidationError`
+- Client-facing validation responses should be generic
+
+```typescript
+import { QueryParamValidationError, sanitizeQueryParams } from '@/utils/sanitizeQueryParams';
+
+try {
+  const queryString = sanitizeQueryParams(searchParams, '/v1/projects');
+  const url = queryString ? `/v1/projects?${queryString}` : '/v1/projects';
+} catch (error) {
+  if (error instanceof QueryParamValidationError) {
+    return NextResponse.json({ error: 'Invalid query parameters' }, { status: 400 });
+  }
+  throw error;
+}
+```
+
+### Prefer Explicit Request Shapes Over Generic Pass-Through
+
+For request bodies and route params:
+
+- Prefer explicit field extraction/forwarding over full body pass-through
+- Avoid generic `{ endpoint, method, requestBody }` contracts unless absolutely required
+- If generic contract is required, enforce strict endpoint safety and method allowlist
+
+## Logging Sensitive Headers
+
+### Never Log Raw Request Headers or Cookie/Auth Values
+
+Do not log raw `req.headers`, `request.headers`, cookie values, or auth/token values in server/API code.
+
+- ❌ Never log: `authorization`, `proxy-authorization`, `cookie`, `set-cookie`, `x-api-key`, access/refresh/id tokens
+- ✅ If headers must be logged, use shared helpers from `utils/logHeaders.ts`
+  - `redactSensitiveHeaders(...)` for broad objects
+  - `pickHeadersForLog(...)` for explicit allowlist logging (preferred)
+
+### Required Logging Pattern
+
+```typescript
+import { pickHeadersForLog, redactSensitiveHeaders } from '@/utils/logHeaders';
+
+// Preferred: explicit allowlist
+const logHeaders = pickHeadersForLog(headers, ['X-User-Id', 'X-Tenant-Id']);
+console.log('Request metadata', { headers: logHeaders });
+
+// Fallback: broad object with redaction
+console.error('Request failed', { headers: redactSensitiveHeaders(req.headers) });
+```
+
+### Match Resource/Action to CRUD Operations
+
+| HTTP Method | Action    |
+|-------------|-----------|
+| GET         | `view`    |
+| POST        | `create`  |
+| PUT/PATCH   | `update`  |
+| DELETE      | `delete`  |
+
+### Multiple Permissions in API Routes
+
+Use `requirePermissions` with `mode` parameter for complex authorization:
+
+```typescript
+import { requirePermissions } from '@/utils/requirePermission';
+
+export async function POST(request: NextRequest) {
+  // Require ALL permissions (default behavior)
+  const permResult = await requirePermissions([
+    { resource: 'milestone', action: 'update' },
+    { resource: 'project', action: 'view' },
+  ]);
+  if (!permResult.authorized) return permResult.response;
+
+  // ... rest of handler
+}
+
+export async function GET(request: NextRequest) {
+  // Require ANY permission (pass 'any' as second argument)
+  const permResult = await requirePermissions([
+    { resource: 'admin', action: 'view' },
+    { resource: 'manager', action: 'view' },
+  ], 'any');
+  if (!permResult.authorized) return permResult.response;
+
+  // ... rest of handler
+}
+```
+
+## Multi-Permission Mode
+
+Both `PermissionGate` and `requirePermissions` use consistent `mode` syntax:
+
+| Mode | Behavior |
+|------|----------|
+| `mode="all"` (default) | Requires ALL permissions |
+| `mode="any"` | Requires ANY permission |
+
+## Quick Reference
+
+| Context | Tool | When |
+|---------|------|------|
+| Wrap page/section | `PermissionGate` | Default for visibility control |
+| Conditional button/action | `useResourcePermission` | Inside already-gated content |
+| API route handler | `requirePermission` | Start of every handler |
+| Multiple API permissions | `requirePermissions` | Complex authorization |
+
+## Common Mistakes
+
+- ❌ **Inventing permissions that don't exist** - always verify in `access-forge/seed-data/permissions.json`
+- ❌ Using `useResourcePermission` + `if (!canView) return null` for page content
+- ❌ Forgetting `requirePermission` in API routes
+- ❌ Assuming UI hiding is sufficient security
+- ❌ Mismatching resource/action between UI and API
+- ❌ Logging raw `req.headers` / `request.headers` or cookie/auth token values
+- ❌ Returning raw internal errors (for example `error.message`) directly to API clients
+- ❌ Forwarding raw query strings upstream without `sanitizeQueryParams`
+- ❌ Allowing request-driven endpoint forwarding without `isSafeRelativeEndpoint`
+````

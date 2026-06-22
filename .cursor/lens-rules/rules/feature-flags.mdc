@@ -1,0 +1,163 @@
+---
+description: Rules for working with feature flags in the Lens frontend
+globs: "{services/feature-flags/**,hooks/useFeatureFlag.ts,constants/featureFlags.ts,app/api/feature-flags/**,app/**/*.ts,app/**/*.tsx,utils/featureAccess.ts,config/silos/**}"
+---
+
+# Feature Flags — Lens Frontend
+
+Pluggable provider architecture. Currently **PostHog** with server-side local evaluation.
+
+- PostHog UI: https://us.posthog.com/project/295145/feature_flags
+- PostHog feature flag docs: https://posthog.com/docs/feature-flags
+
+## PostHog Flags vs. Local Runtime Flags
+
+Use PostHog feature flags for rollout, experimentation, targeting, or temporary release gating.
+
+Use **local runtime flags** when call sites should keep using the feature flag API, but the value should come from silo/runtime env instead of PostHog targeting. Local runtime flags are mapped in `services/feature-flags/localRuntimeFlags.ts` and are evaluated before the PostHog provider.
+
+```tsx
+const isEnabled = useFeatureFlag(FEATURE_FLAGS.MD_V2_ENABLED);
+```
+
+Example: `FEATURE_FLAGS.MD_V2_ENABLED` is backed by `MD_V2_ENABLED`, defaults on in code, and `tenant-morph-1` sets `MD_V2_ENABLED=false` in its silo TOML to preserve MDv1 behavior.
+
+Do not add local runtime behavior directly in `services/feature-flags/index.ts`; keep the mapping isolated in `localRuntimeFlags.ts`.
+
+## Naming
+
+- **Lowercase kebab-case only** — `my-new-feature`, not `my_new_feature`.
+- **No version suffixes** — create a new flag, retire the old one.
+- Register all keys in `constants/featureFlags.ts`.
+
+## Two Flag Types
+
+### Boolean (temporary)
+
+For feature gating. Always include a removal date:
+
+```tsx
+// TODO: Remove after full rollout (target: 2026-04-15)
+const isEnabled = useFeatureFlag(FEATURE_FLAGS.MY_NEW_FEATURE);
+```
+
+### Multivariate (can be permanent)
+
+For remote config or A/B testing. Returns `{ variantKey, payload }`. **Throws if you call it on a boolean flag** — use `isFeatureEnabled` for booleans.
+
+```typescript
+// Server-side
+import { getMultivariateFlag } from '@/services/feature-flags';
+const { variantKey, payload } = await getMultivariateFlag('tenant-config', { tenantId });
+
+// React hook
+import { useMultivariateFlag } from '@/hooks/useFeatureFlag';
+const flag = useMultivariateFlag(FEATURE_FLAGS.TENANT_CONFIG);
+const ttl = (flag?.payload as { cache_ttl?: number })?.cache_ttl ?? 30;
+```
+
+## Usage
+
+### React components
+
+```tsx
+import { useFeatureFlag, useMultivariateFlag } from '@/hooks/useFeatureFlag';
+import { FEATURE_FLAGS } from '@/constants/featureFlags';
+
+// Boolean
+const isEnabled = useFeatureFlag(FEATURE_FLAGS.MY_FEATURE);
+
+// Multivariate — returns { variantKey, payload } | null
+const flag = useMultivariateFlag(FEATURE_FLAGS.MY_CONFIG);
+```
+
+### Next.js API routes
+
+```typescript
+import { isFeatureEnabled, getMultivariateFlag } from '@/services/feature-flags';
+
+const enabled = await isFeatureEnabled('my-feature', { tenantId });
+const { variantKey, payload } = await getMultivariateFlag('tenant-config', { tenantId });
+```
+
+## Route + API Hardening (Security)
+
+When a feature is flagged, enforce the flag in both places:
+
+- Route/page entry (server-side in `app/**/page.tsx`)
+- API handlers backing that feature (`app/api/**`)
+
+Do not rely on UI-only gating (`useFeatureFlag`) for protection.
+
+### Required hardening pattern
+
+1. Evaluate access server-side using `evaluateFeatureAccess(...)` from `utils/featureAccess.ts`.
+2. Pass caller context in `personProperties` when needed (for example `current_url`).
+3. Deny route access (`redirect(...)` or `notFound()`).
+4. Deny API access (typically `403` for feature-off).
+
+### Example
+
+```typescript
+const access = await evaluateFeatureAccess(FEATURE_FLAGS.MY_FEATURE, {
+  personProperties: { current_url: '/my-route?x=1' },
+});
+
+if (!access.evaluated || !access.enabled) {
+  return NextResponse.json({ error: 'Feature is not enabled' }, { status: 403 });
+}
+```
+
+## Adding a New Flag
+
+1. Create in PostHog UI (see [PostHog docs](https://posthog.com/docs/feature-flags/creating-feature-flags) for UI steps).
+2. Add key to `constants/featureFlags.ts`.
+3. Use `useFeatureFlag` / `useMultivariateFlag` in components, or `isFeatureEnabled` / `getMultivariateFlag` in API routes.
+
+**Targeting rules:**
+- `tenant_id` alone is meaningless — must always be scoped to a `silo_name`.
+- Rule priority is by order — first match wins. Specific rules above broad rules.
+
+## Fallback Behaviour
+
+- `isFeatureEnabled` / `useFeatureFlag` → `false` on error/loading.
+- `getMultivariateFlag` → **throws** on error (boolean flag, provider not ready).
+- `useMultivariateFlag` → `null` on error/loading.
+- The else/fallback path is always the safe default.
+
+## Architecture — Do Not Change
+
+### Server-side (`services/feature-flags/`)
+
+- `provider.ts` — `FeatureFlagProvider` interface.
+- `posthogProvider.ts` — PostHog implementation with local evaluation via `posthog-node`.
+- `index.ts` — Facade: `isFeatureEnabled()`, `getMultivariateFlag()`, `shutdownFeatureFlags()`.
+- `client.ts` — Client-side helpers calling `/api/feature-flags`.
+
+### Client-side
+
+- `hooks/useFeatureFlag.ts` — Hooks: `useFeatureFlag` (boolean), `useMultivariateFlag` (variant key + payload).
+- `constants/featureFlags.ts` — Central registry of flag keys.
+- `app/api/feature-flags/route.ts` — Next.js API route. Modes: `"boolean"` (default), `"multivariate"`.
+
+### Key design decisions
+
+- **Server-side local evaluation only** — no client-side PostHog JS SDK.
+- **Provider is lazily initialized** — first call triggers init.
+- **`isFeatureEnabled` never throws** — returns `false`.
+- **`getMultivariateFlag` throws** on boolean flags or provider errors — no silent fallback.
+- **Distinct ID format** — `lens:{silo_name}:{tenant_id}`.
+- **Group-based targeting** — `silo:tenant` group always sent.
+
+## Cross-Service Consistency
+
+All three services share the same PostHog project, flag keys, and `silo:tenant` targeting. Distinct IDs prefixed: `morph:`, `access-forge:`, `lens:`.
+
+## Do NOT
+
+- Evaluate flags client-side directly — always go through the server route.
+- Use `getMultivariateFlag` for boolean flags — it will throw. Use `isFeatureEnabled`.
+- Use boolean flags for permanent config — use multivariate.
+- Put experimental code in the fallback branch.
+- Log errors to browser console — silently default to `false`/`null` in hooks.
+- Gate only route UI without also gating backing APIs.

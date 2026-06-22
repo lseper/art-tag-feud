@@ -1,0 +1,111 @@
+---
+description: Review and clean structural/engineering issues on the current branch compared to main
+alwaysApply: false
+---
+
+# Clean: Structural & Engineering Review
+
+When asked to "clean" or run this rule, review every changed file on the current branch (compared to `main`) for structural and engineering quality issues. **Do NOT alter functionality** — only fix code style, naming, patterns, and structure to match team standards.
+
+## Step 0: Get the Diff
+
+Run these commands to identify what changed:
+
+```bash
+git diff main...HEAD --name-only
+git diff main...HEAD
+```
+
+Separate the changed files into groups:
+- **CSS files** (`.css`)
+- **TSX/TS files** (`.tsx`, `.ts`)
+- **Other** (ignore — no structural review needed)
+
+If there are no changed files, stop and tell the user.
+
+## Step 1: Launch Subagents
+
+You **must** use subagents for all review and fix work. Launch them in parallel where possible.
+
+### Subagent A — CSS Review
+
+Launch a subagent with this prompt (include the list of changed CSS files and the full diff for those files):
+
+> You are reviewing CSS changes for structural and style compliance. You must NOT change any functionality — only fix code quality issues.
+>
+> **Changed CSS files:** [list them]
+>
+> **Full diff of those files:**
+> ```
+> [paste the CSS portion of the diff]
+> ```
+>
+> Read each changed CSS file in full. For every change introduced on this branch, check and fix:
+>
+> 1. **DOM-order mapping** — selectors must appear in the exact order elements appear in their JSX component. If ordering is wrong, reorder the selectors. If you cannot determine JSX order, flag it but do not guess.
+> 2. **Naming** — classNames must follow `component-descriptor-variant` format, dash-separated, max 4 words. No camelCase, no underscores. Flag any violations.
+> 3. **Selector type** — only `.class {}` selectors allowed, never bare element selectors (`div {}`, `p {}`). `:root` is the only exception.
+> 4. **Nesting** — max 2 levels deep in new code. Nesting is only for modifiers (`&.active`) and state cascades (`&.open .child`). Never nest for structural organization. Never write `.parent .child {}` on one line — always use `&` nesting syntax.
+> 5. **CSS variables** — no hardcoded pixel values or hex colors. Use `var(--*)` or `calc()` with existing variables. Refer to the spacing scale: `--xxs` (0.25rem), `--xs` (1rem), `--padding`, `--margin`, `--tile` (4rem), `--xl` (16rem), `--xxl` (64rem).
+> 6. **Block comments** — new component CSS in `workshop.css` must be wrapped in dramatic block comments (`/* * * * ... COMPONENT: Name ... * * * */`).
+> 7. **Z-index discipline** — only -1, 0, 1 allowed. Prefer DOM reordering.
+> 8. **Property ordering** — Layout → Typography → Box Model → Visual → Animation → Other.
+> 9. **Unused CSS** — if a className was removed from TSX in this diff, remove the corresponding CSS selector.
+> 10. **File location** — new component CSS must be in `workshop.css`. Never move CSS between files or create new CSS files.
+>
+> Fix all violations directly. Do not change behavior — only structure, naming, ordering, and variable usage. After fixing, briefly report what you changed.
+
+### Subagent B — TSX Review
+
+Launch a subagent with this prompt (include the list of changed TSX/TS files and the full diff):
+
+> You are reviewing TSX/TS changes for structural and style compliance. You must NOT change any functionality — only fix code quality issues.
+>
+> **Changed TSX/TS files:** [list them]
+>
+> **Full diff of those files:**
+> ```
+> [paste the TSX/TS portion of the diff]
+> ```
+>
+> Read each changed file in full. For every change introduced on this branch, check and fix:
+>
+> 1. **Every element has a className** — no naked `<div>`, `<span>`, `<section>`, `<nav>`, `<aside>`, or container elements. Rare exceptions: bare `<h1>`, `<h2>`, `<p>`.
+> 2. **Use `cn()` from clsx** — all conditional classNames must use `cn()`. No ternaries for className strings (`className={x ? 'a' : 'b'}`), no template literals (`className={\`card ${x}\``}`). Import `cn` from `'clsx'` if missing.
+> 3. **No inline styles for visual state** — `style={{ display: x ? 'block' : 'none' }}` and similar must become className toggles. Exception: truly dynamic data values (progress bars, CSS custom properties).
+> 4. **No CSS imports** — components must never `import './X.css'` or `import styles from './X.module.css'`. All CSS is loaded via `app.css`.
+> 5. **Clean JSX** — complex logic must be extracted before the return statement. JSX should read like HTML, not JavaScript. No nested ternaries inside className or children.
+> 6. **ClassName format** — `component-descriptor-variant`, dash-separated, max 4 words. No camelCase or underscores in classNames.
+> 7. **Design system components** — if the diff introduces UI that duplicates an existing component from `components/morph/` or one with a `.stories.tsx` file, flag it (do not auto-fix — just report).
+> 8. **Permission patterns** — if the diff adds permission checks:
+>    - Entire sections/pages must use `<PermissionGate>`, not `useResourcePermission` + conditional return.
+>    - `useResourcePermission` is only for conditional elements inside already-gated content.
+>    - Every API route handler must call `requirePermission` / `requirePermissions`.
+>    - Permissions must reference resources that exist in `access-forge/seed-data/permissions.json` — flag any that look invented.
+> 9. **Unused imports / dead code** — remove any imports or variables introduced in the diff that are no longer used.
+>
+> Fix all violations directly. Do not change behavior — only structure, patterns, and style. After fixing, briefly report what you changed.
+
+### Subagent C — Collision & Cleanup Audit
+
+Launch a subagent with this prompt (include all changed files):
+
+> You are auditing the branch changes for className collisions and dead CSS.
+>
+> **All changed files:** [list them]
+>
+> 1. For every **new className** introduced in the diff, search globally across all `.css` and `.tsx` files to check whether the name already exists elsewhere. Report any collisions found.
+> 2. For every className **removed** from a TSX file in the diff, check whether the CSS selector still exists and is unused. If so, remove it.
+> 3. Check for any new generic/collision-prone classNames (`container`, `wrapper`, `header`, `button`, `box`, `title`, `content`, `label`, `icon`, `item`, `list`, `link`, `text`, `card`, `footer`, `body`, `section`, `row`, `col`) that lack a component-specific prefix. Flag them.
+>
+> Report all findings. Fix dead CSS directly. For collisions, suggest renamed classNames but ask the user before renaming.
+
+## Step 2: Collect Results
+
+After all subagents complete, summarize for the user:
+
+1. **Fixes applied** — list each file and what was changed (briefly).
+2. **Collisions found** — list any className collisions that need user decision.
+3. **Flags** — anything that could not be auto-fixed (ambiguous JSX order, possible design system duplication, invented permissions, etc.).
+
+Do not create a commit. The user will review and commit when ready.

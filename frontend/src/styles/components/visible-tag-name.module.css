@@ -1,0 +1,51 @@
+.name {
+  order: 0;
+  flex: 0 1 auto;
+  align-self: auto;
+}
+
+.artist {
+  color: var(--c-tag-artist);
+}
+
+.character {
+  color: var(--c-tag-character);
+}
+
+.species {
+  color: var(--c-tag-species);
+}
+
+.general {
+  color: var(--c-tag-general);
+}
+
+@media (max-width: 600px) {
+  .name {
+    font-size: 0.95em;
+  }
+}
+
+@media (max-width: 490px) {
+  .name {
+    font-size: 0.9em;
+  }
+}
+
+@media (max-width: 430px) {
+  .name {
+    font-size: 0.85em;
+  }
+}
+
+@media (max-width: 390px) {
+  .name {
+    font-size: 0.8em;
+  }
+}
+
+@media (max-width: 360px) {
+  .name {
+    font-size: 0.75em;
+  }
+}

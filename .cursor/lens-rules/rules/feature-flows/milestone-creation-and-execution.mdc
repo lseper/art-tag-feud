@@ -1,0 +1,15 @@
+---
+description: Test Milestone Creation + Execution within lens-www
+alwaysApply: true
+---
+Test and Debug by using `agent-browser` with `--session-name lens-www` and going to the URL `http://localhost:3000/project/1043`. The tenant should be "Liam's Tenant" and the project name should be "node-hello-world". Test the entire milestone execution flow (takes around 1 - 2 minutes in total) by:
+- Ensure you're on the spec version "v2" in the UI by clicking the "Spec Version" dropdown and selecting "v2" from the list.
+- Creating a new milestone version by hitting the "Milestone Version" dropdown, and selecting "Create new version". 
+- Input the next logical version from the ones already listed (e.g. if v1, v2, v3 exist, enter v4). 
+- This will automatically kickoff roadmap generation.
+- After roadmap generation is finished, verify the Milestone Version is selected as the one you created.
+- Then, select the Milestone card. This will open with a "Review and Approve" button. Click this to open the Milestone Drawer.
+- In the Milestone Drawer, click the "Save, Approve, & Start" button.
+- Milestone execution is now kicked off.
+
+Monitor console logs and all network requests.

@@ -1,0 +1,40 @@
+---
+globs: package.json,package-lock.json
+alwaysApply: false
+---
+
+````cursorrules
+# Package Dependencies & Overrides
+
+Policy for changing `package.json`, lockfiles, and nested (transitive) dependencies.
+
+## Default: Do Not Reach for Overrides First
+
+**Never use npm `overrides` as the first response** to a vulnerable, outdated, or unwanted transitive package.
+
+## Required Workflow (In Order)
+
+1. **Map the dependency path** before changing versions or adding overrides: `npm why <package>` (or `npm ls <package>`).
+2. **If the package is transitive**, prefer **upgrading the direct dependency that introduces it** (the parent in the tree) so the fix comes from a supported upstream release.
+3. **Document** in the PR what introduced the package and what you tried (parent bump, subpath, alternative package).
+
+## When Overrides Are Allowed
+
+Use npm `overrides` **only when** there is **no safe upstream fix** within a reasonable horizon (e.g. no fixed parent release, or upgrade breaks the app and cannot be resolved quickly).
+
+An override PR **must** include:
+
+- **Linked issue or CVE** (or security advisory) justifying the exception.
+- **Scope minimization** — narrowest package name/version range possible; avoid blanket overrides.
+- **Expiry / removal plan** — ticket or follow-up to remove the override once upstream ships a fix (link in PR description).
+- **CI verification** — lockfile updated, install succeeds, tests (and any relevant security/check scripts) pass.
+
+**Required narrative:** explicitly state **why upgrading the introducing parent** (or another non-override path) was **not viable** — e.g. no release, breaking change, incompatible peer chain, with concrete evidence from `npm why` / release notes / failed bump attempt.
+
+## Review Checklist
+
+- [ ] Ran `npm why` (or `npm ls`) for the target package.
+- [ ] Tried or ruled out parent upgrade with reasoning.
+- [ ] If override used: CVE/issue link, minimal scope, removal ticket, CI green, and “why parent upgrade failed” spelled out.
+
+````

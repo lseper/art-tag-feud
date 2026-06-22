@@ -1,0 +1,95 @@
+.wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 0 16px;
+  box-shadow: 0 0 5px #000;
+  border-radius: 5px;
+}
+
+.roomNameInputContainer {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  margin-top: 16px;
+  width: 100%;
+}
+
+.roomNameInput {
+  padding: 12px 20px;
+  margin-left: 32px;
+  border: 4px solid var(--c-tag-species);
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--c-tag-species);
+  caret-color: var(--c-tag-species);
+  transition: background-color 0.2s, transform 0.2s, color 0.2s, caret-color 0.2s;
+}
+
+.roomNameInput::placeholder {
+  color: var(--c-tag-species);
+  opacity: 0.5;
+}
+
+.roomNameInput:hover {
+  outline: none;
+  transform: scale(1.15);
+}
+
+.roomNameInput:focus {
+  outline: none;
+  background-color: var(--c-tag-species);
+  color: var(--background);
+  caret-color: var(--background);
+}
+
+.roomNameInput:focus::placeholder {
+  color: var(--background);
+}
+
+.buttonRow {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.actionButton {
+  padding: 12px;
+  margin: 0 24px 16px 24px;
+  color: var(--background);
+  opacity: 1;
+  border-radius: 12px;
+  border-style: none;
+  transition: transform 0.2s, opacity 0.2s;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.actionButton:hover {
+  transform: scale(1.15);
+}
+
+.disabled {
+  opacity: 0.5;
+}
+
+.disabled:hover {
+  transform: scale(1);
+}
+
+.backButton {
+  background-color: var(--c-tag-general);
+}
+
+.createButton {
+  background-color: var(--c-tag-character);
+}

@@ -1,0 +1,79 @@
+---
+description: Keep the key-rotation template in sync with EncryptedJSON columns
+globs: src/morph/**/*.py, alembic/templates/rotate_encryption_key.py.template
+---
+
+# Encryption Key Rotation — Keep `ROTATING_TABLES` Current
+
+Key rotation is driven by an explicit list, not introspection. The template at
+`alembic/templates/rotate_encryption_key.py.template` re-encrypts every
+`(table, column)` in its `ROTATING_TABLES` constant. Any `EncryptedJSON`
+column not in that list will be **silently skipped** during the next rotation
+and become permanently unreadable once the old key is retired.
+
+## When You Touch an `EncryptedJSON` Column, Update the Template
+
+Whenever you **add**, **rename**, or **remove** an `EncryptedJSON` column on a
+SQLModel — or rename the table that owns one — update `ROTATING_TABLES` in
+`alembic/templates/rotate_encryption_key.py.template` in the same change.
+
+```python
+# alembic/templates/rotate_encryption_key.py.template
+ROTATING_TABLES: list[tuple[str, str]] = [
+    ("lifecycle_configs", "secrets"),
+    ("lifecycle_configs", "lifecycle_scripts"),
+    ("project_configurations", "configuration"),
+    # ("my_new_table", "my_new_encrypted_column"),  ← add yours here
+]
+```
+
+The entry is the **physical table name and column name**, not the model class
+or attribute name — it is read by raw SQL, so what's in Postgres is what
+matters.
+
+## How to Verify the List Is Complete
+
+Before merging a PR that touches an encrypted column, grep the codebase and
+confirm every hit is represented in `ROTATING_TABLES`:
+
+```bash
+grep -rn "EncryptedJSON(" src/morph/
+```
+
+Each match should correspond to a `(table, column)` tuple in the template.
+Removing an `EncryptedJSON` column? Drop the matching tuple in the same PR so
+rotation does not try to read a column that no longer exists.
+
+## RLS
+
+Rotation must see every tenant's row, so the template runs the rewrite under
+`SET LOCAL app.tenant_id = '-1'`. This relies on every table in
+`ROTATING_TABLES` having the super-user escape (`OR ... = -1`) on its tenant
+isolation policy.
+
+When you add an `EncryptedJSON` column, confirm that the owning table's RLS
+policy includes that escape — if it's in the simple-isolation pattern (no
+super-user branch, see migration `031`'s `TABLES_SIMPLE_ISOLATION`), update
+the policy in the same migration that adds the column. Migration `091` does
+this for `project_configurations`.
+
+## Why a Static List
+
+- Rotation runs as a copied-out Alembic migration, frozen at copy time.
+  Whatever the list contains *when the migration is committed* is what gets
+  rotated — runtime introspection of the live schema would couple the
+  migration to model state that may have moved on.
+- Explicitness makes the rotation reviewable: a reader can see exactly which
+  columns will be re-encrypted without running the code.
+
+The trade-off is that the list can drift. This rule exists to prevent that.
+
+## Don't
+
+- Don't add an `EncryptedJSON` column without updating `ROTATING_TABLES` in
+  the same PR.
+- Don't remove an entry from `ROTATING_TABLES` without confirming the column
+  is actually gone from the schema (and from any pre-rotation backups you
+  still need to read).
+- Don't reach for runtime model introspection inside the rotation template —
+  the static list is the contract.

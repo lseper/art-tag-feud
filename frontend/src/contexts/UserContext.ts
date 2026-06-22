@@ -1,6 +1,6 @@
 import { createContext } from 'react';
 import { ConnectionManager } from '../util/ConnectionManager';
-import type {UserReadyStateType, UserType} from '../types';
+import type {GameModeType, PreferlistTagType, UserReadyStateType, UserType} from '../types';
 
 type UserContextType = {
     // user specific things
@@ -10,19 +10,31 @@ type UserContextType = {
     // room specific things
     roomID?: string,
     roomName?: string,
+    roomCode?: string,
+    isPrivate: boolean,
     icon?: string,
     readyStates: UserReadyStateType[],
     owner?: UserType,
+    blacklist: string[],
+    preferlist: PreferlistTagType[],
+    gameMode: GameModeType,
+    rouletteEliminationOrder: string[],
     connectionManager: ConnectionManager
 
     setUserID: (userID: string) => void,
     setUsername: (username: string) => void,
     setRoomID: (roomID: string) => void,
     setRoomName: (roomName: string) => void,
+    setRoomCode: (roomCode: string | undefined) => void,
+    setIsPrivate: (isPrivate: boolean) => void,
     setIcon: (icon: string) => void,
     setReadyStates: (readyStates: UserReadyStateType[]) => void,
     setOwner: (owner: UserType) => void,
     setScore: (score: number) => void,
+    setBlacklist: (blacklist: string[]) => void,
+    setPreferlist: (preferlist: PreferlistTagType[]) => void,
+    setGameMode: (gameMode: GameModeType) => void,
+    setRouletteEliminationOrder: (order: string[]) => void,
     leaveRoomCleanup: () => void,
 }
 
@@ -30,14 +42,25 @@ export const UserContext = createContext<UserContextType>({
         score: 0,
         connectionManager: ConnectionManager.getInstance(),
         readyStates: [],
-    
-        setUserID: (userID: string) => {},
-        setUsername: (username: string) => {},
-        setRoomID: (roomID: string) => {},
-        setRoomName: (roomID: string) => {},
-        setScore: (score: number) => {},
-        setIcon: (icon: string) => {},
-        setOwner: (owner: UserType) => {},
-        setReadyStates: (readyStates: UserReadyStateType[]) => {},
+        blacklist: [],
+        preferlist: [],
+        isPrivate: true,
+        gameMode: 'Blitz',
+        rouletteEliminationOrder: [],
+
+        setUserID: (_userID: string) => {},
+        setUsername: (_username: string) => {},
+        setRoomID: (_roomID: string) => {},
+        setRoomName: (_roomID: string) => {},
+        setRoomCode: (_roomCode: string | undefined) => {},
+        setIsPrivate: (_isPrivate: boolean) => {},
+        setScore: (_score: number) => {},
+        setIcon: (_icon: string) => {},
+        setOwner: (_owner: UserType) => {},
+        setReadyStates: (_readyStates: UserReadyStateType[]) => {},
+        setBlacklist: (_blacklist: string[]) => {},
+        setPreferlist: (_preferlist: PreferlistTagType[]) => {},
+        setGameMode: (_gameMode: GameModeType) => {},
+        setRouletteEliminationOrder: (_order: string[]) => {},
         leaveRoomCleanup: () => {},
 });

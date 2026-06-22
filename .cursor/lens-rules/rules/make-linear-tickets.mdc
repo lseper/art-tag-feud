@@ -1,0 +1,112 @@
+---
+description: Create Linear tickets on team ENG from full design + MVP spec markdown using agent-browser (--session-name linear), one PR per ticket, with optional assignee and parent/sub-issue splits.
+alwaysApply: false
+---
+
+# Make Linear Tickets (ENG team)
+
+When invoked, you receive **inputs** that define scope and ownership:
+
+1. **Full design document** (markdown) — description, feature list, implementation questions, architecture notes, constraints, and any other context needed to scope work accurately.
+2. **Short MVP list** (markdown) — ordered or grouped steps the system must implement to reach MVP; use this as the backbone for ticket ordering and dependencies.
+3. **System name** — a short product/system label for ticket titles (e.g. `Fixachu`, `Lens`, `Morph`). If the user does not supply it, infer a concise name from the design doc and state it once before creating tickets.
+4. **Linear assignee** — the **display name or @handle** of the Linear user to assign every new issue to. The user must provide this when using the rule. If they omit it, stop and ask for the assignee before creating tickets.
+
+Your job is to **create all issues on the Linear board** for team ENG using **agent-browser** with a **dedicated session**, keep **status To Do**, **assign** each issue to the given user, and structure work so **each ticket is one PR-sized unit of work**.
+
+**Board URL (team ENG):** https://linear.app/modelcode/team/ENG
+
+---
+
+## Session and tooling
+
+- **Always** prefix agent-browser commands with `--session-name linear` so cookies, login, and team context persist and do not collide with other automations:
+
+```bash
+agent-browser --session-name linear open https://linear.app/modelcode/team/ENG
+agent-browser --session-name linear wait --load networkidle
+agent-browser --session-name linear snapshot -i
+```
+
+- Follow the agent-browser workflow: **open → wait → snapshot → interact → re-snapshot** after navigation or DOM changes. Refs (`@e1`, …) invalidate after page updates; never reuse stale refs.
+- If the user is not logged in, pause and have them complete login in the headed browser (or use their existing Linear session / `agent-browser state` / auth patterns per project docs), then continue with the same `--session-name linear` session.
+
+---
+
+## Planning before clicking
+
+1. Read the **full design doc** and **MVP list** end-to-end.
+2. Build a **ticket outline** (mentally or in your reply) where each item is **one merged PR** of work: reviewable, testable, and shippable without unrelated scope.
+3. **Title format** (required for every issue):
+
+   `{SystemName}: {Feature} - {SubFeature}`
+
+   - `{SubFeature}` is optional; omit the ` - {SubFeature}` segment when a single feature name is enough.
+   - Use **Title Case** or sentence case consistently with existing ENG issues; stay concise (roughly under ~80 characters when possible).
+4. **Granularity rule:** If a planned ticket would clearly require multiple PRs, **split it**:
+   - Create a **parent** issue whose title describes the **epic** (same title format; feature is the umbrella).
+   - Create **child** issues that each map to **one PR**, and in Linear **link them as sub-issues of the parent** (use Linear’s parent/sub-issue UI so children appear under the parent).
+   - The **parent** should still have a short description and acceptance criteria focused on **overall outcome**; **children** carry the **actionable** PR-level criteria.
+5. Order creation so **foundational** tickets exist before **dependent** ones when the UI makes linking or references easier (create parent first, then sub-issues, then any standalone siblings).
+
+---
+
+## Issue fields (every ticket)
+
+### Title
+
+`{SystemName}: {Feature} - {SubFeature}` as above.
+
+### Description
+
+Use Linear’s description editor with two sections:
+
+1. **What this accomplishes** — 1–3 short paragraphs (or tight bullets) tying the ticket to the design doc and MVP step(s) it implements. Reference **which MVP items** and **which design sections** apply (by heading name or bullet label, not huge paste).
+2. **Acceptance criteria** — a **short bulleted list** of checkable outcomes for **done**. Each bullet should be objectively verifiable (behavior, API, UI state, tests, docs, rollout flag, etc.).
+
+### Status
+
+Leave new issues in **To Do** (Linear’s default backlog state for new work). Do **not** move tickets to In Progress or Done unless the user explicitly asks.
+
+### Assignee
+
+When creating each issue, set **Assignee** to the user named in the invocation (match Linear’s people picker by display name or handle). If the picker does not match unambiguously, **stop**, report candidates, and ask the user to confirm the exact Linear identity.
+
+### Team / project
+
+Ensure issues are created **on team ENG** (the URL above). If Linear prompts for team or project, choose the context that keeps issues visible on **https://linear.app/modelcode/team/ENG**.
+
+---
+
+## Execution with agent-browser (high level)
+
+These steps are **guidance**; always drive the **actual** UI from fresh `snapshot -i` output.
+
+1. `agent-browser --session-name linear open https://linear.app/modelcode/team/ENG`
+2. `agent-browser --session-name linear wait --load networkidle`
+3. Use **Create issue** (or equivalent) from the team view; complete **title**, **description**, **status To Do**, **assignee**.
+4. After each create, **re-snapshot** and confirm the issue appears in the list or open the issue detail to verify fields.
+5. For **sub-issues**: create the **parent** first, open it, then use **Add sub-issue** / **Create sub-issue** (wording varies) for each child; set the same assignee and **To Do** on each child.
+6. If description needs **multi-line** or **markdown**, type or paste carefully; use Linear’s formatting if available. Avoid pasting secrets or credentials from specs.
+7. When finished, `agent-browser --session-name linear close` if no other work needs that session.
+
+---
+
+## Output back to the user
+
+When done, summarize:
+
+- **System name** used in titles.
+- **Count** of parents and children (if any).
+- **List of created issue titles** (and Linear identifiers if visible in the UI, e.g. `ENG-1234`).
+- Any **tickets deferred** or **blocked** on missing spec detail (with what you need from the user).
+
+---
+
+## Do not
+
+- Do not merge multiple unrelated PRs into one ticket “to save time.”
+- Do not invent assignees; if missing, ask.
+- Do not leave issues unassigned when the user provided an assignee.
+- Do not skip acceptance criteria.
+- Do not use a different agent-browser session name for this workflow (stick to `--session-name linear` unless the user explicitly overrides for debugging).

@@ -1,0 +1,26 @@
+.input {
+  height: 2.5rem;
+  width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background-color: var(--background);
+  color: var(--foreground);
+  padding: 0 0.75rem;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.input::placeholder {
+  color: var(--muted-foreground);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring), transparent 70%);
+}
+
+.input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
