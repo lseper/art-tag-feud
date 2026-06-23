@@ -117,11 +117,13 @@
   --c-rank-third: #f0b464;
 
   --input-height: 25px;
-
+/* 
   --app-bg-image: url("../images/nsfw/e6TagGameMascotNSFW.png");
-  --app-bg-image-blur: url("../images/nsfw/e6TagGameMascotBlurNSFW.png");
-  --app-bg-image-sfw: url("../images/sfw/e6TagGameMascotSFW.png");
-  --app-bg-image-blur-sfw: url("../images/sfw/e6TagGameMascotBlurSFW.png");
+  --app-bg-image-blur: url("../images/nsfw/e6TagGameMascotBlurNSFW.png"); */
+  --app-bg-image: url("../images/sfw/e6TagGameMascotSFW.png");
+  --app-bg-image-blur: url("../images/sfw/e6TagGameMascotBlurSFW.png");
+  /* --app-bg-image-sfw: url("../images/sfw/e6TagGameMascotSFW.png");
+  --app-bg-image-blur-sfw: url("../images/sfw/e6TagGameMascotBlurSFW.png"); */
 }
 
 .dark {

@@ -13,7 +13,7 @@ const POSTS_BASE = 'posts.json';
 const DEFAULT_BLACKLIST_LOCAL = ['animated', 'flash'];
 const DEFAULT_BLACKLIST_PROD = ['gore', 'scat', 'feral', 'cub', 'loli', 'young', 'forced', 'animated', 'diaper', 'flash'];
 const DEFAULT_BLACKLIST = process.env.NODE_ENV === 'production' ? DEFAULT_BLACKLIST_PROD : DEFAULT_BLACKLIST_LOCAL;
-const META_MODIFIERS = ['score:>=25', 'gentags:>=10', 'rating:explicit', 'order:random'];
+const META_MODIFIERS = ['score:>=25', 'gentags:>=10', 'rating:safe', 'order:random'];
 
 const ARTIST_TAG_SCORE = 150;
 const CHARACTER_TAG_SCORE = 300;
